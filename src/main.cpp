@@ -206,7 +206,9 @@ int main() {
   };
   PathGenerator path_gen(waypoints, max_s);
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&path_gen](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  double lastSpeed = 0;
+
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&path_gen,&lastSpeed](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -245,14 +247,23 @@ int main() {
 
           	json msgJson;
 
+            car_speed = 0.447039 * car_speed;
+
             VehicleState state {
                 car_x,
                 car_y,
                 car_s,
                 car_d,
                 car_yaw,
-                car_speed
+                car_speed,
+                end_path_d,
+                end_path_s,
+                previous_path_x,
+                previous_path_y
             };
+
+            lastSpeed = car_speed;
+
             PathPoints points = path_gen.generate_path(state);
 
           	vector<double> next_x_vals = points.x;
@@ -264,7 +275,7 @@ int main() {
 
           	auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
-          	this_thread::sleep_for(chrono::milliseconds(200));
+          	//this_thread::sleep_for(chrono::milliseconds(1000));
           	ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
           
         }

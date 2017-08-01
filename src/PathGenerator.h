@@ -29,6 +29,10 @@ typedef struct {
     double d;
     double yaw;
     double speed;
+    double end_d;
+    double end_s;
+    std::vector<double> remaining_path_x;
+    std::vector<double> remaining_path_y;
 } VehicleState;
 
 class PathGenerator {
