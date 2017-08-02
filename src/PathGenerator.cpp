@@ -110,13 +110,15 @@ public:
     Waypoints waypoints_;
     double s_max_;
     LoopingUniformCRSpline<Vector<2>>* spline_;
-    LoopingUniformCRSpline<Vector<1>>* spline_d_;
     std::vector<double> JMTparams;
-    double T;
+    double dT;
     int maxItems;
-    double last_s;
+    double dt;
+    int prevItems;
+    double maxToKeep = 5;
 
-    double last_time;
+    double timeToNextJMT;
+    bool bDidSkip;
 };
 
 PathGenerator::PathGenerator() : pimpl(new impl()) {
@@ -129,7 +131,9 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
 
     impl& im = *pimpl;
     im.s_max_ = s_max;
-    im.maxItems = 100;
+    im.maxItems = 150;
+    im.timeToNextJMT = 0;
+    im.prevItems = 0;
 
     std::vector<Vector<2>> xv;
     std::vector<Vector<1>> sv;
@@ -189,10 +193,9 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
     }
 
     im.spline_ = new LoopingUniformCRSpline<Vector<2>>(xv);
-    im.spline_d_ = new LoopingUniformCRSpline<Vector<1>>(sv);
     im.waypoints_ = newWaypoints;
-    im.last_time = 0;
-    im.T = 5.f;
+    im.dT = 3.f;
+    im.dt = 0.02;
 
 }
 
@@ -200,15 +203,39 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
 
     impl& im = *pimpl;
 
-    //generate 50 points along this path in one second
+    double usedT = im.find_closest_time(state.s);
+    int used = (int) fmax(0, im.prevItems - (int) state.remaining_path_x.size());
+    unsigned long toKeep = (unsigned long) fmin(im.maxToKeep, state.remaining_path_x.size());
+
+    //reduce time
+    im.timeToNextJMT -= used * im.dt;
+    im.prevItems = (int) state.remaining_path_x.size();
+
+    bool bSkip = im.timeToNextJMT > 0;
+
+    // add previous points
     PathPoints retval;
-    //auto jmtParams = im.generate_constraint_JMT(state, 20, 5, 10);
+    int i = 0;
+    for (; i < state.remaining_path_x.size() && (bSkip || i < im.maxToKeep); i++) {
+        retval.x.push_back(state.remaining_path_x[i]);
+        retval.y.push_back(state.remaining_path_y[i]);
+    }
 
-    //int prevWaypoint = im.find_waypoint_floor(im.waypoints_, state.s);
-    //int nextWaypoint = im.find_waypoint_floor(im.waypoints_, JMTeval(jmtParams, im.T)) + 1;
+    if (bSkip) {
+        printf("skipped - time to cover %f\n", im.timeToNextJMT);
+        return retval;
+    }
 
-    int prevWaypoint = im.find_waypoint_floor(im.waypoints_, state.remaining_path_x.size() == 0 ? state.s : state.end_s);
-    int nextWaypoint = prevWaypoint + 1;
+    im.bDidSkip = false;
+
+    //generate points along this path in one second
+    auto jmtParams = im.generate_constraint_JMT(state, 20, 5, 10);
+
+    double remT = im.dT - toKeep * im.dt;
+    double s_start = JMTeval(jmtParams, 0);
+    double s_end = JMTeval(jmtParams, remT);
+    int prevWaypoint = im.find_waypoint_floor(im.waypoints_, s_start);
+    int nextWaypoint = im.find_waypoint_floor(im.waypoints_, s_end) + 1;
 
     if (nextWaypoint == prevWaypoint) {
         nextWaypoint++;
@@ -234,40 +261,36 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
         waypointDiff += im.waypoints_.s.size();
     }
 
-    int remItems = im.maxItems - state.remaining_path_x.size();
-    double s_start = state.remaining_path_x.size() == 0 ? state.s : state.end_s;
-    double s_curr = s_start - im.waypoints_.s[prevWaypoint];
     double s_rate = s_diff / waypointDiff;
 
-    double s_base = (s_curr / s_rate) + prevWaypoint;
-    //double s_end = JMTeval(jmtParams, im.T) / s_rate + prevWaypoint;
-    double s_end = (s_curr + remItems * 25 / im.maxItems) / s_rate + prevWaypoint;
-    //double s_path_rate = (s_end - s_base) / remItems;
-
-    double s_path_rate = 0.025f;
-    // add previous points
-    int i = 0;
-    for (; i < state.remaining_path_x.size() && i < 10; i++) {
-        retval.x.push_back(state.remaining_path_x[i]);
-        retval.y.push_back(state.remaining_path_y[i]);
-    }
-
-    double base = im.last_time;
-    base -= (state.remaining_path_x.size() - i) * s_path_rate;
+    double diff = 0, normalDiff;
 
     // determine optimal s positions along JMT
-    int j = 0;
+    int j = 0, lastKeep = i;
     for (j = 0; i < im.maxItems; i++, j++) {
-        //double s_delta_eval = JMTeval(jmtParams, i * 0.02);
-        //double s_curr_delta = s_delta_eval - im.waypoints_.s[prevWaypoint];
-        //double s = (s_curr_delta / s_rate) + prevWaypoint;
-        //Vector<2> v = im.spline_->getPosition(s);
-        Vector<2> v = im.spline_->getPosition(base + j * s_path_rate);
+        double s_delta_eval = JMTeval(jmtParams, j * im.dt);
+        if (s_delta_eval > s_end + 0.0001) {
+            throw new std::exception();
+        }
+        double s_curr_delta = s_delta_eval - im.waypoints_.s[prevWaypoint];
+        double s = (s_curr_delta / s_rate) + prevWaypoint;
+        Vector<2> v = im.spline_->getPosition(s);
         double x = v[0];
         double y = v[1];
         retval.x.push_back(x);
         retval.y.push_back(y);
     }
+
+    if (lastKeep > 1) {
+        diff = sqrt(pow(retval.x[lastKeep] - retval.x[lastKeep - 1], 2) +
+                    pow(retval.y[lastKeep] - retval.y[lastKeep - 1], 2));
+        normalDiff = sqrt(pow(retval.x[lastKeep - 1] - retval.x[lastKeep - 2], 2) +
+                          pow(retval.y[lastKeep - 1] - retval.y[lastKeep - 2], 2));
+    }
+
+    printf("Used: %ld\n", used);
+    printf("S: %f, Estimated S: %f, diff: %f\n", state.s, JMTeval(im.JMTparams, usedT), state.s - JMTeval(im.JMTparams, usedT));
+    printf("Diff between new/old JMT: %f, normal diff: %f\n", diff, normalDiff);
 
 #if 0
     printf("Position: %f %f\n", state.x, state.y);
@@ -279,8 +302,9 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     printf("End: %f %f\n\n", retval.x[retval.x.size() - 1], retval.y[retval.y.size() - 1]);
 #endif
 
-    im.last_time += remItems * s_path_rate;
-    //im.JMTparams = jmtParams;
+    im.timeToNextJMT = toKeep * im.dt;
+    im.JMTparams = jmtParams;
+    im.prevItems = im.maxItems;
 
     return retval;
 }
@@ -295,11 +319,11 @@ int PathGenerator::impl::find_waypoint_floor(Waypoints waypoints, double s) {
 
 double PathGenerator::impl::find_closest_time(double s) {
     double t = 0;
-    while (t < T) {
-        if (JMTeval(JMTparams, t + .02) > s) {
+    while (t < dT) {
+        if (JMTeval(JMTparams, t + dt) > s) {
             break;
         }
-        t += 0.02;
+        t += dt;
     }
     return t;
 }
@@ -342,7 +366,14 @@ double PathGenerator::impl::find_target_t(Waypoints waypoints, double s) {
 
 std::vector<double> PathGenerator::impl::generate_constraint_JMT(VehicleState state, double max_velocity, double max_accel, double max_jerk) {
 
-    double deltaT = maxItems - state.remaining_path_x.size() * 0.02;
+    // number of time steps that have been consumed
+    // number of time steps that remain that should be kept
+    unsigned long toKeep = (unsigned long) fmin(maxToKeep, state.remaining_path_x.size());
+    // elapsed time to the new 'reference point', the origin of the new JMT for this update
+    double deltaT = - timeToNextJMT + toKeep * dt;
+
+    //use the previous JMT and final reference point to determine where the
+    double pos =  state.remaining_path_x.size() == 0 ? state.s : JMTeval(JMTparams, deltaT);
     double speed =  JMTSpeedEval(JMTparams, deltaT);
     double accel = JMTAccelEval(JMTparams, deltaT);
 
@@ -350,17 +381,23 @@ std::vector<double> PathGenerator::impl::generate_constraint_JMT(VehicleState st
     JMTCurve bestCurve;
     bestCurve.cost = 0;
 
+    // amount of time necessary to generate a full prediction horizon
+    double remT = dT - toKeep * dt;
+    if (!(remT > toKeep * dt)) {
+        throw new std::exception();
+    }
+
     for (double s_dot = max_velocity / 4.f; s_dot < max_velocity; s_dot += 0.5f) {
-        for (double delta_s = s_dot / 2; delta_s < s_dot * T; delta_s += 0.5f) {
+        for (double delta_s = s_dot / 2; delta_s < s_dot * remT; delta_s += 0.5f) {
 
-            std::vector<double> start {state.s, speed, accel};
-            std::vector<double> end {state.s + delta_s, s_dot, 0};
+            std::vector<double> start {pos, speed, accel};
+            std::vector<double> end {pos + delta_s, s_dot, 0};
 
-            std::vector<double> params = JMT(start, end, T);
+            std::vector<double> params = JMT(start, end, remT);
 
             //does it violate acceleration
             bool failedConstraint = false;
-            for (double t = 0; t < T && !failedConstraint; t += 0.02f) {
+            for (double t = 0; t < remT && !failedConstraint; t += dt) {
                 if (fabs(JMTAccelEval(params, t)) > max_accel) {
                     failedConstraint = true;
                     break;
@@ -368,7 +405,7 @@ std::vector<double> PathGenerator::impl::generate_constraint_JMT(VehicleState st
             }
 
             //does it violate speed
-            for (double t = 0; t < T && !failedConstraint; t += 0.02f) {
+            for (double t = 0; t < remT && !failedConstraint; t += dt) {
                 if (JMTSpeedEval(params, t) > max_velocity) {
                     failedConstraint = true;
                     break;
@@ -376,7 +413,7 @@ std::vector<double> PathGenerator::impl::generate_constraint_JMT(VehicleState st
             }
 
             //does it violate jerk
-            for (double t = 0; t < T && !failedConstraint; t += 0.02f) {
+            for (double t = 0; t < remT && !failedConstraint; t += dt) {
                 if (fabs(JMTJerkEval(params, t)) > max_jerk) {
                     failedConstraint = true;
                     break;

@@ -266,12 +266,9 @@ int main() {
 
             PathPoints points = path_gen.generate_path(state);
 
-          	vector<double> next_x_vals = points.x;
-          	vector<double> next_y_vals = points.y;
-
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-          	msgJson["next_x"] = next_x_vals;
-          	msgJson["next_y"] = next_y_vals;
+          	msgJson["next_x"] = points.x;
+          	msgJson["next_y"] = points.y;
 
           	auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
