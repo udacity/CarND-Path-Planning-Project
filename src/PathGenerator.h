@@ -23,6 +23,18 @@ typedef struct {
 } PathPoints;
 
 typedef struct {
+    int id;
+    double x;
+    double y;
+    double v_x;
+    double v_y;
+    double yaw;
+    double speed;
+    double s;
+    double d;
+} SensorVehicleState;
+
+typedef struct {
     double x;
     double y;
     double s;
@@ -33,6 +45,7 @@ typedef struct {
     double end_s;
     std::vector<double> remaining_path_x;
     std::vector<double> remaining_path_y;
+    std::vector<SensorVehicleState> sensor_state;
 } VehicleState;
 
 class PathGenerator {

@@ -249,6 +249,26 @@ int main() {
 
             car_speed = 0.447039 * car_speed;
 
+            std::vector<SensorVehicleState> sensor_state;
+
+            for (int i = 0; i < sensor_fusion.size(); i++) {
+                std::vector<double> values = sensor_fusion[i];
+                double yaw = atan2(values[4],values[3]);
+                double speed = distance(0,0,values[3], values[4]);
+                SensorVehicleState state {
+                    (int) values[0],
+                    values[1],
+                    values[2],
+                    values[3],
+                    values[4],
+                    yaw,
+                    speed,
+                    values[5],
+                    values[6]
+                };
+                sensor_state.push_back(state);
+            }
+
             VehicleState state {
                 car_x,
                 car_y,
@@ -259,7 +279,8 @@ int main() {
                 end_path_d,
                 end_path_s,
                 previous_path_x,
-                previous_path_y
+                previous_path_y,
+                sensor_state
             };
 
             lastSpeed = car_speed;
