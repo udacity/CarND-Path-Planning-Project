@@ -106,8 +106,8 @@ JMTCurve permuteJMT(double pos, double speed, double accel, double max_s, double
     JMTCurve bestCurve;
     bestCurve.cost = 0;
 
-    for (double s_dot = speed / 2.f; s_dot < max_velocity; s_dot += 0.5f) {
-        for (double delta_s = s_dot * dt; delta_s <= max_velocity * dT && pos + delta_s <= max_s; delta_s += 0.5f) {
+    for (double s_dot = speed / 4.f; s_dot < max_velocity; s_dot += 0.5f) {
+        for (double delta_s = s_dot * dt; pos + delta_s <= max_s; delta_s += 1.f) {
 
             std::vector<double> start {pos, speed, accel};
             std::vector<double> end {pos + delta_s, s_dot, 0};
@@ -207,7 +207,7 @@ public:
     int maxItems;
     double dt;
     int prevItems;
-    double maxToKeep = 5;
+    double maxToKeep;
     double timeToNextJMT;
 };
 
@@ -224,6 +224,7 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
     im.maxItems = 150;
     im.timeToNextJMT = 0;
     im.prevItems = 0;
+    im.maxToKeep = 40;
 
     std::vector<Vector<2>> xv;
     std::vector<Vector<1>> sv;
@@ -269,7 +270,7 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
         normal.normalize();
 
         newWaypoints.x.push_back(x);
-        newWaypoints.y.push_back(x);
+        newWaypoints.y.push_back(y);
         newWaypoints.s.push_back(s);
         newWaypoints.dx.push_back(normal[0]);
         newWaypoints.dy.push_back(normal[1]);
@@ -473,7 +474,8 @@ std::vector<double> PathGenerator::impl::generate_constraint_JMT(VehicleState st
         throw new std::exception();
     }
 
-    auto bestCurve = permuteJMT(pos, speed, accel, pos + max_velocity * remT, max_velocity, max_accel, max_jerk, remT, dt);
+    double furthest_s = pos + max_velocity * remT;
+    auto bestCurve = permuteJMT(pos, speed, accel, furthest_s, max_velocity, max_accel, max_jerk, remT, dt);
 
     if (bestCurve.JMTparams.size() == 0) {
         throw new std::exception();
@@ -484,7 +486,7 @@ std::vector<double> PathGenerator::impl::generate_constraint_JMT(VehicleState st
     if (!collisions.empty()) {
         //there's a collision if we remain in this lane at the given final speed; slow down
         //find closest start distance
-        double closest_s = pos + max_velocity * remT;
+        double closest_s = furthest_s;
         for (auto boundingBoxes : collisions) {
             for (auto boundingBox : boundingBoxes) {
                 if (boundingBox.lane == 1 && closest_s > boundingBox.start && boundingBox.start > pos) {
@@ -498,7 +500,7 @@ std::vector<double> PathGenerator::impl::generate_constraint_JMT(VehicleState st
                 //determine new max position
                 bestCurve = permuteJMT(pos, speed, accel, closest_s, max_velocity, max_accel, max_jerk, remT, dt);
             }
-            max_velocity -= 0.5f;
+            closest_s += 0.5;
         } while (bestCurve.JMTparams.size() == 0 && max_velocity > 0);
     }
 
