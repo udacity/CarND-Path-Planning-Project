@@ -21,6 +21,8 @@ typedef struct {
 
 typedef std::vector<std::vector<LaneBoundingBox>> VecLaneBoundingBox;
 
+static Eigen::Rotation2D<double> g_rotNormal(-90.f * M_PI / 180.f);
+
 extern std::vector<double> getFrenet(double x, double y, double theta, std::vector<double> maps_x, std::vector<double> maps_y);
 
 double JMTeval(std::vector<double> params, double T) {
@@ -50,6 +52,26 @@ double JMTJerkEval(std::vector<double> params, double T) {
     double t4 = T;
     double t5 = t4 * T;
     return 6 * params[3] + 24 * params[4] * t4 + 60 * params[5] * t5;
+}
+
+Eigen::Vector2d getNormalFromTangent(UniformCRSpline<Vector<2>>::InterpolatedPT& tangent, double t) {
+    Vector<2> v = tangent.position;
+    Vector<2> tx = tangent.tangent;
+    double x = v[0];
+    double y = v[1];
+
+    //rotate tangent by -90 degrees to produce normal
+    Eigen::Vector2d tv;
+    tv << tx[0], tx[1];
+    Eigen::Vector2d normal = g_rotNormal * tv;
+    normal.normalize();
+
+    return normal;
+}
+
+Eigen::Vector2d getNormalFromSpline(LoopingUniformCRSpline<Vector<2>>* spline, double t) {
+    UniformCRSpline<Vector<2>>::InterpolatedPT tangent = spline->getTangent(t);
+    return getNormalFromTangent(tangent, t);
 }
 
 std::vector<double> JMT(std::vector< double> start, std::vector <double> end, double T)
@@ -231,8 +253,8 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
 
     for (int i = 0; i < waypoints.s.size(); i++) {
         Vector<2> x;
-        x[0] =(float) (waypoints.x[i] + waypoints.dx[i] * 6.0f);
-        x[1] =(float) (waypoints.y[i] + waypoints.dy[i] * 6.0f);
+        x[0] =(float) (waypoints.x[i]);
+        x[1] =(float) (waypoints.y[i]);
 
         Vector<1> s;
         s[0] = (float) waypoints.s[i];
@@ -249,7 +271,6 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
     Waypoints newWaypoints;
     double uniformInterval = 10.f;
     double s = 0;
-    Eigen::Rotation2D<double> rotNormal(-90.f * M_PI / 180.f);
     xv.clear();
     sv.clear();
 
@@ -258,17 +279,11 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
         //find t parameter that matches the target 's'
         double t = im.find_target_t(waypoints, s);
         UniformCRSpline<Vector<2>>::InterpolatedPT tangent = spline.getTangent(t);
+        Eigen::Vector2d normal = getNormalFromTangent(tangent, t);
+
         Vector<2> v = tangent.position;
-        Vector<2> tx = tangent.tangent;
         double x = v[0];
         double y = v[1];
-
-        //rotate tangent by -90 degrees to produce normal
-        Eigen::Vector2d tv;
-        tv << tx[0], tx[1];
-        Eigen::Vector2d normal = rotNormal * tv;
-        normal.normalize();
-
         newWaypoints.x.push_back(x);
         newWaypoints.y.push_back(y);
         newWaypoints.s.push_back(s);
@@ -364,8 +379,9 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
         double s_curr_delta = s_delta_eval - im.waypoints_.s[prevWaypoint];
         double s = (s_curr_delta / s_rate) + prevWaypoint;
         Vector<2> v = im.spline_->getPosition(s);
-        double x = v[0];
-        double y = v[1];
+        Eigen::Vector2d normal = getNormalFromSpline(im.spline_, s);
+        double x = v[0] + normal[0] * 6.0f;
+        double y = v[1] + normal[1] * 6.0f;
         retval.x.push_back(x);
         retval.y.push_back(y);
     }
