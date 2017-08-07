@@ -25,6 +25,8 @@ static Eigen::Rotation2D<double> g_rotNormal(-90.f * M_PI / 180.f);
 
 extern std::vector<double> getFrenet(double x, double y, double theta, std::vector<double> maps_x, std::vector<double> maps_y);
 
+extern double distance(double x1, double y1, double x2, double y2);
+
 double JMTeval(std::vector<double> params, double T) {
     double t2 = T * T;
     double t3 = t2 * T;
@@ -215,8 +217,8 @@ public:
 
     impl();
     ~impl();
-    int find_waypoint_floor(Waypoints waypoints, double s);
-    double find_target_t(Waypoints waypoints, double s);
+    int find_waypoint_floor(std::vector<double>& waypoints, double s);
+    double find_target_t(std::vector<double>& waypoints, double s);
     double find_closest_time(double s);
     std::vector<double> generate_constraint_JMT(VehicleState state, double max_velocity, double max_accel, double max_jerk);
     VecLaneBoundingBox check_collisions(const VehicleState& state, const std::vector<double>& params, double dt);
@@ -231,6 +233,7 @@ public:
     int prevItems;
     double maxToKeep;
     double timeToNextJMT;
+    double distance;
 };
 
 PathGenerator::PathGenerator() : pimpl(new impl()) {
@@ -249,18 +252,18 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
     im.maxToKeep = 40;
 
     std::vector<Vector<2>> xv;
-    std::vector<Vector<1>> sv;
+    std::vector<double> sv;
+    std::vector<double> xs;
+    std::vector<double> ys;
 
     for (int i = 0; i < waypoints.s.size(); i++) {
+
         Vector<2> x;
-        x[0] =(float) (waypoints.x[i]);
-        x[1] =(float) (waypoints.y[i]);
-
-        Vector<1> s;
-        s[0] = (float) waypoints.s[i];
-
+        x[0] =(float) (waypoints.x[i] + waypoints.dx[i] * 14.0f);
+        x[1] =(float) (waypoints.y[i] + waypoints.dy[i] * 14.0f);
+        xs.push_back((double) x[0]);
+        ys.push_back((double) x[1]);
         xv.push_back(x);
-        sv.push_back(s);
     }
 
     LoopingUniformCRSpline<Vector<2>> spline(xv);
@@ -269,15 +272,14 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
     // points - regenerate a set of waypoints with a uniform 's' distribution
 
     Waypoints newWaypoints;
-    double uniformInterval = 10.f;
-    double s = 0;
+    double uniformInterval = 1.f;
+    double s = 0, t = 0, err = 0;
     xv.clear();
     sv.clear();
 
+
     while (s < s_max) {
 
-        //find t parameter that matches the target 's'
-        double t = im.find_target_t(waypoints, s);
         UniformCRSpline<Vector<2>>::InterpolatedPT tangent = spline.getTangent(t);
         Eigen::Vector2d normal = getNormalFromTangent(tangent, t);
 
@@ -291,11 +293,35 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
         newWaypoints.dy.push_back(normal[1]);
 
         xv.push_back(v);
-        Vector<1> sx;
-        sx[0] = (float) s;
-        sv.push_back(sx);
+        Vector<1> tx;
+        tx[0] = (float) t;
+
+        double length = 0;
+        double dt = 1.0, factor = 1.f;
+        bool incu = 0, incd;
+        do {
+            //generate a new set of waypoints that are uniformly separated by arc-length
+            Vector<2> x1 = spline.getPosition(t);
+            Vector<2> x2 = spline.getPosition(t + dt);
+            length = distance(x1[0], x1[1], x2[0], x2[1]);
+            if (length - uniformInterval > 0.001) {
+                dt -= factor;
+                incu = true;
+            } else if (length - uniformInterval < -0.001) {
+                dt += factor;
+                incd = true;
+            }
+
+            if (incu && incd) {
+                factor *= 0.1;
+                incu = incd = 0;
+            }
+
+        } while (fabs(length - uniformInterval) > 0.001);
 
         s += uniformInterval;
+        t += dt;
+        err += (length - uniformInterval);
     }
 
     im.spline_ = new LoopingUniformCRSpline<Vector<2>>(xv);
@@ -333,13 +359,13 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     }
 
     //generate points along this path in one second
-    auto jmtParams = im.generate_constraint_JMT(state, 20, 10, 10);
+    auto jmtParams = im.generate_constraint_JMT(state, 22, 5, 5);
 
     double remT = im.dT - toKeep * im.dt;
     double s_start = JMTeval(jmtParams, 0);
     double s_end = JMTeval(jmtParams, remT);
-    int prevWaypoint = im.find_waypoint_floor(im.waypoints_, s_start);
-    int nextWaypoint = im.find_waypoint_floor(im.waypoints_, s_end) + 1;
+    int prevWaypoint = im.find_waypoint_floor(im.waypoints_.s, s_start);
+    int nextWaypoint = im.find_waypoint_floor(im.waypoints_.s, s_end) + 1;
 
     if (nextWaypoint == prevWaypoint) {
         nextWaypoint++;
@@ -370,6 +396,7 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     double diff = 0, normalDiff;
 
     // determine optimal s positions along JMT
+    std::vector<double> sv;
     int j = 0, lastKeep = i;
     for (j = 0; i < im.maxItems; i++, j++) {
         double s_delta_eval = JMTeval(jmtParams, j * im.dt);
@@ -380,10 +407,26 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
         double s = (s_curr_delta / s_rate) + prevWaypoint;
         Vector<2> v = im.spline_->getPosition(s);
         Eigen::Vector2d normal = getNormalFromSpline(im.spline_, s);
-        double x = v[0] + normal[0] * 6.0f;
-        double y = v[1] + normal[1] * 6.0f;
+        double x = v[0] - normal[0] * 0.0f;
+        double y = v[1] - normal[1] * 0.0f;
+
+        if (retval.x.size() > 0) {
+            double dist = distance(retval.x[retval.x.size() - 1], retval.y[retval.y.size() - 1], x, y);
+            double dists = 0;
+            if (sv.size() > 0) {
+                dists = s_curr_delta - sv[sv.size() - 1];
+                if (dists > 22.f*0.02f) {
+                    throw new std::exception();
+                }
+            }
+            if (dist > 22 * 0.02f) {
+                throw new std::exception();
+            }
+        }
+
         retval.x.push_back(x);
         retval.y.push_back(y);
+        sv.push_back(s_curr_delta);
     }
 
     if (lastKeep > 1) {
@@ -414,9 +457,9 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     return retval;
 }
 
-int PathGenerator::impl::find_waypoint_floor(Waypoints waypoints, double s) {
+int PathGenerator::impl::find_waypoint_floor(std::vector<double>& waypoints, double s) {
     int waypoint = 0;
-    while (waypoint < waypoints.s.size() -1 && waypoints.s[waypoint+1] <= s) {
+    while (waypoint < waypoints.size() -1 && waypoints[waypoint+1] <= s) {
         waypoint++;
     }
     return waypoint;
@@ -433,7 +476,7 @@ double PathGenerator::impl::find_closest_time(double s) {
     return t;
 }
 
-double PathGenerator::impl::find_target_t(Waypoints waypoints, double s) {
+double PathGenerator::impl::find_target_t(std::vector<double>& waypoints, double s) {
     int prevWaypoint = find_waypoint_floor(waypoints, s);
     int nextWaypoint = prevWaypoint + 1;
 
@@ -442,26 +485,26 @@ double PathGenerator::impl::find_target_t(Waypoints waypoints, double s) {
     }
 
     if (prevWaypoint < 0) {
-        prevWaypoint += waypoints.s.size();
+        prevWaypoint += waypoints.size();
     }
 
-    if (nextWaypoint >= waypoints.s.size()) {
-        nextWaypoint -= waypoints.s.size();
+    if (nextWaypoint >= waypoints.size()) {
+        nextWaypoint -= waypoints.size();
     }
 
     int waypointDiff = nextWaypoint - prevWaypoint;
-    double s_diff = waypoints.s[nextWaypoint] - waypoints.s[prevWaypoint];
+    double s_diff = waypoints[nextWaypoint] - waypoints[prevWaypoint];
 
     if (s_diff < 0) {
-        s_diff = s_max_ -  waypoints.s[prevWaypoint];
-        s_diff += waypoints.s[nextWaypoint];
+        s_diff = s_max_ -  waypoints[prevWaypoint];
+        s_diff += waypoints[nextWaypoint];
     }
 
     if (waypointDiff < 0) {
-        waypointDiff += waypoints.s.size();
+        waypointDiff += waypoints.size();
     }
 
-    double s_curr = s - waypoints.s[prevWaypoint];
+    double s_curr = s - waypoints[prevWaypoint];
     double s_rate = s_diff / waypointDiff;
 
     double s_base = (s_curr / s_rate) + prevWaypoint;
@@ -498,6 +541,7 @@ std::vector<double> PathGenerator::impl::generate_constraint_JMT(VehicleState st
     }
 
     //check for collisions
+    /*
     auto collisions = check_collisions(state, bestCurve.JMTparams, remT);
     if (!collisions.empty()) {
         //there's a collision if we remain in this lane at the given final speed; slow down
@@ -519,6 +563,7 @@ std::vector<double> PathGenerator::impl::generate_constraint_JMT(VehicleState st
             closest_s += 0.5;
         } while (bestCurve.JMTparams.size() == 0 && max_velocity > 0);
     }
+     */
 
     if (bestCurve.JMTparams.size() == 0) {
         throw new std::exception();
