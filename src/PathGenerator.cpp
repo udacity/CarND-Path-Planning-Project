@@ -12,14 +12,15 @@ typedef struct {
     int lane;
     double start;
     double end;
-} LaneBoundingBox;
+    double speed;
+} CollisionBoundingBox;
 
 typedef struct {
     std::vector<double> JMTparams;
     double cost;
 } JMTCurve;
 
-typedef std::vector<std::vector<LaneBoundingBox>> VecLaneBoundingBox;
+typedef std::vector<CollisionBoundingBox> VecCollisionBoundingBox;
 
 static Eigen::Rotation2D<double> g_rotNormal(-90.f * M_PI / 180.f);
 
@@ -126,81 +127,153 @@ std::vector<double> JMT(std::vector< double> start, std::vector <double> end, do
 
 }
 
-JMTCurve permuteJMT(double pos, double speed, double accel, double max_s, double max_velocity, double max_accel, double max_jerk, double dT, double dt) {
+bool validateJMT(std::vector<double> params, double dT, double dt, double max_velocity, double max_accel, double max_jerk) {
+    //does it violate acceleration
+    bool failedConstraint = false;
+    for (double t = 0; t < dT && !failedConstraint; t += dt) {
+        if (fabs(JMTAccelEval(params, t)) > max_accel) {
+            failedConstraint = true;
+            break;
+        }
+    }
+
+    //does it violate speed
+    for (double t = 0; t < dT && !failedConstraint; t += dt) {
+        if (JMTSpeedEval(params, t) > max_velocity) {
+            failedConstraint = true;
+            break;
+        }
+    }
+
+    //does it violate jerk
+    for (double t = 0; t < dT && !failedConstraint; t += dt) {
+        if (fabs(JMTJerkEval(params, t)) > max_jerk) {
+            failedConstraint = true;
+            break;
+        }
+    }
+
+    return !failedConstraint;
+}
+
+JMTCurve permuteJMT(double pos, double speed, double accel, double final_s, double final_velocity, double max_velocity, double max_accel, double max_jerk, double dT, double dt) {
     JMTCurve bestCurve;
     bestCurve.cost = 0;
 
-    for (double s_dot = speed / 4.f; s_dot < max_velocity; s_dot += 0.5f) {
-        for (double delta_s = s_dot * dt; pos + delta_s <= max_s; delta_s += 1.f) {
+    double max_s = max_velocity * dT + pos;
+    double s_ddot = 0;
+    double s_ddot_inc = speed > final_velocity ? -0.25 : 0.25;
+    double s_ddot_final = speed > final_velocity ? -max_accel : max_accel;
+    while ((final_velocity >= speed && s_ddot <= s_ddot_final) || (final_velocity <= speed && s_ddot >= s_ddot_final)) {
 
-            std::vector<double> start {pos, speed, accel};
-            std::vector<double> end {pos + delta_s, s_dot, 0};
+        double s_dot = final_velocity;
+        double s_dot_inc = speed < final_velocity ? -0.5 : 0.5;
 
-            std::vector<double> params = JMT(start, end, dT);
+        while ((final_velocity >= speed && s_dot >= speed) || (final_velocity <= speed && s_dot <= speed)) {
+            double s = final_s;
+            double factor = 1.f;
 
-            //does it violate acceleration
-            bool failedConstraint = false;
-            for (double t = 0; t < dT && !failedConstraint; t += dt) {
-                if (fabs(JMTAccelEval(params, t)) > max_accel) {
-                    failedConstraint = true;
-                    break;
+            {
+                std::vector<double> start{pos, speed, accel};
+                std::vector<double> end{s, s_dot, s_ddot};
+
+                std::vector<double> params = JMT(start, end, dT);
+
+                if (validateJMT(params, dT, dt, max_velocity, max_accel, max_jerk)) {
+                    bestCurve.JMTparams = params;
+                    return bestCurve;
                 }
             }
 
-            //does it violate speed
-            for (double t = 0; t < dT && !failedConstraint; t += dt) {
-                if (JMTSpeedEval(params, t) > max_velocity) {
-                    failedConstraint = true;
-                    break;
+            while (s <= max_s && s >= pos) {
+
+                {
+                    s = final_s + factor * 0.5;
+                    std::vector<double> start{pos, speed, accel};
+                    std::vector<double> end{s, s_dot, s_ddot};
+
+                    std::vector<double> params = JMT(start, end, dT);
+
+                    if (validateJMT(params, dT, dt, max_velocity, max_accel, max_jerk)) {
+                        bestCurve.JMTparams = params;
+                        return bestCurve;
+                    }
                 }
+
+                {
+                    s = final_s - factor * 0.5;
+                    std::vector<double> start{pos, speed, accel};
+                    std::vector<double> end{s, s_dot, s_ddot};
+
+                    std::vector<double> params = JMT(start, end, dT);
+
+                    if (validateJMT(params, dT, dt, max_velocity, max_accel, max_jerk)) {
+                        bestCurve.JMTparams = params;
+                        return bestCurve;
+                    }
+                }
+
+                factor++;
             }
 
-            //does it violate jerk
-            for (double t = 0; t < dT && !failedConstraint; t += dt) {
-                if (fabs(JMTJerkEval(params, t)) > max_jerk) {
-                    failedConstraint = true;
-                    break;
-                }
-            }
-
-            if (!failedConstraint) {
-                //calculate cost
-                double cost = 0;
-
-                if (cost <= bestCurve.cost) {
-                    bestCurve = {params, cost};
-                }
-            }
+            s_dot += s_dot_inc;
         }
+
+        s_ddot += s_ddot_inc;
     }
 
     return bestCurve;
 }
 
-std::vector<LaneBoundingBox> calculateLaneBoundingBoxForSensorVehicleState(SensorVehicleState state, double dt, double laneWidth) {
+std::vector<CollisionBoundingBox> calculateLaneBoundingBoxForSensorVehicleState(SensorVehicleState state, double dt, double laneWidth) {
     //XXX assume cars do not switch lanes for now
 
-    double direction = state.yaw > M_PI/4 ? 1.f : -1.f;
+    double direction = 1.f; //state.yaw > M_PI/4 ? 1.f : -1.f;
     double s1 = state.s;
     double s2 = state.s + (state.speed * dt) * direction;
     int lane = (int) (state.d / laneWidth);
 
-    return {{state.id,lane,s1,s2}};
+    return {{state.id,lane,s1,s2,state.speed}};
 }
 
-std::vector<LaneBoundingBox> calculateLaneBoundingBox(double d, double s, double speed, double dt, double laneWidth) {
+std::vector<CollisionBoundingBox> calculateLaneBoundingBox(double d, double s, double speed, double dt, double laneWidth) {
     double s1 = s;
     double s2 = s + (speed * dt);
     int lane = (int) (d / laneWidth);
-    return {{0,lane,s1,s2}};
+    return {{0,lane,s1,s2,speed}};
 }
 
-bool does_collide(std::vector<LaneBoundingBox>& boxes1, std::vector<LaneBoundingBox>& boxes2) {
-    for (LaneBoundingBox& box1 : boxes1) {
-        for (LaneBoundingBox& box2 : boxes2) {
+double calculateCollisionMoment(SensorVehicleState state, const std::vector<double>& jmtParams, double d, double dT, double dt, double laneWidth, double range) {
+    double t = 0;
+    double start = JMTeval(jmtParams, 0);
+    double s = 0;
+    while (t <= dT) {
+        s = JMTeval(jmtParams, t);
+        double vs = state.s + t * state.speed;
+        bool right = (state.d + (laneWidth / 2) >= d - (laneWidth / 2)) && (state.d + (laneWidth / 2) <= d + (laneWidth / 2));
+        bool left = (state.d - (laneWidth / 2) >= d - (laneWidth / 2)) && (state.d - (laneWidth / 2) <= d + (laneWidth / 2));
+        if (s >= vs && (right || left)) {
+            return s;
+        }
+        t += dt;
+    }
+    return -1;
+}
+
+bool does_collide(std::vector<CollisionBoundingBox>& boxes1, std::vector<CollisionBoundingBox>& boxes2) {
+    for (CollisionBoundingBox& box1 : boxes1) {
+        for (CollisionBoundingBox& box2 : boxes2) {
             return /*(box1.start >= box2.start && box1.start <= box2.end) || (box1.end >= box2.start && box1.end <= box2.end)||*/
                     (box2.start >= box1.start && box2.start <= box1.end) || (box2.end >= box1.start && box2.end <= box1.end);
         }
+    }
+    return false;
+}
+
+bool does_overlap(std::vector<CollisionBoundingBox>& boxes, int id) {
+    for (CollisionBoundingBox& box : boxes) {
+        if (box.id == id)
+            return true;
     }
     return false;
 }
@@ -215,13 +288,25 @@ std::chrono::milliseconds currentTime() {
 class PathGenerator::impl {
 public:
 
+    typedef enum {
+        Normal,
+        Passing,
+        Following
+    } PathState;
+
     impl();
     ~impl();
     int find_waypoint_floor(std::vector<double>& waypoints, double s);
     double find_target_t(std::vector<double>& waypoints, double s);
     double find_closest_time(double s);
     std::vector<double> generate_constraint_JMT(VehicleState state, double max_velocity, double max_accel, double max_jerk);
-    VecLaneBoundingBox check_collisions(const VehicleState& state, const std::vector<double>& params, double dt);
+    VecCollisionBoundingBox check_overlap(const VehicleState& state, const std::vector<double>& params, double dT, double dt);
+    VecCollisionBoundingBox check_collisions(const std::vector<SensorVehicleState>& vehicles,
+                                             const VecCollisionBoundingBox& boxes,
+                                             const VehicleState& state,
+                                             const std::vector<double>& params,
+                                             double dT,
+                                             double dt);
 
     Waypoints waypoints_;
     double s_max_;
@@ -233,7 +318,7 @@ public:
     int prevItems;
     double maxToKeep;
     double timeToNextJMT;
-    double distance;
+    CollisionBoundingBox collisionState;
 };
 
 PathGenerator::PathGenerator() : pimpl(new impl()) {
@@ -259,8 +344,8 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
     for (int i = 0; i < waypoints.s.size(); i++) {
 
         Vector<2> x;
-        x[0] =(float) (waypoints.x[i] + waypoints.dx[i] * 14.0f);
-        x[1] =(float) (waypoints.y[i] + waypoints.dy[i] * 14.0f);
+        x[0] =(float) (waypoints.x[i] + waypoints.dx[i] * 6.0f);
+        x[1] =(float) (waypoints.y[i] + waypoints.dy[i] * 6.0f);
         xs.push_back((double) x[0]);
         ys.push_back((double) x[1]);
         xv.push_back(x);
@@ -359,7 +444,7 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     }
 
     //generate points along this path in one second
-    auto jmtParams = im.generate_constraint_JMT(state, 22, 5, 5);
+    auto jmtParams = im.generate_constraint_JMT(state, 21.5, 10, 10);
 
     double remT = im.dT - toKeep * im.dt;
     double s_start = JMTeval(jmtParams, 0);
@@ -534,53 +619,91 @@ std::vector<double> PathGenerator::impl::generate_constraint_JMT(VehicleState st
     }
 
     double furthest_s = pos + max_velocity * remT;
-    auto bestCurve = permuteJMT(pos, speed, accel, furthest_s, max_velocity, max_accel, max_jerk, remT, dt);
+    auto bestCurve = permuteJMT(pos, speed, accel, furthest_s, max_velocity, max_velocity, max_accel, max_jerk, remT, dt);
 
     if (bestCurve.JMTparams.size() == 0) {
         throw new std::exception();
     }
 
     //check for collisions
-    /*
-    auto collisions = check_collisions(state, bestCurve.JMTparams, remT);
-    if (!collisions.empty()) {
-        //there's a collision if we remain in this lane at the given final speed; slow down
-        //find closest start distance
-        double closest_s = furthest_s;
-        for (auto boundingBoxes : collisions) {
-            for (auto boundingBox : boundingBoxes) {
-                if (boundingBox.lane == 1 && closest_s > boundingBox.start && boundingBox.start > pos) {
-                    closest_s = boundingBox.start;
-                }
+    auto overlaps = check_overlap(state, bestCurve.JMTparams, remT, dt);
+    if (!overlaps.empty()) {
+
+        //find closest colliding object
+        auto collisions = check_collisions(state.sensor_state, overlaps, state, bestCurve.JMTparams, remT, dt);
+
+        if (!collisions.empty()) {
+            CollisionBoundingBox collision = collisions.front();
+
+            if (collision.id != -1) {
+                printf("collision detected: id %d, speed %f pos %f\n", collision.id, collision.speed, collision.start);
+                //determine new max speed
+                bestCurve = permuteJMT(pos, speed, accel, collision.start, collision.speed, max_velocity, max_accel,
+                                       max_jerk, remT, dt);
+                collisionState = collision;
             }
+
+        }
+        //check if the previous collision state is still valid
+        else if (does_overlap(overlaps, collisionState.id)) {
+            //continue following speed
+            collisionState.speed = state.sensor_state[collisionState.id].speed;
+            printf("following vehicle: id %d, speed %f\n", collisionState.id, collisionState.speed);
+            bestCurve = permuteJMT(pos, speed, accel, furthest_s, collisionState.speed, max_velocity, max_accel,
+                                   max_jerk, remT, dt);
+        } else {
+            //invalidate
+            collisionState.id = -1;
         }
 
-        do {
-            if (closest_s < pos + max_velocity * remT) {
-                //determine new max position
-                bestCurve = permuteJMT(pos, speed, accel, closest_s, max_velocity, max_accel, max_jerk, remT, dt);
-            }
-            closest_s += 0.5;
-        } while (bestCurve.JMTparams.size() == 0 && max_velocity > 0);
-    }
-     */
-
-    if (bestCurve.JMTparams.size() == 0) {
-        throw new std::exception();
+        if (bestCurve.JMTparams.empty()) {
+            throw new std::exception();
+        }
+    } else {
+        collisionState.id = -1;
     }
 
     return bestCurve.JMTparams;
 }
 
-VecLaneBoundingBox PathGenerator::impl::check_collisions(const VehicleState& state, const std::vector<double>& params, double dt) {
-    VecLaneBoundingBox retval;
-    std::vector<LaneBoundingBox> boundingBoxesCar = calculateLaneBoundingBox(state.d, JMTeval(params, 0), JMTSpeedEval(params, 0), dt, 4.0);
+VecCollisionBoundingBox PathGenerator::impl::check_overlap(const VehicleState& state, const std::vector<double>& params, double dT, double dt) {
+    VecCollisionBoundingBox retval;
+    std::vector<CollisionBoundingBox> boundingBoxesCar = calculateLaneBoundingBox(state.d, JMTeval(params, 0), JMTSpeedEval(params, 0), dT, 4.0);
     for (SensorVehicleState s : state.sensor_state) {
-        std::vector<LaneBoundingBox> boundingBoxes = calculateLaneBoundingBoxForSensorVehicleState(s, dt, 4.f);
+        std::vector<CollisionBoundingBox> boundingBoxes = calculateLaneBoundingBoxForSensorVehicleState(s, dT, 4.f);
 
         bool collide = does_collide(boundingBoxesCar, boundingBoxes);
         if (collide) {
-            retval.push_back(boundingBoxes);
+            retval.push_back(boundingBoxes[0]);
+        }
+    }
+    return retval;
+}
+
+VecCollisionBoundingBox PathGenerator::impl::check_collisions(const std::vector<SensorVehicleState>& vehicles,
+                                                              const VecCollisionBoundingBox& boxes,
+                                                              const VehicleState& state,
+                                                              const std::vector<double>& params,
+                                                              double dT,
+                                                              double dt) {
+    VecCollisionBoundingBox retval;
+    for (const CollisionBoundingBox& box : boxes) {
+        bool doesCollide = false;
+        double smallestS = box.end;
+        CollisionBoundingBox collisionBox = box;
+        //determine exact moment of collision
+        const SensorVehicleState& other_vehicle = vehicles[box.id];
+        double collisionS = calculateCollisionMoment(other_vehicle, params, state.d, dT, dt, 2.f, 30.f);
+        if (collisionS != -1) {
+            if (box.lane != 1) {
+                throw  new std::exception();
+            }
+            if (collisionS >= 0 && smallestS >= collisionS) {
+                collisionBox = box;
+                collisionBox.start = collisionS;
+                collisionBox.speed = box.speed;
+                retval.push_back(collisionBox);
+            }
         }
     }
     return retval;
