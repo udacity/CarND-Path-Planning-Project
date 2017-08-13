@@ -7,9 +7,7 @@
 #include <vector>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
-#include "Eigen-3.3/Eigen/LU"
 #include "json.hpp"
-#include <time.h>
 
 using namespace std;
 
@@ -35,33 +33,7 @@ string hasData(string s) {
   }
   return "";
 }
-vector<double> JMT(vector<double> start, vector<double> end, double T) {
-        /*
-	 * Calculate the Jerk-minimizing trajectors that connects start state with end state in time T
-	 * Start: 3-vector with current position, velocity, and acceleration
-	 * End: 3-vector with ending position, velocity, and acceleration
-	 * T: time to execute the maneuver
-	 */
-        Eigen::MatrixXd t(3,3);
-	t << pow(T, 3), pow(T, 4), pow(T, 5),
-	     3*pow(T, 2), 4*pow(T, 3), 5*pow(T, 4),
-	     6*T, 12*pow(T, 2), 20*pow(T, 3);
 
-	Eigen::MatrixXd t_inv = t.inverse();
-
-	Eigen::VectorXd s(3);
-
-	s << end[0] - (start[0] + start[1] * T + start[2] * T * T),
-	     end[1] - (start[1] + start[2] * T),
-	     end[2] - start[2];
-
-	Eigen::VectorXd a(6);
-	a << start[0], start[1], .5*start[2], t_inv*s;
-
-	vector<double> vec(a.data(), a.data() + a.rows() + a.cols());
-
-	return vec;
-}
 double distance(double x1, double y1, double x2, double y2)
 {
 	return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
@@ -186,7 +158,6 @@ vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> m
 	return {x,y};
 
 }
-bool initial_run = true;
 
 int main() {
   uWS::Hub h;
@@ -238,12 +209,12 @@ int main() {
 
       if (s != "") {
         auto j = json::parse(s);
-
+        
         string event = j[0].get<string>();
-
+        
         if (event == "telemetry") {
           // j[1] is the data JSON object
-
+          
         	// Main car's localization Data
           	double car_x = j[1]["x"];
           	double car_y = j[1]["y"];
@@ -255,60 +226,19 @@ int main() {
           	// Previous path data given to the Planner
           	auto previous_path_x = j[1]["previous_path_x"];
           	auto previous_path_y = j[1]["previous_path_y"];
-          	// Previous path's end s and d values
+          	// Previous path's end s and d values 
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
 
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
           	auto sensor_fusion = j[1]["sensor_fusion"];
 
-		for (auto x : previous_path_x) cout << "Previous path x: " << x << endl;
-		cout << endl;
-
           	json msgJson;
 
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
-		//for (int i = 0; i < 10; i++) {next_x_vals.push_back(car_x + i); next_y_vals.push_back(car_y + i);}
 
-		vector<double> current_state = {car_s, 0, 0}; //TODO: Change speed depending on yaw
-		vector<double> goal_state = {car_s + 10, 0, 0};
-		vector<double> coeffs = JMT(current_state, goal_state, 1);
-		//for (double coeff : coeffs) cout << coeff << " ";
-		//cout << endl;
-
-		cout << "Coeffs ";
-		for (double coeff : coeffs) cout << coeff << " ";
-		cout << endl;
-		if (previous_path_x.size() == 0) {
-		for (float T = 0; T < 1; T += .02) {
-		  double next_s = 0;
-		  for (int j = 0; j < coeffs.size(); j++) next_s += pow(T, j) * coeffs[j];
-
-		  double next_d = car_d;
-		  cout << next_d << " next d" << endl;
-		  cout << next_s << " next s" << endl;
-		  cout << endl;
-		  vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-		  next_x_vals.push_back(next_xy[0]);
-		  next_y_vals.push_back(next_xy[1]);
-		}
-		} else {
-		  for (int i = 0; i < previous_path_x.size(); i++) {
-                    double current_x = previous_path_x[i];
-		    double current_y = previous_path_y[i];
-		    double current_heading = car_yaw;
-		    vector<double> currentFrenet = getFrenet(current_x, current_y, current_heading, map_waypoints_x, map_waypoints_y);
-		    double current_s = currentFrenet[0];
-		    double current_d = currentFrenet[1];
-		    if (current_s > car_s) {
-		      next_x_vals.push_back(current_x);
-		      next_y_vals.push_back(current_y);
-		    }
-
-		  }
-		}
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
@@ -317,7 +247,7 @@ int main() {
 
           	//this_thread::sleep_for(chrono::milliseconds(1000));
           	ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-
+          
         }
       } else {
         // Manual driving
@@ -360,3 +290,83 @@ int main() {
   }
   h.run();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
