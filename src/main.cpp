@@ -282,24 +282,19 @@ int main() {
 		for (double coeff : coeffs) cout << coeff << " ";
 		cout << endl;
 		if (previous_path_x.size() == 0) {
-		  for (float T = 0; T < 1; T += .02) {
-		    double next_s = 0;
-		    for (int j = 0; j < coeffs.size(); j++) next_s += pow(T, j) * coeffs[j];
+		for (float T = 0; T < 1; T += .02) {
+		  double next_s = 0;
+		  for (int j = 0; j < coeffs.size(); j++) next_s += pow(T, j) * coeffs[j];
 
-		    double next_d = car_d;
-		    cout << next_d << " next d" << endl;
-		    cout << next_s << " next s" << endl;
-		    cout << endl;
-		    vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-		    next_x_vals.push_back(next_xy[0]);
-		    next_y_vals.push_back(next_xy[1]);
-		  }
+		  double next_d = car_d;
+		  cout << next_d << " next d" << endl;
+		  cout << next_s << " next s" << endl;
+		  cout << endl;
+		  vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+		  next_x_vals.push_back(next_xy[0]);
+		  next_y_vals.push_back(next_xy[1]);
+		}
 		} else {
-		  for (int i = 0; i < previous_path_x.size(); i++) {
-		    next_x_vals.push_back(previous_path_x[i]);
-		    next_y_vals.push_back(previous_path_y[i]);
-		  }
-		  /**
 		  for (int i = 0; i < previous_path_x.size(); i++) {
                     double current_x = previous_path_x[i];
 		    double current_y = previous_path_y[i];
@@ -311,7 +306,8 @@ int main() {
 		      next_x_vals.push_back(current_x);
 		      next_y_vals.push_back(current_y);
 		    }
-                  **/
+
+		  }
 		}
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
