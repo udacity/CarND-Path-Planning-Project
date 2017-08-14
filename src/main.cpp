@@ -1,12 +1,14 @@
 #include <fstream>
-#include <math.h>
+#include <cmath>
 #include <uWS/uWS.h>
 #include <chrono>
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <deque>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
+#include "Eigen-3.3/Eigen/LU"
 #include "json.hpp"
 #include "spline.h"
 
@@ -33,6 +35,54 @@ string hasData(string s) {
     return s.substr(b1, b2 - b1 + 2);
   }
   return "";
+}
+vector<double> JMT(vector< double> start, vector <double> end, double T)
+{
+    /*
+    Calculate the Jerk Minimizing Trajectory that connects the initial state
+    to the final state in time T.
+
+    INPUTS
+
+    start - the vehicles start location given as a length three array
+        corresponding to initial values of [s, s_dot, s_double_dot]
+
+    end   - the desired end state for vehicle. Like "start" this is a
+        length three array.
+
+    T     - The duration, in seconds, over which this maneuver should occur.
+
+    OUTPUT
+    an array of length 6, each value corresponding to a coefficent in the polynomial
+    s(t) = a_0 + a_1 * t + a_2 * t**2 + a_3 * t**3 + a_4 * t**4 + a_5 * t**5
+
+    EXAMPLE
+
+    > JMT( [0, 10, 0], [10, 10, 0], 1)
+    [0.0, 10.0, 0.0, 0.0, 0.0, 0.0]
+    */
+
+    Eigen::MatrixXd t(3,3);
+    t << pow(T, 3), pow(T, 4), pow(T, 5),
+         3*pow(T, 2), 4*pow(T, 3), 5*pow(T, 4),
+         6*T, 12*pow(T, 2), 20*pow(T, 3);
+
+    Eigen::MatrixXd t_inv = t.inverse();
+
+    Eigen::VectorXd s(3);
+    s << end[0] - (start[0] + start[1] * T + .5 * start[2]*T*T),
+         end[1] - (start[1] + start[2] * T),
+         end[2] - start[2];
+
+    Eigen::VectorXd a(6);
+    a << start[0], start[1], .5 * start[2], t_inv * s;
+    //cout << a <<"Hi" << endl;
+
+    vector<double> vec(a.data(), a.data() + a.rows() * a.cols());
+    for (double x : vec) cout << x << " ";
+    cout << endl;
+    return vec;
+
 }
 
 double distance(double x1, double y1, double x2, double y2)
@@ -170,6 +220,10 @@ int main() {
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
 
+  deque<double> middle_line_trajectory_x, middle_line_trajectory_y;
+  int trajectory_points_inserted = 0;
+
+
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
@@ -198,7 +252,7 @@ int main() {
   }
 
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &middle_line_trajectory_x, &middle_line_trajectory_y, &trajectory_points_inserted](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -247,10 +301,10 @@ int main() {
 		    end_path_x = car_x;
 		    end_path_y = car_y;
 		} else {
-		    end_path_x = previous_path_x[previous_path_length-1];
-		    end_path_y = previous_path_y[previous_path_length-1];
-		    double second_end_path_x = previous_path_x[previous_path_length-2];
-		    double second_end_path_y = previous_path_y[previous_path_length-2];
+		    end_path_x = middle_line_trajectory_x.back();
+		    end_path_y = middle_line_trajectory_y.back();
+		    double second_end_path_x = *(++middle_line_trajectory_x.rbegin());
+		    double second_end_path_y = *(++middle_line_trajectory_y.rbegin());
 
 		    end_path_theta = atan2(end_path_y - second_end_path_y, end_path_x - second_end_path_x);
 
@@ -265,6 +319,12 @@ int main() {
 		const double seconds_per_iteration = .02;
 		const double goal_meters_per_iteration = goal_meters_per_second * seconds_per_iteration;
 
+		int trajectory_points_traveled = trajectory_points_inserted - previous_path_length;
+		for (int i = 0; i < trajectory_points_traveled; i++) {
+		  middle_line_trajectory_x.pop_front();
+		  middle_line_trajectory_y.pop_front();
+		}
+
 		vector<double> next_x_vals;
 		vector<double> next_y_vals;
 		for (int i = 0; i < previous_path_length; i++) {
@@ -272,10 +332,11 @@ int main() {
 		    next_y_vals.push_back(previous_path_y[i]);
 		}
 
-
 		tk::spline s;
 
 		vector<double> spline_x, spline_y;
+
+		double offset = (previous_path_length == 0) ? 6 : 2;
 
 		int num_waypoints = map_waypoints_x.size();
 
@@ -292,8 +353,6 @@ int main() {
 		    double rotated_x = shifted_x * cos(-end_path_theta) - shifted_y * sin(-end_path_theta);
 		    double rotated_y = shifted_x * sin(-end_path_theta) + shifted_y * cos(-end_path_theta);
 
-		    rotated_y -= 6;
-
 		    spline_x.push_back(rotated_x);
 		    spline_y.push_back(rotated_y);
 		}
@@ -301,17 +360,25 @@ int main() {
 		s.set_points(spline_x, spline_y);
 
 		for (int i = 1; i <= 100 - previous_path_length; i++) {
-		   double rotated_x = goal_meters_per_iteration * i;
-		   double rotated_y = s(rotated_x);
+		    double rotated_x = goal_meters_per_iteration * i;
+		    double rotated_y = s(rotated_x);
+		    double rotated_y_offset = rotated_y - offset;
 
-		   double shifted_x = rotated_x * cos(end_path_theta) - rotated_y * sin(end_path_theta);
-		   double shifted_y = rotated_x * sin(end_path_theta) + rotated_y * cos(end_path_theta);
+		    double shifted_x = rotated_x * cos(end_path_theta) - rotated_y * sin(end_path_theta);
+		    double shifted_y = rotated_x * sin(end_path_theta) + rotated_y * cos(end_path_theta);
+		    double shifted_x_offset = rotated_x * cos(end_path_theta) - rotated_y_offset * sin(end_path_theta);
+		    double shifted_y_offset = rotated_x * sin(end_path_theta) + rotated_y_offset * cos(end_path_theta);
 
-		   double x = shifted_x + end_path_x;
-		   double y = shifted_y + end_path_y;
 
-		   next_x_vals.push_back(x);
-		   next_y_vals.push_back(y);
+		    double x = shifted_x + end_path_x;
+		    double y = shifted_y + end_path_y;
+		    double x_offset = shifted_x_offset + end_path_x;
+		    double y_offset = shifted_y_offset + end_path_y;
+
+		    next_x_vals.push_back(x_offset);
+		    next_y_vals.push_back(y_offset);
+		    middle_line_trajectory_x.push_back(x);
+		    middle_line_trajectory_y.push_back(y);
 
 		}
 
