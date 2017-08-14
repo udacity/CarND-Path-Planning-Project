@@ -245,13 +245,13 @@ int main() {
 		}
 
 		// Add enough points to get our number of points to 50
-		double goal_miles_per_hour = 40;
-		double seconds_per_hour = 3600;
-		double meters_per_mile = 1609.34;
-		double goal_meters_per_second = goal_miles_per_hour * meters_per_mile / seconds_per_hour;
+		const double goal_miles_per_hour = 40;
+		const double seconds_per_hour = 3600;
+		const double meters_per_mile = 1609.34;
+		const double goal_meters_per_second = goal_miles_per_hour * meters_per_mile / seconds_per_hour;
 
-		double seconds_per_iteration = .02;
-		double goal_meters_per_iteration = goal_meters_per_second * seconds_per_iteration;
+		const double seconds_per_iteration = .02;
+		const double goal_meters_per_iteration = goal_meters_per_second * seconds_per_iteration;
 
 		vector<double> next_x_vals;
 		vector<double> next_y_vals;
@@ -271,7 +271,6 @@ int main() {
 
 		}
 
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
 
