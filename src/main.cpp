@@ -6,6 +6,7 @@
 #include <thread>
 #include <vector>
 #include <deque>
+#include <queue>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "Eigen-3.3/Eigen/LU"
@@ -323,6 +324,7 @@ int main() {
 		for (int i = 0; i < trajectory_points_traveled; i++) {
 		  middle_line_trajectory_x.pop_front();
 		  middle_line_trajectory_y.pop_front();
+		  trajectory_points_inserted--;
 		}
 
 		vector<double> next_x_vals;
@@ -379,6 +381,7 @@ int main() {
 		    next_y_vals.push_back(y_offset);
 		    middle_line_trajectory_x.push_back(x);
 		    middle_line_trajectory_y.push_back(y);
+		    trajectory_points_inserted++;
 
 		}
 
