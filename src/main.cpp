@@ -237,9 +237,39 @@ int main() {
 
           	json msgJson;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
+		int previous_path_length = previous_path_x.size();
+		double end_path_theta = deg2rad(car_yaw);
+		if (previous_path_length == 0) {
+		    end_path_s = car_s;
+		    end_path_d = car_d;
+		}
 
+		// Add enough points to get our number of points to 50
+		double goal_miles_per_hour = 40;
+		double seconds_per_hour = 3600;
+		double meters_per_mile = 1609.34;
+		double goal_meters_per_second = goal_miles_per_hour * meters_per_mile / seconds_per_hour;
+
+		double seconds_per_iteration = .02;
+		double goal_meters_per_iteration = goal_meters_per_second * seconds_per_iteration;
+
+		vector<double> next_x_vals;
+		vector<double> next_y_vals;
+		for (int i = 0; i < previous_path_length; i++) {
+		    next_x_vals.push_back(previous_path_x[i]);
+		    next_y_vals.push_back(previous_path_y[i]);
+		}
+
+
+		for (int i = 0; i < 50 - previous_path_length; i++) {
+		  double next_s = end_path_s + goal_meters_per_iteration * (i+1);
+		  double next_d = 6;
+
+		  vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+		  next_x_vals.push_back(next_xy[0]);
+		  next_y_vals.push_back(next_xy[1]);
+
+		}
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
