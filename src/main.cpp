@@ -281,11 +281,11 @@ int main() {
 
 		int num_waypoints = map_waypoints_x.size();
 
-		int starting_waypoint = ClosestWaypoint(end_path_x, end_path_y, map_waypoints_x, map_waypoints_y) - 2;
+		int starting_waypoint = ClosestWaypoint(end_path_x, end_path_y, map_waypoints_x, map_waypoints_y) - 5;
 		starting_waypoint = starting_waypoint % num_waypoints;
 
 		cout << "End path theta " << end_path_theta << endl;
-		for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 9; i++) {
 		    int waypoint_num = (starting_waypoint + i) % num_waypoints;
 		    double shifted_x = map_waypoints_x[waypoint_num] - end_path_x;
 		    double shifted_y = map_waypoints_y[waypoint_num] - end_path_y;
