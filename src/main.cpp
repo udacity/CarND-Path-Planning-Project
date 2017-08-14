@@ -77,11 +77,8 @@ vector<double> JMT(vector< double> start, vector <double> end, double T)
 
     Eigen::VectorXd a(6);
     a << start[0], start[1], .5 * start[2], t_inv * s;
-    //cout << a <<"Hi" << endl;
 
     vector<double> vec(a.data(), a.data() + a.rows() * a.cols());
-    for (double x : vec) cout << x << " ";
-    cout << endl;
     return vec;
 
 }
@@ -224,6 +221,8 @@ int main() {
   deque<double> middle_line_trajectory_x, middle_line_trajectory_y;
   int trajectory_points_inserted = 0;
 
+  queue<double> lane_change_offsets;
+
 
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
@@ -253,7 +252,7 @@ int main() {
   }
 
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &middle_line_trajectory_x, &middle_line_trajectory_y, &trajectory_points_inserted](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &middle_line_trajectory_x, &middle_line_trajectory_y, &trajectory_points_inserted, &lane_change_offsets](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -338,9 +337,37 @@ int main() {
 
 		vector<double> spline_x, spline_y;
 
-		double offset = (previous_path_length == 0) ? 6 : 2;
-
 		int num_waypoints = map_waypoints_x.size();
+
+		if (lane_change_offsets.empty()) {
+		  vector<double> current_position_horiz = {2.0,0.0,0.0};
+		  vector<double> next_position_horiz = {6.0, 0.0, 0.0};
+
+		  vector<double> jmt = JMT(current_position_horiz, next_position_horiz, 2);
+		  
+		  for (double t = .02; t <= 2.0; t+= .02) {
+		    double offset = 0;
+		    for (int i = 0; i < jmt.size(); i++) {
+		      offset += jmt[i] * pow(t, i);
+		    }
+		    lane_change_offsets.push(offset);
+		  }
+		  jmt = JMT(next_position_horiz, current_position_horiz, 2);
+
+		  for (double t = .02; t <= 2.0; t += .02) {
+		    double offset = 0;
+		    for (int i = 0; i < jmt.size(); i++) {
+		      offset += jmt[i] * pow(t, i);
+		    }
+		    lane_change_offsets.push(offset);
+		  }
+
+		  cout << endl;
+		  for (double t = .02; t < 2.0; t += .02) {
+		    lane_change_offsets.push(2.0);
+		  }
+		}
+
 
 		int starting_waypoint = ClosestWaypoint(end_path_x, end_path_y, map_waypoints_x, map_waypoints_y) - 4;
 		starting_waypoint = starting_waypoint % num_waypoints;
@@ -364,6 +391,12 @@ int main() {
 		for (int i = 1; i <= 100 - previous_path_length; i++) {
 		    double rotated_x = goal_meters_per_iteration * i;
 		    double rotated_y = s(rotated_x);
+
+		    double offset = 2;
+		    if (!lane_change_offsets.empty()) {
+		      offset = lane_change_offsets.front();
+		      lane_change_offsets.pop();
+		    }
 		    double rotated_y_offset = rotated_y - offset;
 
 		    double shifted_x = rotated_x * cos(end_path_theta) - rotated_y * sin(end_path_theta);
