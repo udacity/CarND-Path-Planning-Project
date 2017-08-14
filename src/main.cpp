@@ -238,10 +238,24 @@ int main() {
           	json msgJson;
 
 		int previous_path_length = previous_path_x.size();
-		double end_path_theta = deg2rad(car_yaw);
-		if (previous_path_length == 0) {
+		double end_path_x, end_path_y;
+		double end_path_theta;
+		if (previous_path_length < 2) {
 		    end_path_s = car_s;
 		    end_path_d = car_d;
+		    end_path_theta = deg2rad(car_yaw);
+		    end_path_x = car_x;
+		    end_path_y = car_y;
+		} else {
+		    end_path_x = previous_path_x[previous_path_length-1];
+		    end_path_y = previous_path_y[previous_path_length-1];
+		    double second_end_path_x = previous_path_x[previous_path_length-2];
+		    double second_end_path_y = previous_path_y[previous_path_length-2];
+
+		    end_path_theta = atan2(end_path_y - second_end_path_y, end_path_x - second_end_path_x);
+		    
+
+
 		}
 
 		// Add enough points to get our number of points to 50
@@ -261,6 +275,49 @@ int main() {
 		}
 
 
+		tk::spline s;
+
+		vector<double> spline_x, spline_y;
+
+		int num_waypoints = map_waypoints_x.size();
+
+		int starting_waypoint = ClosestWaypoint(end_path_x, end_path_y, map_waypoints_x, map_waypoints_y) - 2;
+		starting_waypoint = starting_waypoint % num_waypoints;
+
+		cout << "End path theta " << end_path_theta << endl;
+		for (int i = 0; i < 5; i++) {
+		    int waypoint_num = (starting_waypoint + i) % num_waypoints;
+		    double shifted_x = map_waypoints_x[waypoint_num] - end_path_x;
+		    double shifted_y = map_waypoints_y[waypoint_num] - end_path_y;
+
+		    double rotated_x = shifted_x * cos(-end_path_theta) - shifted_y * sin(-end_path_theta);
+		    double rotated_y = shifted_x * sin(-end_path_theta) + shifted_y * cos(-end_path_theta);
+
+		    spline_x.push_back(rotated_x);
+		    spline_y.push_back(rotated_y);
+		    cout << "Rotated X" << rotated_x << endl;
+		    cout << "Rotated Y" << rotated_y << endl;
+		}
+		cout << endl;
+
+		s.set_points(spline_x, spline_y);
+
+		for (int i = 1; i <= 50 - previous_path_length; i++) {
+		   double rotated_x = goal_meters_per_iteration * i;
+		   double rotated_y = s(rotated_x);
+
+		   double shifted_x = rotated_x * cos(end_path_theta) - rotated_y * sin(end_path_theta);
+		   double shifted_y = rotated_x * sin(end_path_theta) + rotated_y * cos(end_path_theta);
+
+		   double x = shifted_x + end_path_x;
+		   double y = shifted_y + end_path_y;
+
+		   next_x_vals.push_back(x);
+		   next_y_vals.push_back(y);
+
+		}
+
+		/**
 		for (int i = 0; i < 50 - previous_path_length; i++) {
 		  double next_s = end_path_s + goal_meters_per_iteration * (i+1);
 		  double next_d = 6;
@@ -270,6 +327,7 @@ int main() {
 		  next_y_vals.push_back(next_xy[1]);
 
 		}
+		**/
 
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
