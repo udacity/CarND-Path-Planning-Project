@@ -246,7 +246,9 @@ int main() {
   int trajectory_points_inserted = 0;
 
   queue<double> lane_change_offsets;
+  queue<double> slow_down_offsets;
   int current_lane = 0;
+  double current_slowdown = 0;
 
 
   // Waypoint map to read from
@@ -277,7 +279,7 @@ int main() {
   }
 
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &middle_line_trajectory_x, &middle_line_trajectory_y, &trajectory_points_inserted, &lane_change_offsets, &current_lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &middle_line_trajectory_x, &middle_line_trajectory_y, &trajectory_points_inserted, &lane_change_offsets, &slow_down_offsets, &current_lane, &current_slowdown](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -316,13 +318,16 @@ int main() {
 
           	json msgJson;
 
+
+		double car_theta = deg2rad(car_yaw);
+
 		int previous_path_length = previous_path_x.size();
 		double end_path_x, end_path_y;
 		double end_path_theta;
 		if (previous_path_length < 2) {
 		    end_path_s = car_s;
 		    end_path_d = car_d;
-		    end_path_theta = deg2rad(car_yaw);
+		    end_path_theta = car_theta;
 		    end_path_x = car_x;
 		    end_path_y = car_y;
 		} else {
@@ -336,13 +341,9 @@ int main() {
 		}
 
 		// Add enough points to get our number of points to 50
-		const double goal_miles_per_hour = 40;
+		double goal_miles_per_hour = 45;
 		const double seconds_per_hour = 3600;
 		const double meters_per_mile = 1609.34;
-		const double goal_meters_per_second = goal_miles_per_hour * meters_per_mile / seconds_per_hour;
-
-		const double seconds_per_iteration = .02;
-		const double goal_meters_per_iteration = goal_meters_per_second * seconds_per_iteration;
 
 		int trajectory_points_traveled = trajectory_points_inserted - previous_path_length;
 		for (int i = 0; i < trajectory_points_traveled; i++) {
@@ -366,15 +367,28 @@ int main() {
 
 		// Get info about other cars
 		for (int i = 0; i < sensor_fusion.size(); i++) {
-		  cout << sensor_fusion[i][6] << endl;
-		  bool in_same_lane = ((current_lane*4+2) - 2 <= (double)sensor_fusion[i][6] && (double)sensor_fusion[i][6] <= (current_lane*4+2) + 2);
+		  int other_car_number = sensor_fusion[i][0];
+		  double other_car_x = sensor_fusion[i][1];
+		  double other_car_y = sensor_fusion[i][2];
+		  double other_car_vx = sensor_fusion[i][3];
+		  double other_car_vy = sensor_fusion[i][4];
+		  double other_car_s = sensor_fusion[i][5];
+		  double other_car_d = sensor_fusion[i][6];
+		  double other_car_theta = atan2(other_car_vy, other_car_vx);
+
+		  bool in_same_lane = ((current_lane*4+2) - 2 <= other_car_d && other_car_d <= (current_lane*4+2) + 2);
+		  double other_car_speed = other_car_vx * cos(-other_car_theta) - other_car_vy * sin(-other_car_theta);
+
+		  other_car_speed *= (seconds_per_hour / meters_per_mile);
+		  
 		  
 		  double distance = (double)sensor_fusion[i][5] - car_s;
 		  if (0 <= distance && distance <= 30 && lane_change_offsets.empty() && in_same_lane) {
-		    laneChange(RIGHT, lane_change_offsets, current_lane);
+		    cout << other_car_speed << endl;
+		    goal_miles_per_hour = other_car_speed;
+		    //laneChange(RIGHT, lane_change_offsets, current_lane);
 		  }
 		}
-		cout << endl;
 
 		// Activate lane change demo
 		//if (lane_change_offsets.empty()) {
@@ -401,6 +415,11 @@ int main() {
 		}
 
 		s.set_points(spline_x, spline_y);
+
+		double goal_meters_per_second = goal_miles_per_hour * meters_per_mile / seconds_per_hour;
+
+		const double seconds_per_iteration = .02;
+		const double goal_meters_per_iteration = goal_meters_per_second * seconds_per_iteration;
 
 		for (int i = 1; i <= 100 - previous_path_length; i++) {
 		    double rotated_x = goal_meters_per_iteration * i;
