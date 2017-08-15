@@ -25,6 +25,7 @@ typedef struct {
     std::vector<double> dJMTparams;
     double dTimeToNextJMT;
     double dTimeOffsetJMT;
+    double sTimeToNextJMT;
     double currentLane;
     double dt;
 } TrajectoryData;
@@ -284,6 +285,19 @@ std::chrono::milliseconds currentTime() {
     );
 }
 
+double arcLength(const std::vector<Point2D>& points, int start, int end) {
+    double length = 0;
+    if (points.size() > start) {
+        Point2D lastPoint = points[start];
+        for (int i = 1; i < end; i++) {
+            const Point2D& newPoint = points[i];
+            length += distance(lastPoint.x, lastPoint.y, newPoint.x, newPoint.y);
+            lastPoint = newPoint;
+        }
+    }
+    return length;
+}
+
 
 class PathGenerator::impl {
 public:
@@ -301,18 +315,15 @@ public:
                                              const std::vector<double>& params,
                                              double dT,
                                              double dt);
-    std::vector<Point2D> generate_path_points(const TrajectoryData& jmtParams, std::vector<Point2D>& points, int startI, double rdt, int toKeep, int maxItems, bool validate);
+    std::vector<Point2D> generate_path_points(const TrajectoryData& jmtParams, std::vector<Point2D> points, int startI, double rdt, double s_start, double s_end, int toKeep, int maxItems, bool validate);
 
     Waypoints waypoints_;
     double s_max_;
     LoopingUniformCRSpline<Vector<2>>* spline_;
     TrajectoryData trajectory;
     double dT;
-    int maxItems;
     double dt;
-    int prevItems;
     double maxToKeep;
-    double timeToNextJMT;
     double uniformInterval;
     double minimumFollowDistance;
     std::vector<Point2D> prevPoints;
@@ -329,9 +340,6 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
 
     impl& im = *pimpl;
     im.s_max_ = s_max;
-    im.maxItems = 200;
-    im.timeToNextJMT = 0;
-    im.prevItems = 0;
     im.maxToKeep = 10;
     im.uniformInterval = 1.f;
     im.minimumFollowDistance = 20.f;
@@ -420,17 +428,18 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
 
     impl& im = *pimpl;
 
-    double usedT = im.find_closest_time(state.s);
-    int used = (int) fmax(0, im.prevItems - (int) state.remaining_path_x.size());
+    int used = (int) fmax(0, (int) im.prevPoints.size() - (int) state.remaining_path_x.size());
     unsigned long toKeep = (unsigned long) fmin(im.maxToKeep, state.remaining_path_x.size());
+    double lengthDistTraveled = arcLength(im.prevPoints, 0, used);
+
+    printf("used %d, time delta %f, distance traveled %f\n", used, used * im.trajectory.dt, lengthDistTraveled);
 
     //reduce time
-    im.timeToNextJMT -= used * im.trajectory.dt;
+    im.trajectory.sTimeToNextJMT -= used * im.trajectory.dt;
     im.trajectory.dTimeToNextJMT -= used * im.trajectory.dt;
     im.trajectory.dTimeOffsetJMT += used * im.trajectory.dt;
-    im.prevItems = (int) state.remaining_path_x.size();
 
-    bool bSkip = im.timeToNextJMT > 0;
+    bool bSkip = im.trajectory.sTimeToNextJMT > 0;
 
     // add previous points
     PathPoints retval;
@@ -444,15 +453,35 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     }
 
     if (bSkip) {
-        printf("skipped - time to cover %f\n", im.timeToNextJMT);
+        im.prevPoints = points;
+        printf("skipped - time to cover %f\n", im.trajectory.sTimeToNextJMT);
         return retval;
     }
 
     //generate points along this path in one second
-    auto jmtParams = im.generate_constraint_JMT(state, 21.5, 10, 10);
+    auto jmtParams = im.generate_constraint_JMT(state, 21.9, 10, 10);
+
+    int targetItems = (int) (im.dT / im.dt);
+
+    // determine optimal length
+    double remT = im.dT - jmtParams.sTimeToNextJMT;
+    double s_start = JMTeval(jmtParams.sJMTparams, 0);
+    double s_end = JMTeval(jmtParams.sJMTparams, remT);
+    double s_diff = s_end - s_start;
 
     // determine optimal path along JMT
-    points = im.generate_path_points(jmtParams, points, i, im.dt, (int) toKeep, im.maxItems, false);
+    std::vector<Point2D> optimalPoints = im.generate_path_points(jmtParams, points, i, im.dt, s_start, s_end, (int) toKeep, targetItems, false);
+
+    // determine actual length of path
+    double pathLength = arcLength(optimalPoints, (int) fmax(i - 1, 0), (int) optimalPoints.size());
+
+    double normalizationFactor = s_diff / pathLength;
+    double rdt = normalizationFactor * im.dt;
+
+    targetItems = (int) (im.dT / rdt);
+
+    // generate new normalized path with adjusted time delta
+    points = im.generate_path_points(jmtParams, points, i, rdt, s_start, s_end, (int) toKeep, targetItems, false);
 
     for (; i < points.size(); i++) {
         Point2D& point = points[i];
@@ -475,20 +504,15 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     printf("End: %f %f\n\n", retval.x[retval.x.size() - 1], retval.y[retval.y.size() - 1]);
 #endif
 
-    im.timeToNextJMT = toKeep * im.dt;
-    im.trajectory = jmtParams;
-    im.trajectory.dt = im.dt;
-    im.prevItems = im.maxItems;
     im.prevPoints = points;
+    im.trajectory = jmtParams;
+    im.trajectory.dt = rdt;
 
     return retval;
 }
 
-std::vector<Point2D> PathGenerator::impl::generate_path_points(const TrajectoryData& jmtParams, std::vector<Point2D>& points, int startI, double rdt, int toKeep, int maxItems, bool validate) {
+std::vector<Point2D> PathGenerator::impl::generate_path_points(const TrajectoryData& jmtParams, std::vector<Point2D> points, int startI, double rdt, double s_start, double s_end, int toKeep, int maxItems, bool validate) {
 
-    double remT = dT - toKeep * rdt;
-    double s_start = JMTeval(jmtParams.sJMTparams, 0);
-    double s_end = JMTeval(jmtParams.sJMTparams, remT);
     int prevWaypoint = find_waypoint_floor(waypoints_.s, s_start);
     int nextWaypoint = find_waypoint_floor(waypoints_.s, s_end) + 1;
 
@@ -515,6 +539,8 @@ std::vector<Point2D> PathGenerator::impl::generate_path_points(const TrajectoryD
     if (waypointDiff < 0) {
         waypointDiff += waypoints_.s.size();
     }
+
+    printf("prevWaypoint %d, nextWaypoint %d\n", prevWaypoint, nextWaypoint);
 
     std::vector<double> sv;
     int j = 0, i = startI;
@@ -630,7 +656,7 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     // number of time steps that remain that should be kept
     unsigned long toKeep = (unsigned long) fmin(maxToKeep, state.remaining_path_x.size());
     // elapsed time to the new 'reference point', the origin of the new JMT for this update
-    double deltaT = - timeToNextJMT + toKeep * dt;
+    double deltaT = - retval.sTimeToNextJMT + toKeep * retval.dt;
 
     //use the previous JMT and final reference point to determine where the
     double pos =  state.remaining_path_x.size() == 0 ? state.s : JMTeval(trajectory.sJMTparams, deltaT);
@@ -640,8 +666,8 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     // determine JMT using start and end state
 
     // amount of time necessary to generate a full prediction horizon
-    double remT = dT - toKeep * dt;
-    if (!(remT > toKeep * dt)) {
+    double remT = dT - toKeep * trajectory.dt;
+    if (!(remT > toKeep * trajectory.dt)) {
         throw new std::exception();
     }
 
@@ -737,6 +763,14 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     }
 
     retval.sJMTparams = bestCurveS.JMTparams;
+    retval.sTimeToNextJMT = toKeep * trajectory.dt;
+
+    double dDelta = JMTeval(bestCurveS.JMTparams, 0) - JMTeval(trajectory.sJMTparams, deltaT - trajectory.dt);
+
+    if (deltaT > 0 &&
+        dDelta > 22 * 0.02) {
+        throw new std::exception();
+    }
 
     return retval;
 }
@@ -784,6 +818,7 @@ VecCollisionBoundingBox PathGenerator::impl::check_collisions(const std::vector<
 PathGenerator::impl::impl() : trajectory({}) {
     trajectory.dTimeToNextJMT = 0;
     trajectory.dTimeOffsetJMT = 0;
+    trajectory.sTimeToNextJMT = 0;
     trajectory.currentLane = 1;
     trajectory.dt = 0;
     trajectory.sJMTparams = std::vector<double>(6);
