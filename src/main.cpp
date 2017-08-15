@@ -364,13 +364,24 @@ int main() {
 
 		int num_waypoints = map_waypoints_x.size();
 
-		// Activate lane change demo
-		if (lane_change_offsets.empty()) {
-		  laneChange(RIGHT, lane_change_offsets, current_lane);
-		  laneChange(LEFT, lane_change_offsets, current_lane);
-		  laneChange(0, lane_change_offsets, current_lane);
+		// Get info about other cars
+		for (int i = 0; i < sensor_fusion.size(); i++) {
+		  cout << sensor_fusion[i][6] << endl;
+		  bool in_same_lane = ((current_lane*4+2) - 2 <= (double)sensor_fusion[i][6] && (double)sensor_fusion[i][6] <= (current_lane*4+2) + 2);
+		  
+		  double distance = (double)sensor_fusion[i][5] - car_s;
+		  if (0 <= distance && distance <= 30 && lane_change_offsets.empty() && in_same_lane) {
+		    laneChange(RIGHT, lane_change_offsets, current_lane);
+		  }
 		}
+		cout << endl;
 
+		// Activate lane change demo
+		//if (lane_change_offsets.empty()) {
+		//  laneChange(RIGHT, lane_change_offsets, current_lane);
+		//  laneChange(LEFT, lane_change_offsets, current_lane);
+		//  laneChange(0, lane_change_offsets, current_lane);
+		//}
 
 		int starting_waypoint = ClosestWaypoint(end_path_x, end_path_y, map_waypoints_x, map_waypoints_y) - 4;
 		starting_waypoint = starting_waypoint % num_waypoints;
