@@ -83,6 +83,30 @@ vector<double> JMT(vector< double> start, vector <double> end, double T)
 
 }
 
+const int LEFT = -1;
+const int RIGHT = 1;
+void laneChange(const int direction, queue<double> &lane_change_offsets, int &current_lane) {
+
+    double current_position = current_lane*4.0 + 2.0;
+    double new_position = current_position + direction * 4.0;
+
+    current_lane += direction;
+
+    vector<double> current_position_horiz = {current_position,0.0,0.0};
+    vector<double> next_position_horiz = {new_position, 0.0, 0.0};
+
+    vector<double> jmt = JMT(current_position_horiz, next_position_horiz, 2);
+
+    for (double t = .02; t <= 2.0; t+= .02) {
+      double offset = 0;
+      for (int i = 0; i < jmt.size(); i++) {
+	offset += jmt[i] * pow(t, i);
+      }
+      lane_change_offsets.push(offset);
+    }
+}
+
+
 double distance(double x1, double y1, double x2, double y2)
 {
 	return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
@@ -222,6 +246,7 @@ int main() {
   int trajectory_points_inserted = 0;
 
   queue<double> lane_change_offsets;
+  int current_lane = 0;
 
 
   // Waypoint map to read from
@@ -252,7 +277,7 @@ int main() {
   }
 
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &middle_line_trajectory_x, &middle_line_trajectory_y, &trajectory_points_inserted, &lane_change_offsets](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &middle_line_trajectory_x, &middle_line_trajectory_y, &trajectory_points_inserted, &lane_change_offsets, &current_lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -339,33 +364,11 @@ int main() {
 
 		int num_waypoints = map_waypoints_x.size();
 
+		// Activate lane change demo
 		if (lane_change_offsets.empty()) {
-		  vector<double> current_position_horiz = {2.0,0.0,0.0};
-		  vector<double> next_position_horiz = {6.0, 0.0, 0.0};
-
-		  vector<double> jmt = JMT(current_position_horiz, next_position_horiz, 2);
-		  
-		  for (double t = .02; t <= 2.0; t+= .02) {
-		    double offset = 0;
-		    for (int i = 0; i < jmt.size(); i++) {
-		      offset += jmt[i] * pow(t, i);
-		    }
-		    lane_change_offsets.push(offset);
-		  }
-		  jmt = JMT(next_position_horiz, current_position_horiz, 2);
-
-		  for (double t = .02; t <= 2.0; t += .02) {
-		    double offset = 0;
-		    for (int i = 0; i < jmt.size(); i++) {
-		      offset += jmt[i] * pow(t, i);
-		    }
-		    lane_change_offsets.push(offset);
-		  }
-
-		  cout << endl;
-		  for (double t = .02; t < 2.0; t += .02) {
-		    lane_change_offsets.push(2.0);
-		  }
+		  laneChange(RIGHT, lane_change_offsets, current_lane);
+		  laneChange(LEFT, lane_change_offsets, current_lane);
+		  laneChange(0, lane_change_offsets, current_lane);
 		}
 
 
