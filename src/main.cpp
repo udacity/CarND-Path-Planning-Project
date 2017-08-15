@@ -395,7 +395,7 @@ int main() {
 		    double rotated_x = goal_meters_per_iteration * i;
 		    double rotated_y = s(rotated_x);
 
-		    double offset = 2;
+		    double offset = current_lane * 4 + 2;
 		    if (!lane_change_offsets.empty()) {
 		      offset = lane_change_offsets.front();
 		      lane_change_offsets.pop();
