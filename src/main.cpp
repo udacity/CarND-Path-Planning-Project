@@ -202,7 +202,7 @@ int main() {
   int lane = 1;
 
   //reference velocity as close to speed limit as possible
-  double ref_vel = 49.5
+  double ref_vel = 49.5;
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -244,10 +244,6 @@ int main() {
           	json msgJson;
 
             int prev_size = previous_path_x.size();
-
-            /*
-
-            */
 
             //create a list of sparsly spaced waypoints.
 
@@ -314,8 +310,7 @@ int main() {
 
             // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
             
-            for(int i=0; i<previous_path_x.size(); i++)
-            {
+            for(int i=0; i<previous_path_x.size(); i++) {
               next_x_vals.push_back(previous_path_x[i]);
               next_y_vals.push_back(previous_path_y[i]);
             }
