@@ -254,7 +254,7 @@ int main() {
 
             //find ref_v to use
             for(int i=0; i<sensor_fusion.size(); i++) {
-              
+
               //car in my lane
               float d = sensor_fusion[i][6];
               
@@ -280,7 +280,7 @@ int main() {
 
             } else if(ref_vel < 49.5) {
 
-              ref_vel += 224;
+              ref_vel += .224;
 
             }
 
