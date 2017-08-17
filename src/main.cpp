@@ -171,12 +171,6 @@ int main() {
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
 
-  //Start in lane 1
-  int lane = 1;
-
-  //reference velocity as close to speed limit as possible
-  double ref_vel = 49.5;
-
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
@@ -204,7 +198,13 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  //Start in lane 1
+  int lane = 1;
+
+  //reference velocity as close to speed limit as possible
+  double ref_vel = 49.5;
+
+  h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
