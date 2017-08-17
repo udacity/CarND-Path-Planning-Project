@@ -270,12 +270,6 @@ int main() {
                 if((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
 
                   too_close = true;
-                  
-                  if(lane > 0) {
-
-                    lane = 0;
-                    
-                  }
                 }
               }
             }
@@ -283,6 +277,73 @@ int main() {
             if(too_close) {
 
               ref_vel -= .224; //~=5m/s^2
+
+              int proposed_lane;
+              bool left_collision = false;
+              bool right collision = false;
+              bool changed_lane = false;
+
+              if((lane - 1) >= 0) {
+                proposed_lane = lane - 1;
+
+                for(int i = 0; i < sensor_fusion.size(); ++i){
+                  double d = sensor_fusion[i][6];
+                  if(d > (laneWidth * proposed_lane) && d < (laneWidth * (proposed_lane + 1))){
+                    //this car is in my lane
+                    //calculate it's s at the end of previous waypoints
+                    double vx =sensor_fusion[i][3];
+                    double vy =sensor_fusion[i][4];
+                    double s_end =sensor_fusion[i][5];
+                    double speed = sqrt(vx*vx + vy*vy);
+
+                    s_end += speed * prev_size * sampling;
+                    if((s_end > car_s)  && ((s_end - car_s) < SAFE_FWD_DISTANCE)){
+                      
+                      left_collision =  true;
+                    }
+                    if((s_end < car_s)  && ((car_s - s_end) < SAFE_BWD_DISTANCE)){
+                      
+                      left_collision =  true;
+                    }
+                  }
+                }
+
+                if(! left_collision) {
+                  lane = proposed_lane;
+                  changed_lane = true;
+                }
+              }
+
+              if((lane + 1 < 3) && !changed_lane) {
+
+                proposed_lane = lane + 1;
+
+                for(int i = 0; i < sensor_fusion.size(); ++i){
+                  
+                  double d = sensor_fusion[i][6];
+                  
+                  if(d > (laneWidth * proposed_lane) && d < (laneWidth * (proposed_lane + 1))){
+                    //this car is in my lane
+                    //calculate it's s at the end of previous waypoints
+                    double vx =sensor_fusion[i][3];
+                    double vy =sensor_fusion[i][4];
+                    double s_end =sensor_fusion[i][5];
+                    double speed = sqrt(vx*vx + vy*vy);
+
+                    s_end += speed * prev_size * sampling;
+                    if((s_end > car_s)  && ((s_end - car_s) < SAFE_FWD_DISTANCE)){
+                      right_collision = true;
+                    }
+                    if((s_end < car_s)  && ((car_s - s_end) < SAFE_BWD_DISTANCE)){
+                      right_collision = true;
+                    }
+                  }
+                }
+                //cout<<"Right lane collision "<< right_collision<<endl;
+                if(! right_collision){
+                  lane = proposed_lane;
+                }
+              }
 
             } else if(ref_vel < 49.5) {
 
