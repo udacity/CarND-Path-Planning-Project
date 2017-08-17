@@ -245,6 +245,10 @@ int main() {
 
             int prev_size = previous_path_x.size();
 
+            const double laneWidth =4;
+
+            const double sampling = 0.02;
+
             if(prev_size > 0) {
               
               car_s = end_path_s;
@@ -280,7 +284,7 @@ int main() {
 
               int proposed_lane;
               bool left_collision = false;
-              bool right collision = false;
+              bool right_collision = false;
               bool changed_lane = false;
 
               if((lane - 1) >= 0) {
@@ -297,11 +301,11 @@ int main() {
                     double speed = sqrt(vx*vx + vy*vy);
 
                     s_end += speed * prev_size * sampling;
-                    if((s_end > car_s)  && ((s_end - car_s) < SAFE_FWD_DISTANCE)){
+                    if((s_end > car_s)  && ((s_end - car_s) < 30)){
                       
                       left_collision =  true;
                     }
-                    if((s_end < car_s)  && ((car_s - s_end) < SAFE_BWD_DISTANCE)){
+                    if((s_end < car_s)  && ((car_s - s_end) < 15)){
                       
                       left_collision =  true;
                     }
@@ -331,10 +335,10 @@ int main() {
                     double speed = sqrt(vx*vx + vy*vy);
 
                     s_end += speed * prev_size * sampling;
-                    if((s_end > car_s)  && ((s_end - car_s) < SAFE_FWD_DISTANCE)){
+                    if((s_end > car_s)  && ((s_end - car_s) < 30)){
                       right_collision = true;
                     }
-                    if((s_end < car_s)  && ((car_s - s_end) < SAFE_BWD_DISTANCE)){
+                    if((s_end < car_s)  && ((car_s - s_end) < 15)){
                       right_collision = true;
                     }
                   }
