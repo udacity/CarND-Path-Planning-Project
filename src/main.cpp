@@ -9,7 +9,8 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 
-#include "planner.h"
+#include "Planner.h"
+#include "CarState.h"
 
 using namespace std;
 
@@ -56,36 +57,35 @@ int main() {
           // j[1] is the data JSON object
           
         	// Main car's localization Data
-          	double car_x = j[1]["x"];
-          	double car_y = j[1]["y"];
-          	double car_s = j[1]["s"];
-          	double car_d = j[1]["d"];
-          	double car_yaw = j[1]["yaw"];
-          	double car_speed = j[1]["speed"];
+          double car_x = j[1]["x"];
+          double car_y = j[1]["y"];
+          double car_s = j[1]["s"];
+          double car_d = j[1]["d"];
+          double car_yaw = j[1]["yaw"];
+          double car_speed = j[1]["speed"];
 
-          	// Previous path data given to the Planner
-          	auto previous_path_x = j[1]["previous_path_x"];
-          	auto previous_path_y = j[1]["previous_path_y"];
-          	// Previous path's end s and d values 
-          	double end_path_s = j[1]["end_path_s"];
-          	double end_path_d = j[1]["end_path_d"];
+          // Previous path data given to the Planner
+          auto previous_path_x = j[1]["previous_path_x"];
+          auto previous_path_y = j[1]["previous_path_y"];
+          // Previous path's end s and d values
+          double end_path_s = j[1]["end_path_s"];
+          double end_path_d = j[1]["end_path_d"];
 
-          	// Sensor Fusion Data, a list of all other cars on the same side of the road.
-            vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
+          // Sensor Fusion Data, a list of all other cars on the same side of the road.
+          vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
 
-          	json msgJson;
+          json msgJson;
+          CarState car_state = {car_x, car_y, car_s, car_d, car_yaw, car_speed};
+          vector<vector<double>> previous_path = {previous_path_x, previous_path_y};
+          vector<vector<double>> output = planner.plan(car_state, previous_path, sensor_fusion);
 
-            vector<double> car_state = {car_x, car_y, car_s, car_d, car_yaw, car_speed};
-            vector<vector<double>> previous_path = {previous_path_x, previous_path_y};
-            vector<vector<double>> output = planner.plan(car_state, previous_path, sensor_fusion);
+          msgJson["next_x"] = output[0];
+          msgJson["next_y"] = output[1];
 
-          	msgJson["next_x"] = output[0];
-          	msgJson["next_y"] = output[1];
+          auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
-          	auto msg = "42[\"control\","+ msgJson.dump()+"]";
-
-          	//this_thread::sleep_for(chrono::milliseconds(1000));
-          	ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+          //this_thread::sleep_for(chrono::milliseconds(1000));
+          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
           
         }
       } else {

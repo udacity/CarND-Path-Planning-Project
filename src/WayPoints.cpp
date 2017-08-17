@@ -7,7 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
-#include "waypoints.h"
+#include "WayPoints.h"
 #include "utils.h"
 
 using namespace std;
@@ -31,8 +31,6 @@ WayPoints::WayPoints() {
 
 }
 
-WayPoints::~WayPoints() {}
-
 int WayPoints::ClosestWayPoint(double x, double y) {
   double closestLen = 100000;
   int closestWaypoint = 0;
@@ -41,7 +39,7 @@ int WayPoints::ClosestWayPoint(double x, double y) {
   {
     double map_x = wps_[i].x;
     double map_y = wps_[i].y;
-    double dist = distance(x, y, map_x ,map_y);
+    double dist = ut::distance(x, y, map_x ,map_y);
     if(dist < closestLen)
     {
       closestLen = dist;
@@ -71,7 +69,7 @@ int WayPoints::NextWayPoint(double x, double y, double theta) {
 }
 
 int WayPoints::PrevWayPoint(int i) {
-  return i == 0? wps_.size() - 1:i - 1;
+  return i == 0? (int)wps_.size() - 1:i - 1;
 }
 
 vector<double> WayPoints::getFrenet(double x, double y, double theta) {
@@ -92,14 +90,14 @@ vector<double> WayPoints::getFrenet(double x, double y, double theta) {
   double proj_x = proj_norm*n_x;
   double proj_y = proj_norm*n_y;
 
-  double frenet_d = distance(x_x, x_y, proj_x, proj_y);
+  double frenet_d = ut::distance(x_x, x_y, proj_x, proj_y);
 
   //see if d value is positive or negative by comparing it to a center point
 
   double center_x = 1000 - prev_wp.x;
   double center_y = 2000 - prev_wp.y;
-  double centerToPos = distance(center_x, center_y, x_x, x_y);
-  double centerToRef = distance(center_x, center_y, proj_x, proj_y);
+  double centerToPos = ut::distance(center_x, center_y, x_x, x_y);
+  double centerToRef = ut::distance(center_x, center_y, proj_x, proj_y);
 
   if(centerToPos <= centerToRef) {
     frenet_d *= -1;
@@ -108,10 +106,10 @@ vector<double> WayPoints::getFrenet(double x, double y, double theta) {
   // calculate s value
   double frenet_s = 0;
   for(int i = 0; i < prev_wp_id; i++) {
-    frenet_s += distance(wps_[i].x, wps_[i].y, wps_[i + 1].x, wps_[i + 1].y);
+    frenet_s += ut::distance(wps_[i].x, wps_[i].y, wps_[i + 1].x, wps_[i + 1].y);
   }
 
-  frenet_s += distance(0, 0, proj_x, proj_y);
+  frenet_s += ut::distance(0, 0, proj_x, proj_y);
 
   return {frenet_s, frenet_d};
 }
@@ -123,7 +121,7 @@ vector<double> WayPoints::getXY(double s, double d){
     prev_wp_id++;
   }
 
-  int next_wp_id = (prev_wp_id + 1)%wps_.size();
+  int next_wp_id = (prev_wp_id + 1)%(int)wps_.size();
 
   WayPoint& next_wp = wps_[next_wp_id];
   WayPoint& prev_wp = wps_[prev_wp_id];
@@ -157,16 +155,16 @@ void WayPoints::fit_spline_segment(double s) {
 
   for (int i = lower_wp_i; i > 0; i--) {
     if (prev_wp_id < 0) {
-      wp_ids.push_back(wps_.size() + (prev_wp_id - i));
+      wp_ids.push_back((int)wps_.size() + (prev_wp_id - i));
     } else {
-      wp_ids.push_back((prev_wp_id - i)%wps_.size());
+      wp_ids.push_back((prev_wp_id - i)%(int)wps_.size());
     }
   }
 
   wp_ids.push_back(prev_wp_id);
 
   for (int i = 1; i < upper_wp_i; i++) {
-    wp_ids.push_back((prev_wp_id + i) % wps_.size());
+    wp_ids.push_back((prev_wp_id + i)%(int)wps_.size());
   }
 
   bool crossed_through_zero = false;

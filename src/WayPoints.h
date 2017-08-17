@@ -6,7 +6,7 @@
 #define WAYPOINTS_H
 
 #include <vector>
-#include "waypoint.h"
+#include "WayPoint.h"
 #include "spline.h"
 
 using namespace std;
@@ -14,7 +14,6 @@ using namespace std;
 class WayPoints {
 public:
   WayPoints();
-  ~WayPoints();
 
   int ClosestWayPoint(double x, double y);
   int NextWayPoint(double x, double y, double theta);
