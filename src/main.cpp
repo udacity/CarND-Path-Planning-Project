@@ -1,13 +1,17 @@
 #include <fstream>
-#include <math.h>
+#include <cmath>
 #include <uWS/uWS.h>
 #include <chrono>
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <deque>
+#include <queue>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
+#include "Eigen-3.3/Eigen/LU"
 #include "json.hpp"
+#include "spline.h"
 
 using namespace std;
 
@@ -33,6 +37,75 @@ string hasData(string s) {
   }
   return "";
 }
+vector<double> JMT(vector< double> start, vector <double> end, double T)
+{
+    /*
+    Calculate the Jerk Minimizing Trajectory that connects the initial state
+    to the final state in time T.
+
+    INPUTS
+
+    start - the vehicles start location given as a length three array
+        corresponding to initial values of [s, s_dot, s_double_dot]
+
+    end   - the desired end state for vehicle. Like "start" this is a
+        length three array.
+
+    T     - The duration, in seconds, over which this maneuver should occur.
+
+    OUTPUT
+    an array of length 6, each value corresponding to a coefficent in the polynomial
+    s(t) = a_0 + a_1 * t + a_2 * t**2 + a_3 * t**3 + a_4 * t**4 + a_5 * t**5
+
+    EXAMPLE
+
+    > JMT( [0, 10, 0], [10, 10, 0], 1)
+    [0.0, 10.0, 0.0, 0.0, 0.0, 0.0]
+    */
+
+    Eigen::MatrixXd t(3,3);
+    t << pow(T, 3), pow(T, 4), pow(T, 5),
+         3*pow(T, 2), 4*pow(T, 3), 5*pow(T, 4),
+         6*T, 12*pow(T, 2), 20*pow(T, 3);
+
+    Eigen::MatrixXd t_inv = t.inverse();
+
+    Eigen::VectorXd s(3);
+    s << end[0] - (start[0] + start[1] * T + .5 * start[2]*T*T),
+         end[1] - (start[1] + start[2] * T),
+         end[2] - start[2];
+
+    Eigen::VectorXd a(6);
+    a << start[0], start[1], .5 * start[2], t_inv * s;
+
+    vector<double> vec(a.data(), a.data() + a.rows() * a.cols());
+    return vec;
+
+}
+
+const int LEFT = -1;
+const int RIGHT = 1;
+void laneChange(const int direction, queue<double> &lane_change_offsets, int &current_lane) {
+
+    double current_position = current_lane*4.0 + 2.0;
+    double new_position = current_position + direction * 4.0;
+
+    current_lane += direction;
+
+    vector<double> current_position_horiz = {current_position,0.0,0.0};
+    vector<double> next_position_horiz = {new_position, 0.0, 0.0};
+
+    vector<double> jmt = JMT(current_position_horiz, next_position_horiz, 2);
+
+    for (double t = .02; t <= 2.0; t+= .02) {
+      double offset = 0;
+      for (int i = 0; i < jmt.size(); i++) {
+	offset += jmt[i] * pow(t, i);
+      }
+      lane_change_offsets.push(offset);
+    }
+}
+
 
 double distance(double x1, double y1, double x2, double y2)
 {
@@ -169,6 +242,15 @@ int main() {
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
 
+  deque<double> middle_line_trajectory_x, middle_line_trajectory_y;
+  int trajectory_points_inserted = 0;
+
+  queue<double> lane_change_offsets;
+  queue<double> transition_speeds;
+  int current_lane = 0;
+  double goal_speed = 45;
+
+
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
@@ -196,7 +278,8 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &middle_line_trajectory_x, &middle_line_trajectory_y, &trajectory_points_inserted, &lane_change_offsets, &transition_speeds, &current_lane, &goal_speed](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -209,12 +292,12 @@ int main() {
 
       if (s != "") {
         auto j = json::parse(s);
-        
+
         string event = j[0].get<string>();
-        
+
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          
+
         	// Main car's localization Data
           	double car_x = j[1]["x"];
           	double car_y = j[1]["y"];
@@ -226,7 +309,7 @@ int main() {
           	// Previous path data given to the Planner
           	auto previous_path_x = j[1]["previous_path_x"];
           	auto previous_path_y = j[1]["previous_path_y"];
-          	// Previous path's end s and d values 
+          	// Previous path's end s and d values
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
 
@@ -235,11 +318,151 @@ int main() {
 
           	json msgJson;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
+
+		double car_theta = deg2rad(car_yaw);
+
+		int previous_path_length = previous_path_x.size();
+		double end_path_x, end_path_y;
+		double end_path_theta;
+		if (previous_path_length < 2) {
+		    end_path_s = car_s;
+		    end_path_d = car_d;
+		    end_path_theta = car_theta;
+		    end_path_x = car_x;
+		    end_path_y = car_y;
+		} else {
+		    end_path_x = middle_line_trajectory_x.back();
+		    end_path_y = middle_line_trajectory_y.back();
+		    double second_end_path_x = *(++middle_line_trajectory_x.rbegin());
+		    double second_end_path_y = *(++middle_line_trajectory_y.rbegin());
+
+		    end_path_theta = atan2(end_path_y - second_end_path_y, end_path_x - second_end_path_x);
+
+		}
+
+		// Add enough points to get our number of points to 50
+		double goal_miles_per_hour = goal_speed;
+		const double seconds_per_hour = 3600;
+		const double meters_per_mile = 1609.34;
+
+		int trajectory_points_traveled = trajectory_points_inserted - previous_path_length;
+		for (int i = 0; i < trajectory_points_traveled; i++) {
+		  middle_line_trajectory_x.pop_front();
+		  middle_line_trajectory_y.pop_front();
+		  trajectory_points_inserted--;
+		}
+
+		vector<double> next_x_vals;
+		vector<double> next_y_vals;
+		for (int i = 0; i < previous_path_length; i++) {
+		    next_x_vals.push_back(previous_path_x[i]);
+		    next_y_vals.push_back(previous_path_y[i]);
+		}
+
+		tk::spline s;
+
+		vector<double> spline_x, spline_y;
+
+		int num_waypoints = map_waypoints_x.size();
+
+		// Get info about other cars
+		for (int i = 0; i < sensor_fusion.size(); i++) {
+		  int other_car_number = sensor_fusion[i][0];
+		  double other_car_x = sensor_fusion[i][1];
+		  double other_car_y = sensor_fusion[i][2];
+		  double other_car_vx = sensor_fusion[i][3];
+		  double other_car_vy = sensor_fusion[i][4];
+		  double other_car_s = sensor_fusion[i][5];
+		  double other_car_d = sensor_fusion[i][6];
+		  double other_car_theta = atan2(other_car_vy, other_car_vx);
+
+		  bool in_same_lane = ((current_lane*4+2) - 2 <= other_car_d && other_car_d <= (current_lane*4+2) + 2);
+		  double other_car_speed = other_car_vx * cos(-other_car_theta) - other_car_vy * sin(-other_car_theta);
+
+		  other_car_speed *= (seconds_per_hour / meters_per_mile);
 
 
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+		  double distance = (double)sensor_fusion[i][5] - car_s;
+		  if (0 <= distance && distance <= 30 && lane_change_offsets.empty() && in_same_lane) {
+		    cout << other_car_speed << endl;
+		    if (transition_speeds.empty()) {
+		      for (double speed = goal_miles_per_hour; speed > other_car_speed; speed -= .10) {
+			transition_speeds.push(speed);
+		      }
+		      goal_speed = other_car_speed;
+
+		    }
+		    //laneChange(RIGHT, lane_change_offsets, current_lane);
+		  }
+		}
+
+		// Activate lane change demo
+		//if (lane_change_offsets.empty()) {
+		//  laneChange(RIGHT, lane_change_offsets, current_lane);
+		//  laneChange(LEFT, lane_change_offsets, current_lane);
+		//  laneChange(0, lane_change_offsets, current_lane);
+		//}
+
+		int starting_waypoint = ClosestWaypoint(end_path_x, end_path_y, map_waypoints_x, map_waypoints_y) - 4;
+		starting_waypoint = starting_waypoint % num_waypoints;
+		starting_waypoint += (starting_waypoint < 0) * num_waypoints;
+
+		for (int i = 0; i < 9; i++) {
+		    int waypoint_num = (starting_waypoint + i) % num_waypoints;
+		    waypoint_num += (waypoint_num < 0) * num_waypoints;
+		    double shifted_x = map_waypoints_x[waypoint_num] - end_path_x;
+		    double shifted_y = map_waypoints_y[waypoint_num] - end_path_y;
+
+		    double rotated_x = shifted_x * cos(-end_path_theta) - shifted_y * sin(-end_path_theta);
+		    double rotated_y = shifted_x * sin(-end_path_theta) + shifted_y * cos(-end_path_theta);
+
+		    spline_x.push_back(rotated_x);
+		    spline_y.push_back(rotated_y);
+		}
+
+		s.set_points(spline_x, spline_y);
+
+
+		for (int i = 1; i <= 100 - previous_path_length; i++) {
+		    goal_miles_per_hour = goal_speed;
+		    if (!transition_speeds.empty()) {
+		      goal_miles_per_hour = transition_speeds.front();
+		      transition_speeds.pop();
+		    }
+		    double goal_meters_per_second = goal_miles_per_hour * meters_per_mile / seconds_per_hour;
+
+		    const double seconds_per_iteration = .02;
+		    const double goal_meters_per_iteration = goal_meters_per_second * seconds_per_iteration;
+		    double rotated_x = goal_meters_per_iteration * i;
+		    double rotated_y = s(rotated_x);
+
+		    double offset = current_lane * 4 + 2;
+		    if (!lane_change_offsets.empty()) {
+		      offset = lane_change_offsets.front();
+		      lane_change_offsets.pop();
+		    }
+		    double rotated_y_offset = rotated_y - offset;
+
+		    double shifted_x = rotated_x * cos(end_path_theta) - rotated_y * sin(end_path_theta);
+		    double shifted_y = rotated_x * sin(end_path_theta) + rotated_y * cos(end_path_theta);
+		    double shifted_x_offset = rotated_x * cos(end_path_theta) - rotated_y_offset * sin(end_path_theta);
+		    double shifted_y_offset = rotated_x * sin(end_path_theta) + rotated_y_offset * cos(end_path_theta);
+
+
+		    double x = shifted_x + end_path_x;
+		    double y = shifted_y + end_path_y;
+		    double x_offset = shifted_x_offset + end_path_x;
+		    double y_offset = shifted_y_offset + end_path_y;
+
+		    next_x_vals.push_back(x_offset);
+		    next_y_vals.push_back(y_offset);
+		    middle_line_trajectory_x.push_back(x);
+		    middle_line_trajectory_y.push_back(y);
+		    trajectory_points_inserted++;
+
+		}
+
+
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
 
@@ -247,7 +470,7 @@ int main() {
 
           	//this_thread::sleep_for(chrono::milliseconds(1000));
           	ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-          
+
         }
       } else {
         // Manual driving
@@ -290,83 +513,3 @@ int main() {
   }
   h.run();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
