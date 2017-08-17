@@ -246,9 +246,9 @@ int main() {
   int trajectory_points_inserted = 0;
 
   queue<double> lane_change_offsets;
-  queue<double> slow_down_offsets;
+  queue<double> transition_speeds;
   int current_lane = 0;
-  double current_slowdown = 0;
+  double goal_speed = 45;
 
 
   // Waypoint map to read from
@@ -279,7 +279,7 @@ int main() {
   }
 
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &middle_line_trajectory_x, &middle_line_trajectory_y, &trajectory_points_inserted, &lane_change_offsets, &slow_down_offsets, &current_lane, &current_slowdown](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &middle_line_trajectory_x, &middle_line_trajectory_y, &trajectory_points_inserted, &lane_change_offsets, &transition_speeds, &current_lane, &goal_speed](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -341,7 +341,7 @@ int main() {
 		}
 
 		// Add enough points to get our number of points to 50
-		double goal_miles_per_hour = 45;
+		double goal_miles_per_hour = goal_speed;
 		const double seconds_per_hour = 3600;
 		const double meters_per_mile = 1609.34;
 
@@ -380,12 +380,18 @@ int main() {
 		  double other_car_speed = other_car_vx * cos(-other_car_theta) - other_car_vy * sin(-other_car_theta);
 
 		  other_car_speed *= (seconds_per_hour / meters_per_mile);
-		  
-		  
+
+
 		  double distance = (double)sensor_fusion[i][5] - car_s;
 		  if (0 <= distance && distance <= 30 && lane_change_offsets.empty() && in_same_lane) {
 		    cout << other_car_speed << endl;
-		    goal_miles_per_hour = other_car_speed;
+		    if (transition_speeds.empty()) {
+		      for (double speed = goal_miles_per_hour; speed > other_car_speed; speed -= .10) {
+			transition_speeds.push(speed);
+		      }
+		      goal_speed = other_car_speed;
+
+		    }
 		    //laneChange(RIGHT, lane_change_offsets, current_lane);
 		  }
 		}
@@ -416,12 +422,17 @@ int main() {
 
 		s.set_points(spline_x, spline_y);
 
-		double goal_meters_per_second = goal_miles_per_hour * meters_per_mile / seconds_per_hour;
-
-		const double seconds_per_iteration = .02;
-		const double goal_meters_per_iteration = goal_meters_per_second * seconds_per_iteration;
 
 		for (int i = 1; i <= 100 - previous_path_length; i++) {
+		    goal_miles_per_hour = goal_speed;
+		    if (!transition_speeds.empty()) {
+		      goal_miles_per_hour = transition_speeds.front();
+		      transition_speeds.pop();
+		    }
+		    double goal_meters_per_second = goal_miles_per_hour * meters_per_mile / seconds_per_hour;
+
+		    const double seconds_per_iteration = .02;
+		    const double goal_meters_per_iteration = goal_meters_per_second * seconds_per_iteration;
 		    double rotated_x = goal_meters_per_iteration * i;
 		    double rotated_y = s(rotated_x);
 
