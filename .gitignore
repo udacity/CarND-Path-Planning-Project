@@ -8,6 +8,6 @@ tags
 cmake-build-debug/
 
 ## Xcode
-.xcode/
+xcode/
 
 .DS_Store
