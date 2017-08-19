@@ -6,6 +6,11 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/LU"
 #include "Eigen-3.3/Eigen/Geometry"
+#include "SplineLibrary/spline_library/splines/natural_spline.h"
+
+typedef Vector<2, double> Vector2d;
+typedef NaturalSpline<Vector2d,double> SplineType;
+
 
 typedef struct {
     int id;
@@ -26,8 +31,10 @@ typedef struct {
     double dTimeToNextJMT;
     double dTimeOffsetJMT;
     double sTimeToNextJMT;
+    double sTimeOffsetJMT;
     double currentLane;
     double dt;
+    double sNormalizer;
 } TrajectoryData;
 
 typedef struct {
@@ -72,9 +79,9 @@ double JMTJerkEval(std::vector<double> params, double T) {
     return 6 * params[3] + 24 * params[4] * t4 + 60 * params[5] * t5;
 }
 
-Eigen::Vector2d getNormalFromTangent(UniformCRSpline<Vector<2>>::InterpolatedPT& tangent, double t) {
-    Vector<2> v = tangent.position;
-    Vector<2> tx = tangent.tangent;
+Eigen::Vector2d getNormalFromCurvature(SplineType::InterpolatedPTC& curvature, double t) {
+    Vector2d v = curvature.position;
+    Vector2d tx = curvature.tangent;
     double x = v[0];
     double y = v[1];
 
@@ -87,9 +94,18 @@ Eigen::Vector2d getNormalFromTangent(UniformCRSpline<Vector<2>>::InterpolatedPT&
     return normal;
 }
 
-Eigen::Vector2d getNormalFromSpline(LoopingUniformCRSpline<Vector<2>>* spline, double t) {
-    UniformCRSpline<Vector<2>>::InterpolatedPT tangent = spline->getTangent(t);
-    return getNormalFromTangent(tangent, t);
+double getCurvatureScalerFromCurvature(SplineType::InterpolatedPTC& curvature, double t) {
+    Vector2d cx = curvature.curvature;
+    Vector2d v = curvature.position;
+    Vector2d tx = curvature.tangent;
+    double x = v[0];
+    double y = v[1];
+    double x_dot = tx[0];
+    double y_dot = tx[1];
+    double x_ddot = cx[0];
+    double y_ddot = cx[1];
+
+    return (x_dot * y_ddot - y_dot * x_ddot) / pow(x_dot * x_dot + y_dot * y_dot, 1.5);
 }
 
 std::vector<double> JMT(std::vector< double> start, std::vector <double> end, double T)
@@ -176,9 +192,14 @@ JMTCurve permuteJMT(double pos, double speed, double accel, double final_s, doub
     bestCurve.cost = 0;
 
     double max_s = (pos < final_s ? max_velocity : -max_velocity)  * dT + pos;
-    double s_ddot = 0;
-    double s_ddot_inc = speed > final_velocity ? -0.25 : 0.25;
+    double s_ddot = 0.0;
+    double s_ddot_inc = speed > final_velocity ? -0.05 : 0.05;
     double s_ddot_final = speed > final_velocity ? -max_accel : max_accel;
+
+    if (fabs(speed - max_velocity) < 0.01) {
+        speed = max_velocity;
+    }
+
     while (((final_velocity >= speed && s_ddot <= s_ddot_final) || (final_velocity <= speed && s_ddot >= s_ddot_final)) &&
             fabs(s_ddot) <= fabs(s_ddot_final)) {
 
@@ -206,6 +227,7 @@ JMTCurve permuteJMT(double pos, double speed, double accel, double final_s, doub
 
                 if (validateJMT(params, dT, dt, max_velocity, max_accel, max_jerk)) {
                     bestCurve.JMTparams = params;
+                    printf("JMT final (pos %f, speed %f, accel %f)\n", s, s_dot, s_ddot);
                     return bestCurve;
                 }
 
@@ -289,7 +311,7 @@ double arcLength(const std::vector<Point2D>& points, int start, int end) {
     double length = 0;
     if (points.size() > start) {
         Point2D lastPoint = points[start];
-        for (int i = 1; i < end; i++) {
+        for (int i = start + 1; i < end; i++) {
             const Point2D& newPoint = points[i];
             length += distance(lastPoint.x, lastPoint.y, newPoint.x, newPoint.y);
             lastPoint = newPoint;
@@ -319,7 +341,7 @@ public:
 
     Waypoints waypoints_;
     double s_max_;
-    LoopingUniformCRSpline<Vector<2>>* spline_;
+    SplineType* spline_;
     TrajectoryData trajectory;
     double dT;
     double dt;
@@ -341,25 +363,25 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
     impl& im = *pimpl;
     im.s_max_ = s_max;
     im.maxToKeep = 10;
-    im.uniformInterval = 1.f;
+    im.uniformInterval = 10.f;
     im.minimumFollowDistance = 20.f;
 
-    std::vector<Vector<2>> xv;
+    std::vector<Vector2d> xv;
     std::vector<double> sv;
     std::vector<double> xs;
     std::vector<double> ys;
 
     for (int i = 0; i < waypoints.s.size(); i++) {
 
-        Vector<2> x;
-        x[0] =(float) (waypoints.x[i]);
-        x[1] =(float) (waypoints.y[i]);
-        xs.push_back((double) x[0]);
-        ys.push_back((double) x[1]);
+        Vector2d x;
+        x[0] =(waypoints.x[i]);
+        x[1] =(waypoints.y[i]);
+        xs.push_back(x[0]);
+        ys.push_back(x[1]);
         xv.push_back(x);
     }
 
-    LoopingUniformCRSpline<Vector<2>> spline(xv);
+    NaturalSpline<Vector2d, double> spline(xv);
 
     // the original waypoints are not uniformly distributed and our cubic hermite spline requires uniformly distributed
     // points - regenerate a set of waypoints with a uniform 's' distribution
@@ -373,10 +395,11 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
 
     while (s < s_max) {
 
-        UniformCRSpline<Vector<2>>::InterpolatedPT tangent = spline.getTangent(t);
-        Eigen::Vector2d normal = getNormalFromTangent(tangent, t);
+        Vector2d pos = spline.getPosition(t);
+        SplineType::InterpolatedPTC tangent = spline.getCurvature(t);
+        Eigen::Vector2d normal = getNormalFromCurvature(tangent, t);
 
-        Vector<2> v = tangent.position;
+        Vector2d v = tangent.position;
         double x = v[0];
         double y = v[1];
         newWaypoints.x.push_back(x);
@@ -386,43 +409,52 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
         newWaypoints.dy.push_back(normal[1]);
 
         xv.push_back(v);
-        Vector<1> tx;
+        Vector<1, double> tx;
         tx[0] = (float) t;
 
         double length = 0;
         double dt = 1.0, factor = 1.f;
         bool incu = false, incd = false;
+        double precision = 0.00001;
         do {
             //generate a new set of waypoints that are uniformly separated by arc-length
-            Vector<2> x1 = spline.getPosition(t);
-            Vector<2> x2 = spline.getPosition(t + dt);
+            Vector2d x1 = spline.getPosition(t);
+            Vector2d x2 = spline.getPosition(t + dt);
             length = distance(x1[0], x1[1], x2[0], x2[1]);
-            if (length - im.uniformInterval > 0.001) {
+            if (length - im.uniformInterval > precision) {
                 dt -= factor;
                 incu = true;
-            } else if (length - im.uniformInterval < -0.001) {
+            } else if (length - im.uniformInterval < -precision) {
                 dt += factor;
                 incd = true;
             }
 
             if (incu && incd) {
-                factor *= 0.1;
-                incu = incd = false;
+                if (factor < precision * 0.01) {
+                    precision /= 0.1;
+                    factor /= 100;
+                } else {
+                    factor *= 0.1;
+                    incu = incd = false;
+                }
             }
 
-        } while (fabs(length - im.uniformInterval) > 0.001);
+        } while (fabs(length - im.uniformInterval) > precision);
 
         s += im.uniformInterval;
         t += dt;
         err += (length - im.uniformInterval);
     }
 
-    im.spline_ = new LoopingUniformCRSpline<Vector<2>>(xv);
+    printf("Total error = %f\n", err);
+
+    im.spline_ = new SplineType(xv);
     im.waypoints_ = newWaypoints;
-    im.dT = 4.f;
+    im.dT = 1.5f;
     im.dt = 0.02;
 
 }
+
 
 PathPoints PathGenerator::generate_path(VehicleState state) {
 
@@ -432,12 +464,17 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     unsigned long toKeep = (unsigned long) fmin(im.maxToKeep, state.remaining_path_x.size());
     double lengthDistTraveled = arcLength(im.prevPoints, 0, used);
 
-    printf("used %d, time delta %f, distance traveled %f\n", used, used * im.trajectory.dt, lengthDistTraveled);
-
     //reduce time
     im.trajectory.sTimeToNextJMT -= used * im.trajectory.dt;
+    im.trajectory.sTimeOffsetJMT += used * im.trajectory.dt;
     im.trajectory.dTimeToNextJMT -= used * im.trajectory.dt;
     im.trajectory.dTimeOffsetJMT += used * im.trajectory.dt;
+
+    printf("used %d, time delta %f, distance traveled %f, speed %f, accel %f\n",
+           used, used * im.trajectory.dt, lengthDistTraveled,
+           JMTSpeedEval(im.trajectory.sJMTparams, im.trajectory.sTimeOffsetJMT),
+           JMTAccelEval(im.trajectory.sJMTparams, im.trajectory.sTimeOffsetJMT)
+    );
 
     bool bSkip = im.trajectory.sTimeToNextJMT > 0;
 
@@ -459,7 +496,7 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     }
 
     //generate points along this path in one second
-    auto jmtParams = im.generate_constraint_JMT(state, 21.9, 10, 10);
+    auto jmtParams = im.generate_constraint_JMT(state, 22, 10, 10);
 
     int targetItems = (int) (im.dT / im.dt);
 
@@ -470,18 +507,17 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     double s_diff = s_end - s_start;
 
     // determine optimal path along JMT
-    std::vector<Point2D> optimalPoints = im.generate_path_points(jmtParams, points, i, im.dt, s_start, s_end, (int) toKeep, targetItems, false);
+    std::vector<Point2D> optimalPoints = im.generate_path_points(jmtParams, points, i, 1.0, s_start, s_end, (int) toKeep, targetItems, false);
 
     // determine actual length of path
     double pathLength = arcLength(optimalPoints, (int) fmax(i - 1, 0), (int) optimalPoints.size());
 
     double normalizationFactor = s_diff / pathLength;
-    double rdt = normalizationFactor * im.dt;
 
-    targetItems = (int) (im.dT / rdt);
+    //targetItems = im.ta;
 
-    // generate new normalized path with adjusted time delta
-    points = im.generate_path_points(jmtParams, points, i, rdt, s_start, s_end, (int) toKeep, targetItems, false);
+    // generate new normalized path with along adjusted arc length
+    points = im.generate_path_points(jmtParams, points, i, normalizationFactor, s_start, s_end, (int) toKeep, targetItems, false);
 
     for (; i < points.size(); i++) {
         Point2D& point = points[i];
@@ -489,6 +525,7 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
         retval.y.push_back(point.y);
     }
 
+    printf("normalization factor %f\n", normalizationFactor);
     printf("complete\n");
 
 #if 0
@@ -506,12 +543,13 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
 
     im.prevPoints = points;
     im.trajectory = jmtParams;
-    im.trajectory.dt = rdt;
+    im.trajectory.dt = im.dt;
+    im.trajectory.sNormalizer = normalizationFactor;
 
     return retval;
 }
 
-std::vector<Point2D> PathGenerator::impl::generate_path_points(const TrajectoryData& jmtParams, std::vector<Point2D> points, int startI, double rdt, double s_start, double s_end, int toKeep, int maxItems, bool validate) {
+std::vector<Point2D> PathGenerator::impl::generate_path_points(const TrajectoryData& jmtParams, std::vector<Point2D> points, int startI, double normalizer, double s_start, double s_end, int toKeep, int maxItems, bool validate) {
 
     int prevWaypoint = find_waypoint_floor(waypoints_.s, s_start);
     int nextWaypoint = find_waypoint_floor(waypoints_.s, s_end) + 1;
@@ -547,25 +585,25 @@ std::vector<Point2D> PathGenerator::impl::generate_path_points(const TrajectoryD
     double s_rate = s_diff / waypointDiff;
     double dRemT = jmtParams.dTimeToNextJMT;
     for (j = 0; i < maxItems; i++, j++) {
-        double s_delta_eval = JMTeval(jmtParams.sJMTparams, j * rdt);
+        double s_delta_eval = (JMTeval(jmtParams.sJMTparams, j * dt) - s_start) * normalizer + s_start;
         if (validate && s_delta_eval > s_end + 0.0001) {
             throw new std::exception();
         }
         double s_curr_delta = s_delta_eval - waypoints_.s[prevWaypoint];
         double s = (s_curr_delta / s_rate) + prevWaypoint;
-        Vector<2> v = spline_->getPosition(s);
-        Eigen::Vector2d normal = getNormalFromSpline(spline_, s);
+        SplineType::InterpolatedPTC curvature = spline_->getCurvature(s);
+        Eigen::Vector2d normal = getNormalFromCurvature(curvature, s);
 
-        double x = v[0];
-        double y = v[1];
+        double x = curvature.position[0];
+        double y = curvature.position[1];
         double d = jmtParams.currentLane * 4.0 + 2.0;
 
         //determine d offset
         if (dRemT > 0) {
-            double d_delta = JMTeval(jmtParams.dJMTparams, jmtParams.dTimeOffsetJMT + j * rdt);
+            double d_delta = JMTeval(jmtParams.dJMTparams, jmtParams.dTimeOffsetJMT + j * dt);
             d += d_delta;
-            printf("d_delta %f, j %d, offset %f, d %f\n", d_delta, j, jmtParams.dTimeOffsetJMT + j * rdt, d);
-            dRemT -= rdt;
+            printf("d_delta %f, j %d, offset %f, d %f\n", d_delta, j, jmtParams.dTimeOffsetJMT + j * dt, d);
+            dRemT -= dt;
         }
 
         x += normal[0] * d;
@@ -659,7 +697,8 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     double deltaT = - retval.sTimeToNextJMT + toKeep * retval.dt;
 
     //use the previous JMT and final reference point to determine where the
-    double pos =  state.remaining_path_x.size() == 0 ? state.s : JMTeval(trajectory.sJMTparams, deltaT);
+    double startPod = JMTeval(trajectory.sJMTparams, 0);
+    double pos =  state.remaining_path_x.size() == 0 ? state.s : (JMTeval(trajectory.sJMTparams, deltaT) - startPod) * trajectory.sNormalizer + startPod;
     double speed =  JMTSpeedEval(trajectory.sJMTparams, deltaT);
     double accel = JMTAccelEval(trajectory.sJMTparams, deltaT);
 
@@ -764,13 +803,9 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
 
     retval.sJMTparams = bestCurveS.JMTparams;
     retval.sTimeToNextJMT = toKeep * trajectory.dt;
+    retval.sTimeOffsetJMT = 0;
 
     double dDelta = JMTeval(bestCurveS.JMTparams, 0) - JMTeval(trajectory.sJMTparams, deltaT - trajectory.dt);
-
-    if (deltaT > 0 &&
-        dDelta > 22 * 0.02) {
-        throw new std::exception();
-    }
 
     return retval;
 }
@@ -819,7 +854,9 @@ PathGenerator::impl::impl() : trajectory({}) {
     trajectory.dTimeToNextJMT = 0;
     trajectory.dTimeOffsetJMT = 0;
     trajectory.sTimeToNextJMT = 0;
-    trajectory.currentLane = 1;
+    trajectory.sTimeOffsetJMT = 0;
+    trajectory.sNormalizer = 1;
+    trajectory.currentLane = 3;
     trajectory.dt = 0;
     trajectory.sJMTparams = std::vector<double>(6);
     trajectory.dJMTparams = std::vector<double>(6);
