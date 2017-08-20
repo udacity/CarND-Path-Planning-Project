@@ -34,19 +34,11 @@ typedef struct {
     double sTimeOffsetJMT;
     double currentLane;
     double dt;
-    double sNormalizer;
 } TrajectoryData;
-
-typedef struct {
-    double x;
-    double y;
-} Point2D;
 
 typedef std::vector<CollisionBoundingBox> VecCollisionBoundingBox;
 
 static Eigen::Rotation2D<double> g_rotNormal(-90.f * M_PI / 180.f);
-
-extern std::vector<double> getFrenet(double x, double y, double theta, std::vector<double> maps_x, std::vector<double> maps_y);
 
 extern double distance(double x1, double y1, double x2, double y2);
 
@@ -307,97 +299,47 @@ std::chrono::milliseconds currentTime() {
     );
 }
 
-double arcLength(const std::vector<Point2D>& points, int start, int end) {
+double arcLength(const std::vector<Vector2d>& points, int start, int end) {
     double length = 0;
     if (points.size() > start) {
-        Point2D lastPoint = points[start];
+        Vector2d lastPoint = points[start];
         for (int i = start + 1; i < end; i++) {
-            const Point2D& newPoint = points[i];
-            length += distance(lastPoint.x, lastPoint.y, newPoint.x, newPoint.y);
+            const Vector2d& newPoint = points[i];
+            length += distance(lastPoint[0], lastPoint[1], newPoint[0], newPoint[1]);
             lastPoint = newPoint;
         }
     }
     return length;
 }
 
-
-class PathGenerator::impl {
-public:
-
-    impl();
-    ~impl();
-    int find_waypoint_floor(std::vector<double>& waypoints, double s);
-    double find_target_t(std::vector<double>& waypoints, double s);
-    double find_closest_time(double s);
-    TrajectoryData generate_constraint_JMT(VehicleState state, double max_velocity, double max_accel, double max_jerk);
-    VecCollisionBoundingBox check_overlap(double d, const std::vector<SensorVehicleState>& sensor_state, const std::vector<double>& params, double dT, double dt);
-    VecCollisionBoundingBox check_collisions(const std::vector<SensorVehicleState>& vehicles,
-                                             const VecCollisionBoundingBox& boxes,
-                                             double d,
-                                             const std::vector<double>& params,
-                                             double dT,
-                                             double dt);
-    std::vector<Point2D> generate_path_points(const TrajectoryData& jmtParams, std::vector<Point2D> points, int startI, double rdt, double s_start, double s_end, int toKeep, int maxItems, bool validate);
-
-    Waypoints waypoints_;
-    double s_max_;
-    SplineType* spline_;
-    TrajectoryData trajectory;
-    double dT;
-    double dt;
-    double maxToKeep;
-    double uniformInterval;
-    double minimumFollowDistance;
-    std::vector<Point2D> prevPoints;
-    CollisionBoundingBox collisionState;
-};
-
-PathGenerator::PathGenerator() : pimpl(new impl()) {
-
+std::vector<Vector2d> xyVectorsToVector2d(const std::vector<double>& xs, const std::vector<double>& ys) {
+    std::vector<Vector2d> retval;
+    for (int i = 0; i < xs.size(); i++) {
+        Vector2d x;
+        x[0] =xs[i];
+        x[1] =ys[i];
+        retval.push_back(x);
+    }
+    return retval;
 }
 
-PathGenerator::~PathGenerator() = default;
+Waypoints generate_scaled_waypoints_from_points(std::vector<Vector2d> xv, double s, double s_max, double sourceInterval, double destInterval) {
 
-PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator() {
-
-    impl& im = *pimpl;
-    im.s_max_ = s_max;
-    im.maxToKeep = 10;
-    im.uniformInterval = 10.f;
-    im.minimumFollowDistance = 20.f;
-
-    std::vector<Vector2d> xv;
-    std::vector<double> sv;
-    std::vector<double> xs;
-    std::vector<double> ys;
-
-    for (int i = 0; i < waypoints.s.size(); i++) {
-
-        Vector2d x;
-        x[0] =(waypoints.x[i]);
-        x[1] =(waypoints.y[i]);
-        xs.push_back(x[0]);
-        ys.push_back(x[1]);
-        xv.push_back(x);
-    }
-
-    NaturalSpline<Vector2d, double> spline(xv);
+    SplineType spline(xv);
 
     // the original waypoints are not uniformly distributed and our cubic hermite spline requires uniformly distributed
     // points - regenerate a set of waypoints with a uniform 's' distribution
 
     Waypoints newWaypoints;
 
-    double s = 0, t = 0, err = 0;
+    double t = s, err = 0;
     xv.clear();
-    sv.clear();
-
 
     while (s < s_max) {
 
-        Vector2d pos = spline.getPosition(t);
-        SplineType::InterpolatedPTC tangent = spline.getCurvature(t);
-        Eigen::Vector2d normal = getNormalFromCurvature(tangent, t);
+        Vector2d pos = spline.getPosition(t / sourceInterval);
+        SplineType::InterpolatedPTC tangent = spline.getCurvature(t / sourceInterval);
+        Eigen::Vector2d normal = getNormalFromCurvature(tangent, t / sourceInterval);
 
         Vector2d v = tangent.position;
         double x = v[0];
@@ -418,13 +360,13 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
         double precision = 0.00001;
         do {
             //generate a new set of waypoints that are uniformly separated by arc-length
-            Vector2d x1 = spline.getPosition(t);
-            Vector2d x2 = spline.getPosition(t + dt);
+            Vector2d x1 = spline.getPosition(t / sourceInterval);
+            Vector2d x2 = spline.getPosition((t + dt) / sourceInterval);
             length = distance(x1[0], x1[1], x2[0], x2[1]);
-            if (length - im.uniformInterval > precision) {
+            if (length - destInterval > precision) {
                 dt -= factor;
                 incu = true;
-            } else if (length - im.uniformInterval < -precision) {
+            } else if (length - destInterval < -precision) {
                 dt += factor;
                 incd = true;
             }
@@ -439,20 +381,131 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
                 }
             }
 
-        } while (fabs(length - im.uniformInterval) > precision);
+        } while (fabs(length - destInterval) > precision);
 
-        s += im.uniformInterval;
+        s += destInterval;
         t += dt;
-        err += (length - im.uniformInterval);
+        err += (length - destInterval);
     }
 
     printf("Total error = %f\n", err);
 
+    return newWaypoints;
+}
+
+
+class PathGenerator::impl {
+public:
+
+    impl();
+    ~impl();
+    int find_waypoint_floor(std::vector<double>& waypoints, double s);
+    double find_target_t(std::vector<double>& waypoints, double s);
+    double find_closest_time(double s);
+    TrajectoryData generate_constraint_JMT(VehicleState state, double pos, double max_velocity, double max_accel, double max_jerk);
+    VecCollisionBoundingBox check_overlap(double d, const std::vector<SensorVehicleState>& sensor_state, const std::vector<double>& params, double dT, double dt);
+    VecCollisionBoundingBox check_collisions(const std::vector<SensorVehicleState>& vehicles,
+                                             const VecCollisionBoundingBox& boxes,
+                                             double d,
+                                             const std::vector<double>& params,
+                                             double dT,
+                                             double dt);
+    std::vector<Vector2d> generate_path_points(SplineType* spline, Waypoints& waypoints,
+                                               const TrajectoryData& jmtParams, std::vector<Vector2d> points,
+                                               int startI, double s_start, double s_end, double s_max,
+                                               int toKeep, int maxItems, bool validate);
+
+    Waypoints waypoints_;
+    double s_max_;
+    SplineType* spline_;
+    TrajectoryData trajectory;
+    double dT;
+    double dt;
+    double maxToKeep;
+    double uniformInterval;
+    double minimumFollowDistance;
+    std::vector<Vector2d> prevPoints;
+    CollisionBoundingBox collisionState;
+
+    std::vector<double> getFrenet(VehicleState state, double x, double y, std::vector<double> maps_x, std::vector<double> maps_y) {
+
+        int i = 0, next_wp, prev_wp;
+        double dist = waypoints_.s.size() > 0 ? waypoints_.s[waypoints_.s.size() - 1] : 0, prevDistance = 0;
+        while (i < waypoints_.s.size()) {
+            double nextDistance = distance(waypoints_.x[i], waypoints_.y[i], x, y);
+            if (nextDistance > dist) {
+                if (prevDistance < nextDistance) {
+                    next_wp = i - 1;
+                    prev_wp = i - 2;
+                } else {
+                    next_wp = i;
+                    prev_wp = i - 1;
+                }
+                break;
+            }
+            prevDistance = dist;
+            dist = nextDistance;
+            i++;
+        }
+
+        double n_x = maps_x[next_wp]-maps_x[prev_wp];
+        double n_y = maps_y[next_wp]-maps_y[prev_wp];
+        double x_x = x - maps_x[prev_wp];
+        double x_y = y - maps_y[prev_wp];
+
+        // find the projection of x onto n
+        double proj_norm = (x_x*n_x+x_y*n_y)/(n_x*n_x+n_y*n_y);
+        double proj_x = proj_norm*n_x;
+        double proj_y = proj_norm*n_y;
+
+        double frenet_d = distance(x_x,x_y,proj_x,proj_y);
+
+        //see if d value is positive or negative by comparing it to a center point
+
+        double center_x = 1000-maps_x[prev_wp];
+        double center_y = 2000-maps_y[prev_wp];
+        double centerToPos = distance(center_x,center_y,x_x,x_y);
+        double centerToRef = distance(center_x,center_y,proj_x,proj_y);
+
+        if(centerToPos <= centerToRef)
+        {
+            frenet_d *= -1;
+        }
+
+        // calculate s value
+        double frenet_s = waypoints_.s[prev_wp];
+
+        frenet_s += distance(0,0,proj_x,proj_y);
+
+        return {frenet_s,frenet_d};
+
+    }
+
+};
+
+PathGenerator::PathGenerator() : pimpl(new impl()) {
+
+}
+
+PathGenerator::~PathGenerator() = default;
+
+PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator() {
+
+    impl& im = *pimpl;
+    im.s_max_ = s_max;
+    im.maxToKeep = 10;
+    im.uniformInterval = 1.f;
+    im.minimumFollowDistance = 20.f;
+
+    std::vector<Vector2d> xv = xyVectorsToVector2d(waypoints.x, waypoints.y);
+    Waypoints newWaypoints = generate_scaled_waypoints_from_points(xv, 0, s_max, im.uniformInterval, im.uniformInterval);
+    xv = xyVectorsToVector2d(newWaypoints.x, newWaypoints.y);
+
     im.spline_ = new SplineType(xv);
     im.waypoints_ = newWaypoints;
-    im.dT = 1.5f;
+    im.dT = 4.f;
     im.dt = 0.02;
-
+    im.trajectory.dt = im.dt;
 }
 
 
@@ -476,17 +529,19 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
            JMTAccelEval(im.trajectory.sJMTparams, im.trajectory.sTimeOffsetJMT)
     );
 
-    bool bSkip = im.trajectory.sTimeToNextJMT > 0;
+    bool bSkip = im.trajectory.sTimeToNextJMT > 0.0001;
 
     // add previous points
     PathPoints retval;
-    std::vector<Point2D> points;
+    std::vector<Vector2d> points;
     int i = 0;
     for (; i < state.remaining_path_x.size() && (bSkip || i < im.maxToKeep); i++) {
-        Point2D point = {state.remaining_path_x[i], state.remaining_path_y[i]};
+        Vector2d point;
+        point[0] = state.remaining_path_x[i];
+        point[1] = state.remaining_path_y[i];
         points.push_back(point);
-        retval.x.push_back(point.x);
-        retval.y.push_back(point.y);
+        retval.x.push_back(point[0]);
+        retval.y.push_back(point[1]);
     }
 
     if (bSkip) {
@@ -495,37 +550,52 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
         return retval;
     }
 
+    //localize the s/d based on the last point to keep
+    double pos = state.s;
+    if (im.prevPoints.size() > 0) {
+        int offset = (int) (im.trajectory.sTimeToNextJMT / im.dt);
+        Vector2d prevPoint = points[-offset];
+        std::vector<double> frenet = im.getFrenet(state, prevPoint[0], prevPoint[1], im.waypoints_.x, im.waypoints_.y);
+        pos = frenet[0];
+    }
+
     //generate points along this path in one second
-    auto jmtParams = im.generate_constraint_JMT(state, 22, 10, 10);
+    auto jmtParams = im.generate_constraint_JMT(state, 0, 22, 10, 10);
 
     int targetItems = (int) (im.dT / im.dt);
 
     // determine optimal length
     double remT = im.dT - jmtParams.sTimeToNextJMT;
-    double s_start = JMTeval(jmtParams.sJMTparams, 0);
-    double s_end = JMTeval(jmtParams.sJMTparams, remT);
+    double s_start = JMTeval(jmtParams.sJMTparams, 0) + pos;
+    double s_end = JMTeval(jmtParams.sJMTparams, remT) + pos;
     double s_diff = s_end - s_start;
 
     // determine optimal path along JMT
-    std::vector<Point2D> optimalPoints = im.generate_path_points(jmtParams, points, i, 1.0, s_start, s_end, (int) toKeep, targetItems, false);
+    std::vector<Vector2d> optimalPoints = im.generate_path_points(im.spline_, im.waypoints_, jmtParams, points, i, s_start, s_end, im.s_max_, (int) toKeep, targetItems, false);
 
-    // determine actual length of path
-    double pathLength = arcLength(optimalPoints, (int) fmax(i - 1, 0), (int) optimalPoints.size());
+    // generate new scaled path points
+    Waypoints scaledWaypoints = generate_scaled_waypoints_from_points(optimalPoints, s_start, s_end, im.uniformInterval, 1.0);
 
-    double normalizationFactor = s_diff / pathLength;
+    // generate new localized spline
+    std::vector<Vector2d> vScaledWaypoints = xyVectorsToVector2d(scaledWaypoints.x, scaledWaypoints.y);
+    SplineType localizedSpline(vScaledWaypoints);
 
-    //targetItems = im.ta;
+    //update waypoint distances for local spline
+    std::vector<double> sValues;
+    int j = i;
+    for (; j < scaledWaypoints.s.size(); j++) {
+        sValues.push_back(j - i);
+    }
+    scaledWaypoints.s = sValues;
 
-    // generate new normalized path with along adjusted arc length
-    points = im.generate_path_points(jmtParams, points, i, normalizationFactor, s_start, s_end, (int) toKeep, targetItems, false);
+    std::vector<Vector2d> normalizedPoints = im.generate_path_points(&localizedSpline, scaledWaypoints, jmtParams, points, i, 0, s_diff, s_diff, (int) toKeep, targetItems, false);
 
-    for (; i < points.size(); i++) {
-        Point2D& point = points[i];
-        retval.x.push_back(point.x);
-        retval.y.push_back(point.y);
+    for (Vector2d v : optimalPoints) {
+        retval.x.push_back(v[0]);
+        retval.y.push_back(v[1]);
+        printf("   [%f, %f]", v[0], v[1]);
     }
 
-    printf("normalization factor %f\n", normalizationFactor);
     printf("complete\n");
 
 #if 0
@@ -543,39 +613,40 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
 
     im.prevPoints = points;
     im.trajectory = jmtParams;
-    im.trajectory.dt = im.dt;
-    im.trajectory.sNormalizer = normalizationFactor;
 
     return retval;
 }
 
-std::vector<Point2D> PathGenerator::impl::generate_path_points(const TrajectoryData& jmtParams, std::vector<Point2D> points, int startI, double normalizer, double s_start, double s_end, int toKeep, int maxItems, bool validate) {
+std::vector<Vector2d> PathGenerator::impl::generate_path_points(SplineType* spline, Waypoints& waypoints,
+                                                                const TrajectoryData& jmtParams, std::vector<Vector2d> points,
+                                                                int startI, double s_start, double s_end, double s_max,
+                                                                int toKeep, int maxItems, bool validate) {
 
-    int prevWaypoint = find_waypoint_floor(waypoints_.s, s_start);
-    int nextWaypoint = find_waypoint_floor(waypoints_.s, s_end) + 1;
+    int prevWaypoint = find_waypoint_floor(waypoints.s, s_start);
+    int nextWaypoint = find_waypoint_floor(waypoints.s, s_end) + 1;
 
     if (nextWaypoint == prevWaypoint) {
         nextWaypoint++;
     }
 
     if (prevWaypoint < 0) {
-        prevWaypoint += waypoints_.s.size();
+        prevWaypoint += waypoints.s.size();
     }
 
-    if (nextWaypoint >= waypoints_.s.size()) {
-        nextWaypoint -= waypoints_.s.size();
+    if (nextWaypoint >= waypoints.s.size()) {
+        nextWaypoint -= waypoints.s.size();
     }
 
     int waypointDiff = nextWaypoint - prevWaypoint;
-    double s_diff = waypoints_.s[nextWaypoint] - waypoints_.s[prevWaypoint];
+    double s_diff = waypoints.s[nextWaypoint] - waypoints.s[prevWaypoint];
 
-    if (s_diff < 0) {
-        s_diff = s_max_ -  waypoints_.s[prevWaypoint];
-        s_diff += waypoints_.s[nextWaypoint];
+    if (s_diff <= 0) {
+        s_diff = s_max -  waypoints.s[prevWaypoint];
+        s_diff += waypoints.s[nextWaypoint];
     }
 
-    if (waypointDiff < 0) {
-        waypointDiff += waypoints_.s.size();
+    if (waypointDiff <= 0) {
+        waypointDiff += waypoints.s.size();
     }
 
     printf("prevWaypoint %d, nextWaypoint %d\n", prevWaypoint, nextWaypoint);
@@ -585,13 +656,13 @@ std::vector<Point2D> PathGenerator::impl::generate_path_points(const TrajectoryD
     double s_rate = s_diff / waypointDiff;
     double dRemT = jmtParams.dTimeToNextJMT;
     for (j = 0; i < maxItems; i++, j++) {
-        double s_delta_eval = (JMTeval(jmtParams.sJMTparams, j * dt) - s_start) * normalizer + s_start;
+        double s_delta_eval = JMTeval(jmtParams.sJMTparams, j * dt) + s_start;
         if (validate && s_delta_eval > s_end + 0.0001) {
             throw new std::exception();
         }
-        double s_curr_delta = s_delta_eval - waypoints_.s[prevWaypoint];
+        double s_curr_delta = s_delta_eval - waypoints.s[prevWaypoint];
         double s = (s_curr_delta / s_rate) + prevWaypoint;
-        SplineType::InterpolatedPTC curvature = spline_->getCurvature(s);
+        SplineType::InterpolatedPTC curvature = spline->getCurvature(s);
         Eigen::Vector2d normal = getNormalFromCurvature(curvature, s);
 
         double x = curvature.position[0];
@@ -610,8 +681,8 @@ std::vector<Point2D> PathGenerator::impl::generate_path_points(const TrajectoryD
         y += normal[1] * d;
 
         if (points.size() > 0) {
-            Point2D& point = points[points.size() - 1];
-            double dist = distance(point.x, point.y, x, y);
+            Vector2d& point = points[points.size() - 1];
+            double dist = distance(point[0], point[1], x, y);
             double dists = 0;
             if (sv.size() > 0) {
                 dists = s_curr_delta - sv[sv.size() - 1];
@@ -619,12 +690,15 @@ std::vector<Point2D> PathGenerator::impl::generate_path_points(const TrajectoryD
                     throw new std::exception();
                 }
             }
-            if (validate && dist > 22 * 0.02f) {
+            if (validate && dist > 23 * 0.02f) {
                 throw new std::exception();
             }
         }
 
-        points.push_back({x, y});
+        Vector2d point;
+        point[0] = x;
+        point[1] = y;
+        points.push_back(point);
         sv.push_back(s_curr_delta);
     }
 
@@ -686,7 +760,7 @@ double PathGenerator::impl::find_target_t(std::vector<double>& waypoints, double
     return s_base;
 }
 
-TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, double max_velocity, double max_accel, double max_jerk) {
+TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, double pos, double max_velocity, double max_accel, double max_jerk) {
 
     TrajectoryData retval = trajectory;
 
@@ -697,8 +771,6 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     double deltaT = - retval.sTimeToNextJMT + toKeep * retval.dt;
 
     //use the previous JMT and final reference point to determine where the
-    double startPod = JMTeval(trajectory.sJMTparams, 0);
-    double pos =  state.remaining_path_x.size() == 0 ? state.s : (JMTeval(trajectory.sJMTparams, deltaT) - startPod) * trajectory.sNormalizer + startPod;
     double speed =  JMTSpeedEval(trajectory.sJMTparams, deltaT);
     double accel = JMTAccelEval(trajectory.sJMTparams, deltaT);
 
@@ -802,7 +874,7 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     }
 
     retval.sJMTparams = bestCurveS.JMTparams;
-    retval.sTimeToNextJMT = toKeep * trajectory.dt;
+    retval.sTimeToNextJMT = maxToKeep * trajectory.dt;
     retval.sTimeOffsetJMT = 0;
 
     double dDelta = JMTeval(bestCurveS.JMTparams, 0) - JMTeval(trajectory.sJMTparams, deltaT - trajectory.dt);
@@ -855,8 +927,7 @@ PathGenerator::impl::impl() : trajectory({}) {
     trajectory.dTimeOffsetJMT = 0;
     trajectory.sTimeToNextJMT = 0;
     trajectory.sTimeOffsetJMT = 0;
-    trajectory.sNormalizer = 1;
-    trajectory.currentLane = 3;
+    trajectory.currentLane = 1;
     trajectory.dt = 0;
     trajectory.sJMTparams = std::vector<double>(6);
     trajectory.dJMTparams = std::vector<double>(6);
