@@ -402,7 +402,7 @@ public:
     int find_waypoint_floor(std::vector<double>& waypoints, double s);
     double find_target_t(std::vector<double>& waypoints, double s);
     double find_closest_time(double s);
-    TrajectoryData generate_constraint_JMT(VehicleState state, double pos, double max_velocity, double max_accel, double max_jerk);
+    TrajectoryData generate_constraint_JMT(VehicleState state, double max_velocity, double max_accel, double max_jerk);
     VecCollisionBoundingBox check_overlap(double d, const std::vector<SensorVehicleState>& sensor_state, const std::vector<double>& params, double dT, double dt);
     VecCollisionBoundingBox check_collisions(const std::vector<SensorVehicleState>& vehicles,
                                              const VecCollisionBoundingBox& boxes,
@@ -497,7 +497,15 @@ PathGenerator::PathGenerator(Waypoints waypoints, double s_max) : PathGenerator(
     im.uniformInterval = 1.f;
     im.minimumFollowDistance = 20.f;
 
-    std::vector<Vector2d> xv = xyVectorsToVector2d(waypoints.x, waypoints.y);
+    std::vector<double> xs;
+    std::vector<double> ys;
+
+    for (int i = 0; i < waypoints.x.size(); i++) {
+        xs.push_back(waypoints.x[i] + waypoints.dx[i] * 14.0);
+        ys.push_back(waypoints.y[i] + waypoints.dy[i] * 14.0);
+    }
+
+    std::vector<Vector2d> xv = xyVectorsToVector2d(xs, ys);
     Waypoints newWaypoints = generate_scaled_waypoints_from_points(xv, 0, s_max, im.uniformInterval, im.uniformInterval);
     xv = xyVectorsToVector2d(newWaypoints.x, newWaypoints.y);
 
@@ -550,50 +558,24 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
         return retval;
     }
 
-    //localize the s/d based on the last point to keep
-    double pos = state.s;
-    if (im.prevPoints.size() > 0) {
-        int offset = (int) (im.trajectory.sTimeToNextJMT / im.dt);
-        Vector2d prevPoint = points[-offset];
-        std::vector<double> frenet = im.getFrenet(state, prevPoint[0], prevPoint[1], im.waypoints_.x, im.waypoints_.y);
-        pos = frenet[0];
-    }
-
     //generate points along this path in one second
-    auto jmtParams = im.generate_constraint_JMT(state, 0, 22, 10, 10);
+    auto jmtParams = im.generate_constraint_JMT(state, 21.9, 10, 10);
 
     int targetItems = (int) (im.dT / im.dt);
 
     // determine optimal length
     double remT = im.dT - jmtParams.sTimeToNextJMT;
-    double s_start = JMTeval(jmtParams.sJMTparams, 0) + pos;
-    double s_end = JMTeval(jmtParams.sJMTparams, remT) + pos;
+    double s_start = JMTeval(jmtParams.sJMTparams, 0);
+    double s_end = JMTeval(jmtParams.sJMTparams, remT);
     double s_diff = s_end - s_start;
 
     // determine optimal path along JMT
-    std::vector<Vector2d> optimalPoints = im.generate_path_points(im.spline_, im.waypoints_, jmtParams, points, i, s_start, s_end, im.s_max_, (int) toKeep, targetItems, false);
+    points = im.generate_path_points(im.spline_, im.waypoints_, jmtParams, points, i, s_start, s_end, im.s_max_, (int) toKeep, targetItems, false);
 
-    // generate new scaled path points
-    Waypoints scaledWaypoints = generate_scaled_waypoints_from_points(optimalPoints, s_start, s_end, im.uniformInterval, 1.0);
-
-    // generate new localized spline
-    std::vector<Vector2d> vScaledWaypoints = xyVectorsToVector2d(scaledWaypoints.x, scaledWaypoints.y);
-    SplineType localizedSpline(vScaledWaypoints);
-
-    //update waypoint distances for local spline
-    std::vector<double> sValues;
-    int j = i;
-    for (; j < scaledWaypoints.s.size(); j++) {
-        sValues.push_back(j - i);
-    }
-    scaledWaypoints.s = sValues;
-
-    std::vector<Vector2d> normalizedPoints = im.generate_path_points(&localizedSpline, scaledWaypoints, jmtParams, points, i, 0, s_diff, s_diff, (int) toKeep, targetItems, false);
-
-    for (Vector2d v : optimalPoints) {
-        retval.x.push_back(v[0]);
-        retval.y.push_back(v[1]);
-        printf("   [%f, %f]", v[0], v[1]);
+    for (; i < points.size(); i++) {
+        Vector2d& point = points[i];
+        retval.x.push_back(point[0]);
+        retval.y.push_back(point[1]);
     }
 
     printf("complete\n");
@@ -656,7 +638,7 @@ std::vector<Vector2d> PathGenerator::impl::generate_path_points(SplineType* spli
     double s_rate = s_diff / waypointDiff;
     double dRemT = jmtParams.dTimeToNextJMT;
     for (j = 0; i < maxItems; i++, j++) {
-        double s_delta_eval = JMTeval(jmtParams.sJMTparams, j * dt) + s_start;
+        double s_delta_eval = JMTeval(jmtParams.sJMTparams, j * dt);
         if (validate && s_delta_eval > s_end + 0.0001) {
             throw new std::exception();
         }
@@ -677,8 +659,8 @@ std::vector<Vector2d> PathGenerator::impl::generate_path_points(SplineType* spli
             dRemT -= dt;
         }
 
-        x += normal[0] * d;
-        y += normal[1] * d;
+        //x += normal[0] * d;
+        //y += normal[1] * d;
 
         if (points.size() > 0) {
             Vector2d& point = points[points.size() - 1];
@@ -760,7 +742,7 @@ double PathGenerator::impl::find_target_t(std::vector<double>& waypoints, double
     return s_base;
 }
 
-TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, double pos, double max_velocity, double max_accel, double max_jerk) {
+TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, double max_velocity, double max_accel, double max_jerk) {
 
     TrajectoryData retval = trajectory;
 
@@ -771,6 +753,7 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     double deltaT = - retval.sTimeToNextJMT + toKeep * retval.dt;
 
     //use the previous JMT and final reference point to determine where the
+    double pos =  state.remaining_path_x.size() == 0 ? state.s : JMTeval(trajectory.sJMTparams, deltaT);
     double speed =  JMTSpeedEval(trajectory.sJMTparams, deltaT);
     double accel = JMTAccelEval(trajectory.sJMTparams, deltaT);
 
@@ -874,7 +857,7 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     }
 
     retval.sJMTparams = bestCurveS.JMTparams;
-    retval.sTimeToNextJMT = maxToKeep * trajectory.dt;
+    retval.sTimeToNextJMT = toKeep * trajectory.dt;
     retval.sTimeOffsetJMT = 0;
 
     double dDelta = JMTeval(bestCurveS.JMTparams, 0) - JMTeval(trajectory.sJMTparams, deltaT - trajectory.dt);
