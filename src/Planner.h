@@ -14,26 +14,97 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "Eigen-3.3/Eigen/LU"
-#include "Vehicle.h"
 #include "WayPoints.h"
-#include "CarState.h"
+#include "Car.h"
+#include "Polynomial.h"
 
 using namespace std;
 
 class Planner {
 public:
   Planner() = default;
+  virtual ~Planner() = default;
 
-  vector<vector<double>> plan(CarState car_state, vector<vector<double>> &previous_path, vector<vector<double>> &sensor_fusion);
+  vector<vector<double>> plan(vector<double> &car_state, vector<vector<double>> &previous_path,
+                              vector<vector<double>> &sensor_fusion);
 
 private:
-  // Have a reference velocity to target
-  const double ref_vel = 49.5;
-  // Have a reference acceleration to target
-  const double ref_acc = 10.0 / 50.0;
-  // Have a refernece jerk to target
-  const double ref_jerk = 10.0/ 50.0;
+
+
+  /* Planner config */
+  // mp/h
+  const double default_speed_limit_ = 49.5;
+  const int default_global_interval_ = 175;
+  const int default_local_interval_ = 40;
+
+  // convert mp/h to timestep
+  const double conversion_ = .02/2.24;
+
+  /* Planner config for cost calculations */
+  // 50 mp/h and a little buffer
+  const double hard_max_vel_per_timestep_ = conversion_ * 49.5;
+  // 10 m/s
+  const double hard_max_acc_per_timestep_ = 10.0 / 50.0;
+  // 10 m/s
+  const double hard_max_jerk_per_timestep_ = 10.0 / 50.0;
+
+  const double car_width_ = 2.0;
+  const double car_length_ = 5.0;
+  const double car_col_width_ = 0.5 * car_width_;
+  const double car_col_length_ = 0.5 * car_length_;
+  const double col_buf_width_ = car_col_width_;
+  const double col_buf_length_ = 6 * car_col_length_;
+  const int number_perturb_sample_ = 10;
+  std::map<std::string, double> cost_weights_ = {
+          {"tr_dist_cost", 140.0},
+          {"eff_cost", 110.0},
+          {"acc_s_cost", 10.0},
+          {"acc_d_cost", 10.0},
+          {"jerk_cost", 10.0},
+          {"lane_dep_cost", 0.05},
+          {"traffic_cost", 10.0},
+  };
+
+  /* Planner's initial value */
+  int lane = 1;
+  string current_action = "straight";
+  double speed_limit_ = default_speed_limit_;
+  int global_interval_ = default_global_interval_;
+  int local_interval_ = default_local_interval_;
+
+  double ref_vel_ = 0.0;
+  double ref_delta_s_ = 0.0;
+
+  /* Planner's container */
   WayPoints way_points;
+  Car my_car;
+  vector<Car> other_cars;
+
+  /* Methods */
+  void preprocess(vector<double> &car_state, vector<vector<double>> &previous_path,
+                  vector<vector<double>> &sensor_fusion);
+  int closest_vehicle_in_lane(vector<double> const &start, int lane);
+  vector<int> closest_vehicle_in_lanes(vector<double> const &start);
+
+
+  double exceeds_speed_limit_cost(pair<Polynomial, Polynomial> &traj);
+  double exceeds_accel_limit_cost(pair<Polynomial, Polynomial> &traj);
+  double exceeds_jerk_limit_cost(pair<Polynomial, Polynomial> &traj);
+  double collision_cost(pair<Polynomial, Polynomial> &traj);
+
+  double traffic_distance_cost(pair<Polynomial, Polynomial> &traj);
+  double accel_s_cost(pair<Polynomial, Polynomial> &traj);
+  double accel_d_cost(pair<Polynomial, Polynomial> &traj);
+  double total_jerk_cost(pair<Polynomial, Polynomial> &traj);
+
+  double compute_cost(pair<Polynomial, Polynomial> &traj, const vector<double> &ends,
+                      vector<vector<double>> &costs);
+  void perturb_end(vector<double> &end_vals, vector<vector<double>> &end_points, bool no_ahead);
+  Polynomial jmt(vector<double> const &start, vector<double> const &end, int t);
+
+  /* Misc */
+  std::default_random_engine _rand_generator;
+
 };
 
 #endif //PATH_PLANNING_PLANNER_H

@@ -10,7 +10,6 @@
 #include "json.hpp"
 
 #include "Planner.h"
-#include "CarState.h"
 
 using namespace std;
 
@@ -75,8 +74,10 @@ int main() {
           vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
 
           json msgJson;
-          CarState car_state = {car_x, car_y, car_s, car_d, car_yaw, car_speed};
+
+          vector<double> car_state = {car_s, car_d};
           vector<vector<double>> previous_path = {previous_path_x, previous_path_y};
+
           vector<vector<double>> output = planner.plan(car_state, previous_path, sensor_fusion);
 
           msgJson["next_x"] = output[0];

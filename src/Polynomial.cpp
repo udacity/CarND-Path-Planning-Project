@@ -2,20 +2,17 @@
 // Created by Joey Liu on 2017/08/16.
 //
 #include <vector>
-#include "polynomial.h"
+#include "Polynomial.h"
 
-Polynomial::Polynomial() {}
 Polynomial::Polynomial(const vector<double> &coeffs) {
   set_coeff(coeffs);
 }
-
-Polynomial::~Polynomial() {}
 
 void Polynomial::set_coeff(const vector<double> &coeffs) {
 
   coeff_.clear();
   coeff_fd_.clear();
-  coeff_dd_.clear();
+  coeff_sd_.clear();
   coeff_td_.clear();
 
   for (int i = 0; i < coeffs.size(); i++) {
@@ -33,9 +30,9 @@ void Polynomial::set_coeff(const vector<double> &coeffs) {
 
 }
 
-vector<double> Polynomial::get_coeff(string order="origin") {
+vector<double> Polynomial::get_coeff(string order) {
 
-  auto output;
+  vector<double> output;
 
   if (order.compare("first") == 0) {
     output = coeff_fd_;
@@ -50,7 +47,7 @@ vector<double> Polynomial::get_coeff(string order="origin") {
   return output;
 }
 
-double Polynomial::eval(const double x, string order="origin") {
+double Polynomial::eval(const double x, string order) {
 
   double output = 0.0;
   if (order.compare("first") == 0) {

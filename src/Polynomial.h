@@ -6,17 +6,20 @@
 #define PATH_PLANNING_POLYNOMIAL_H
 
 #include <vector>
+#include <string>
 #include <cmath>
+
+using namespace std;
 
 class Polynomial {
 public:
-  Polynomial();
+  Polynomial() = default;
   Polynomial(const vector<double> &coeffs);
-  virtual ~Polynomial();
+  virtual ~Polynomial() = default;
 
   void set_coeff(const vector<double> &coeffs);
-  vector<double> get_coeff(string order);
-  double eval(const double x, string order);
+  vector<double> get_coeff(string order="origin");
+  double eval(const double x, string order="origin");
 
 private:
   vector<double> coeff_;

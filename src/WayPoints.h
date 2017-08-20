@@ -15,27 +15,22 @@ class WayPoints {
 public:
   WayPoints();
 
-  int ClosestWayPoint(double x, double y);
-  int NextWayPoint(double x, double y, double theta);
-  int PrevWayPoint(int i);
-
-  double world_s2local_s(double world_s);
-
-  vector<double> getFrenet(double x, double y, double theta);
-  vector<double> getXY(double s, double d);
-
+  double get_local_s(double world_s);
+  vector<double> getXY_splines(double s, double d);
   void fit_spline_segment(double s);
 
   vector<WayPoint> wps_;
-  vector<double> wp_segment_s_;
-  vector<double> wp_segment_s_global_;
+  vector<double> wp_local_segment_s_;
+  vector<double> wp_global_segment_s_;
+
+  tk::spline spline_x_s_;
+  tk::spline spline_y_s_;
+  tk::spline spline_dx_s_;
+  tk::spline spline_dy_s_;
 
 private:
-  tk::spline x_spline_;
-  tk::spline y_spline_;
-  tk::spline dx_spline_;
-  tk::spline dy_spline_;
-  double max_s_;
+  double max_s_ = 6945.554;
+  string map_file_ = "../data/highway_map.csv";
 
 };
 #endif //PATH_PLANNING_WAYPOINTS_H
