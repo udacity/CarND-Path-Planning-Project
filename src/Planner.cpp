@@ -9,7 +9,7 @@ using namespace std;
 
 int Planner::closest_vehicle_in_lane(vector<double> const &start, int global_lane) {
   int closest_id = -1;
-  double min_s_diff = 9999;
+  double min_s_diff = inf_value;
 
   for (int i = 0; i < other_cars.size(); i++) {
     int other_lane = (int)(round(round(other_cars[i].pos_d - 2.0) / 4.0));
@@ -184,8 +184,8 @@ double Planner::compute_cost(pair<Polynomial, Polynomial> &traj,
   double critical_cost = exceeds_speed_limit_cost_val + exceeds_accel_limit_cost_val + exceeds_jerk_limit_cost_val + collision_cost_val;
 
   if (critical_cost > 0.0) {
-    costs.push_back({9999.});
-    return 9999.;
+    costs.push_back({inf_value});
+    return inf_value;
   }
 
   double traffic_distance_cost_val = traffic_distance_cost(traj)*cost_weights_["tr_dist_cost"];
@@ -223,10 +223,12 @@ void Planner::preprocess(vector<double> &car_state, vector<vector<double>> &prev
   }
   cout << "other_cars.size: " << other_cars.size() << endl;
 
-  my_car.vel_s = my_car.past_states[0];
-  my_car.acc_s = my_car.past_states[1];
-  my_car.vel_d = my_car.past_states[2];
-  my_car.acc_d = my_car.past_states[3];
+  int lag = global_interval_ - local_interval_ - previous_path[0].size();
+  if (lag > 9) lag = 0;
+  my_car.vel_s = my_car.past_states[lag][0];
+  my_car.acc_s = my_car.past_states[lag][1];
+  my_car.vel_d = my_car.past_states[lag][2];
+  my_car.acc_d = my_car.past_states[lag][3];
 
 }
 
@@ -398,7 +400,7 @@ vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<do
     }
 
     // rare edge case: vehicle is stuck in infeasible trajectory (usually stuck close behind other car)
-    if (min_cost == 9999.) {
+    if (min_cost == inf_value) {
       double min_s = trajectory_coefficients[0].first.eval(global_interval_);
       int min_s_id = 0;
       // find trajectory going straight with minimum s
@@ -408,7 +410,6 @@ vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<do
           min_s_id = i;
         }
       }
-      cout << "point2" << endl;
       min_cost_id = min_s_id;
     }
     current_action = "straight";
@@ -434,20 +435,22 @@ vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<do
       local_interval_ = global_interval_ - 80;
     }
 
-    double s0 = traj_s[local_interval_];
-    double s1 = traj_s[local_interval_ + 1];
-    double s2 = traj_s[local_interval_ + 2];
-    double d0 = traj_d[local_interval_];
-    double d1 = traj_d[local_interval_ + 1];
-    double d2 = traj_d[local_interval_ + 2];
-    double s_v1 = s1 - s0;
-    double s_v2 = s2 - s1;
-    double s_a = s_v2 - s_v1;
-    double d_v1 = d1 - d0;
-    double d_v2 = d2 - d1;
-    double d_a = d_v2 - d_v1;
+    for (int i = 0; i < 10; i++) {
+      double s0 = traj_s[i + local_interval_];
+      double s1 = traj_s[i + local_interval_ + 1];
+      double s2 = traj_s[i + local_interval_ + 2];
+      double d0 = traj_d[i + local_interval_];
+      double d1 = traj_d[i + local_interval_ + 1];
+      double d2 = traj_d[i + local_interval_ + 2];
+      double s_v1 = s1 - s0;
+      double s_v2 = s2 - s1;
+      double s_a = s_v2 - s_v1;
+      double d_v1 = d1 - d0;
+      double d_v2 = d2 - d1;
+      double d_a = d_v2 - d_v1;
 
-    my_car.past_states = {s_v1, s_a, d_v1, d_a};
+      my_car.past_states[i] = {s_v1, s_a, d_v1, d_a};
+    }
 
     double new_x, new_y;
     int smooth_range = 20;

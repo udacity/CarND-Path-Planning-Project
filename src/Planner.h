@@ -33,7 +33,7 @@ private:
 
   /* Planner config */
   // mp/h
-  const double default_speed_limit_ = 49.5;
+  const double default_speed_limit_ = 47.5;
   const int default_global_interval_ = 175;
   const int default_local_interval_ = 40;
 
@@ -48,13 +48,14 @@ private:
   // 10 m/s
   const double hard_max_jerk_per_timestep_ = 10.0 / 50.0;
 
-  const double car_width_ = 2.0;
+  const double car_width_ = 3.0;
   const double car_length_ = 5.0;
   const double car_col_width_ = 0.5 * car_width_;
   const double car_col_length_ = 0.5 * car_length_;
   const double col_buf_width_ = car_col_width_;
   const double col_buf_length_ = 6 * car_col_length_;
   const int number_perturb_sample_ = 10;
+  const double inf_value = numeric_limits<double>::infinity();
   std::map<std::string, double> cost_weights_ = {
           {"tr_dist_cost", 140.0},
           {"eff_cost", 110.0},

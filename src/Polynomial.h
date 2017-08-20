@@ -19,7 +19,7 @@ public:
 
   void set_coeff(const vector<double> &coeffs);
   vector<double> get_coeff(string order="origin");
-  double eval(const double x, string order="origin");
+  double eval(double x, string order="origin");
 
 private:
   vector<double> coeff_;
@@ -30,7 +30,7 @@ private:
   // third derivation
   vector<double> coeff_td_;
 
-  double _eval(const double x, const vector<double> &coeffs);
+  double _eval(double x, const vector<double> &coeffs);
 };
 
 #endif //PATH_PLANNING_POLYNOMIAL_H

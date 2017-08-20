@@ -34,11 +34,11 @@ vector<double> Polynomial::get_coeff(string order) {
 
   vector<double> output;
 
-  if (order.compare("first") == 0) {
+  if (order == "first") {
     output = coeff_fd_;
-  } else if (order.compare("second") == 0) {
+  } else if (order == "second") {
     output = coeff_sd_;
-  } else if (order.compare("third") == 0) {
+  } else if (order == "third") {
     output = coeff_td_;
   } else {
     output = coeff_;
@@ -47,14 +47,14 @@ vector<double> Polynomial::get_coeff(string order) {
   return output;
 }
 
-double Polynomial::eval(const double x, string order) {
+double Polynomial::eval(double x, string order) {
 
-  double output = 0.0;
-  if (order.compare("first") == 0) {
+  double output;
+  if (order == "first") {
     output = _eval(x, coeff_fd_);
-  } else if (order.compare("second") == 0) {
+  } else if (order == "second") {
     output = _eval(x, coeff_sd_);
-  } else if (order.compare("third") == 0) {
+  } else if (order == "third") {
     output = _eval(x, coeff_td_);
   } else {
     output = _eval(x, coeff_);
@@ -64,7 +64,7 @@ double Polynomial::eval(const double x, string order) {
 
 }
 
-double Polynomial::_eval(const double x, const vector<double> &coeffs) {
+double Polynomial::_eval(double x, const vector<double> &coeffs) {
   double output = 0.0;
 
   for (int i = 0; i < coeffs.size(); i++) {
