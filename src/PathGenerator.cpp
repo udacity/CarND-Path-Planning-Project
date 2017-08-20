@@ -559,7 +559,7 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     }
 
     //generate points along this path in one second
-    auto jmtParams = im.generate_constraint_JMT(state, 21.9, 10, 10);
+    auto jmtParams = im.generate_constraint_JMT(state, 22, 10, 10);
 
     int targetItems = (int) (im.dT / im.dt);
 
@@ -857,7 +857,7 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     }
 
     retval.sJMTparams = bestCurveS.JMTparams;
-    retval.sTimeToNextJMT = toKeep * trajectory.dt;
+    retval.sTimeToNextJMT = maxToKeep * trajectory.dt;
     retval.sTimeOffsetJMT = 0;
 
     double dDelta = JMTeval(bestCurveS.JMTparams, 0) - JMTeval(trajectory.sJMTparams, deltaT - trajectory.dt);
