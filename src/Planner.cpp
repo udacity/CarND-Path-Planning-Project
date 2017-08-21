@@ -7,16 +7,26 @@
 
 using namespace std;
 
-int Planner::closest_vehicle_in_lane(vector<double> const &start, int global_lane) {
+int Planner::get_lane_id(const double d) {
+  if (d > 8) {
+    return 2;
+  } else if (d > 4) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+int Planner::closest_vehicle_in_lane(int target_lane) {
   int closest_id = -1;
   double min_s_diff = inf_value;
 
   for (int i = 0; i < other_cars.size(); i++) {
-    int other_lane = (int)(round(round(other_cars[i].pos_d - 2.0) / 4.0));
+    int other_lane = get_lane_id(other_cars[i].pos_d);
 
-    if (global_lane == other_lane) {
+    if (target_lane == other_lane) {
       double diff_s =  other_cars[i].pos_s - my_car.pos_s;
-      if ((diff_s > 0) && (diff_s < min_s_diff)) {
+      if ((diff_s > 0.0) && (diff_s < min_s_diff)) {
         min_s_diff = diff_s;
         closest_id = i;
       }
@@ -25,10 +35,10 @@ int Planner::closest_vehicle_in_lane(vector<double> const &start, int global_lan
   return closest_id;
 }
 
-vector<int> Planner::closest_vehicle_in_lanes(vector<double> const &start) {
+vector<int> Planner::closest_vehicle_in_lanes() {
   vector<int> closest_cars(3);
-  for (int global_lane = 0; global_lane < 3; global_lane++) {
-    closest_cars[global_lane] = closest_vehicle_in_lane(start, global_lane);
+  for (int target_lane = 0; target_lane < 3; target_lane++) {
+    closest_cars[target_lane] = closest_vehicle_in_lane(target_lane);
   }
   return closest_cars;
 }
@@ -51,11 +61,9 @@ Polynomial Planner::jmt(vector<double> const &start, vector<double> const &end, 
   Eigen::MatrixXd b(3,1);
   b << end[0] - b_0, end[1] - b_1, end[2] - b_2;
 
-  Eigen::MatrixXd c = A.inverse() * b;
+  Eigen::VectorXd c = A.inverse() * b;
 
-  vector<double> coeff = {start[0], start[1], 0.5*start[2], c.data()[0], c.data()[1], c.data()[2]};
-
-  Polynomial result(coeff);
+  Polynomial result({start[0], start[1], 0.5*start[2], c[0], c[1], c[2]});
   return result;
 
 }
@@ -65,23 +73,23 @@ void Planner::perturb_end(vector<double> &end_vals, vector<vector<double>> &end_
   std::normal_distribution<double> distribution_10_percent(0.0, percentage_std_deviation);
   vector<double> point(6);
   for (int i = 0; i < number_perturb_sample_; i++) {
-    double multiplier = distribution_10_percent(_rand_generator);
+    double multiplier = distribution_10_percent(rand_generator_);
     if (no_ahead && (multiplier > 0.0)) {
       multiplier *= -1.0;
     }
-    point.at(0) = end_vals[0] + (ref_delta_s_ * multiplier);
-    point.at(1) = end_vals[1] + (ref_vel_ * multiplier);
-    point.at(2) = 0.0;
+    point[0] = end_vals[0] + (ref_delta_s_ * multiplier);
+    point[1] = end_vals[1] + (ref_vel_ * multiplier);
+    point[2] = 0.0;
 
-    multiplier = distribution_10_percent(_rand_generator);
-    point.at(3) = end_vals[3] + multiplier;
-    point.at(4) = 0.0;
-    point.at(5) = 0.0;
+    multiplier = distribution_10_percent(rand_generator_);
+    point[3] = end_vals[3] + multiplier;
+    point[4] = 0.0;
+    point[5] = 0.0;
     end_points.push_back(point);
   }
 }
 
-double Planner::exceeds_speed_limit_cost(pair<Polynomial, Polynomial> &traj) {
+double Planner::exceeds_speed_limit_cost(const pair<Polynomial, Polynomial> &traj) {
   for (int i = 0; i < global_interval_; i++) {
     if (traj.first.eval(i, "first") + traj.second.eval(i, "first") > hard_max_vel_per_timestep_) {
       return 1.0;
@@ -90,7 +98,7 @@ double Planner::exceeds_speed_limit_cost(pair<Polynomial, Polynomial> &traj) {
   return 0.0;
 }
 
-double Planner::exceeds_accel_limit_cost(pair<Polynomial, Polynomial> &traj) {
+double Planner::exceeds_accel_limit_cost(const pair<Polynomial, Polynomial> &traj) {
   for (int i = 0; i < global_interval_; i++) {
     if (traj.first.eval(i, "second") + traj.second.eval(i, "second") > hard_max_acc_per_timestep_)
       return 1.0;
@@ -98,7 +106,7 @@ double Planner::exceeds_accel_limit_cost(pair<Polynomial, Polynomial> &traj) {
   return 0.0;
 }
 
-double Planner::exceeds_jerk_limit_cost(pair<Polynomial, Polynomial> &traj) {
+double Planner::exceeds_jerk_limit_cost(const pair<Polynomial, Polynomial> &traj) {
   for (int i = 0; i < global_interval_; i++) {
     if (traj.first.eval(i, "third") + traj.second.eval(i, "third") > hard_max_jerk_per_timestep_)
       return 1.0;
@@ -106,17 +114,18 @@ double Planner::exceeds_jerk_limit_cost(pair<Polynomial, Polynomial> &traj) {
   return 0.0;
 }
 
-double Planner::collision_cost(pair<Polynomial, Polynomial> &traj) {
+double Planner::collision_cost(const pair<Polynomial, Polynomial> &traj) {
   for (int i = 0; i < global_interval_; i++) {
     double my_car_latest_s = traj.first.eval(i);
     double my_car_latest_d = traj.second.eval(i);
     for (int ii = 0; ii < other_cars.size(); ii++) {
+      // calculate other cars' state at i
       double other_car_latest_pos_s = other_cars[i].pos_s + i*other_cars[i].vel_s;
       double other_car_latest_pos_d = other_cars[i].pos_d;
       double diff_s = abs(other_car_latest_pos_s - my_car_latest_s);
       double diff_d = abs(other_car_latest_pos_d - my_car_latest_d);
 
-      if ((diff_s <= car_col_length_*5.0) && (diff_d <= car_col_width_*3.0)) {
+      if ((diff_s <= car_critical_length_*5.0) && (diff_d <= car_critical_width_*3.0)) {
         return 1.0;
       }
     }
@@ -124,30 +133,30 @@ double Planner::collision_cost(pair<Polynomial, Polynomial> &traj) {
   return 0.0;
 }
 
-double Planner::traffic_distance_cost(pair<Polynomial, Polynomial> &traj) {
+double Planner::traffic_distance_cost(const pair<Polynomial, Polynomial> &traj) {
   double cost = 0.0;
 
-  for (int i = 0; i < global_interval_; i++) {
-    double my_car_latest_s = traj.first.eval(i);
-    double my_car_latest_d = traj.second.eval(i);
-    for (int ii = 0; ii < other_cars.size(); ii++) {
-      double other_car_latest_pos_s = other_cars[i].pos_s + i*other_cars[i].vel_s;
+  for (auto other_car:other_cars) {
+    for (int i = 0; i < global_interval_; i++) {
+      double my_car_latest_s = traj.first.eval(i);
+      double my_car_latest_d = traj.second.eval(i);
+      double other_car_latest_pos_s = other_car.pos_s + i*other_car.vel_s;
       double diff_s = other_car_latest_pos_s - my_car_latest_s;
 
-      if (diff_s < -10) {
-        break;
-      }
+      if (diff_s < -10) break;
+
       diff_s = abs(diff_s);
       double diff_d = abs(other_cars[i].pos_d - my_car_latest_d);
-      if ((diff_s <= col_buf_length_) && (diff_d <= col_buf_width_)) {
-        cost += ut::logistic(1 - (diff_s / col_buf_length_)) / global_interval_;
+
+      if ((diff_s <= car_safe_length_) && (diff_d <= car_safe_width_)) {
+        cost += ut::logistic(1 - (diff_s / car_safe_length_)) / global_interval_;
       }
     }
   }
   return cost;
 }
 
-double Planner::accel_s_cost(pair<Polynomial, Polynomial> &traj) {
+double Planner::accel_s_cost(const pair<Polynomial, Polynomial> &traj) {
   double cost = 0.0;
   for (int i = 0; i < global_interval_; i++) {
     cost += abs(traj.first.eval(i, "second"));
@@ -155,7 +164,7 @@ double Planner::accel_s_cost(pair<Polynomial, Polynomial> &traj) {
   return ut::logistic(cost);
 }
 
-double Planner::accel_d_cost(pair<Polynomial, Polynomial> &traj) {
+double Planner::accel_d_cost(const pair<Polynomial, Polynomial> &traj) {
   double cost = 0.0;
   for (int i = 0; i < global_interval_; i++) {
     cost += abs(traj.second.eval(i, "second"));
@@ -163,7 +172,7 @@ double Planner::accel_d_cost(pair<Polynomial, Polynomial> &traj) {
   return ut::logistic(cost);
 }
 
-double Planner::total_jerk_cost(pair<Polynomial, Polynomial> &traj) {
+double Planner::total_jerk_cost(const pair<Polynomial, Polynomial> &traj) {
   double cost = 0.0;
   for (int i = 0; i < global_interval_; i++) {
     cost += traj.first.eval(i, "third");
@@ -172,7 +181,12 @@ double Planner::total_jerk_cost(pair<Polynomial, Polynomial> &traj) {
   return ut::logistic(cost);
 }
 
-double Planner::compute_cost(pair<Polynomial, Polynomial> &traj,
+double Planner::efficiency_cost(const pair<Polynomial, Polynomial> &traj, const vector<double> &ends) {
+  double s_dist = ends[0] - traj.first.eval(0);
+  return abs(ut::logistic((ref_delta_s_ - s_dist) / ref_delta_s_)); // abs() because going faster is actually bad
+}
+
+double Planner::compute_cost(const pair<Polynomial, Polynomial> &traj,
                              const vector<double> &ends, vector<vector<double>> &costs) {
   double cost;
 
@@ -192,17 +206,20 @@ double Planner::compute_cost(pair<Polynomial, Polynomial> &traj,
   double accel_s_cost_val = accel_s_cost(traj)*cost_weights_["acc_s_cost"];
   double accel_d_cost_val = accel_d_cost(traj)*cost_weights_["acc_d_cost"];
   double total_jerk_cost_val = total_jerk_cost(traj)*cost_weights_["jerk_cost"];
+  double efficiency_cost_val = efficiency_cost(traj, ends)*cost_weights_["eff_cost"];
 
-  vector<double> cost_vals = {traffic_distance_cost_val, accel_s_cost_val, accel_d_cost_val, total_jerk_cost_val};
+  vector<double> cost_vals = {traffic_distance_cost_val, accel_s_cost_val, accel_d_cost_val, total_jerk_cost_val, efficiency_cost_val};
   costs.push_back(cost_vals);
 
-  cost = traffic_distance_cost_val + accel_s_cost_val + accel_d_cost_val + total_jerk_cost_val;
+  cost = traffic_distance_cost_val + accel_s_cost_val + accel_d_cost_val + total_jerk_cost_val + efficiency_cost_val;
   return cost;
 
 }
 
 void Planner::preprocess(vector<double> &car_state, vector<vector<double>> &previous_path, vector<vector<double>> &sensor_fusion) {
-  lane = (int)(round(round(car_state[1] - 2.0) / 4.0));
+  speed_limit_ = default_speed_limit_;
+
+  current_lane = get_lane_id(car_state[1]);
 
   way_points.fit_spline_segment(car_state[0]);
 
@@ -217,13 +234,11 @@ void Planner::preprocess(vector<double> &car_state, vector<vector<double>> &prev
 
     double vx = sensor_fusion[i][3];
     double vy = sensor_fusion[i][4];
-    double v = sqrt(vx*vx + vy*vy) / 50.0;
-    other_car.vel_s = v;
+    other_car.vel_s = sqrt(vx*vx + vy*vy) / 50.0;
     other_cars.push_back(other_car);
   }
-  cout << "other_cars.size: " << other_cars.size() << endl;
 
-  int lag = global_interval_ - local_interval_ - previous_path[0].size();
+  int lag = global_interval_ - local_interval_ - (int)previous_path[0].size();
   if (lag > 9) lag = 0;
   my_car.vel_s = my_car.past_states[lag][0];
   my_car.acc_s = my_car.past_states[lag][1];
@@ -232,7 +247,8 @@ void Planner::preprocess(vector<double> &car_state, vector<vector<double>> &prev
 
 }
 
-vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<double>> &previous_path, vector<vector<double>> &sensor_fusion) {
+vector<vector<double>> Planner::plan(vector<double> &current_s_d, vector<vector<double>> &previous_path,
+                                     vector<vector<double>> &sensor_fusion) {
 
   vector<double> next_x;
   vector<double> next_y;
@@ -240,25 +256,26 @@ vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<do
   int previous_path_size = (int) previous_path[0].size();
 
   bool smooth_path = previous_path_size > 0;
+
   if (previous_path_size < global_interval_ - local_interval_) {
 
     cout << "update path" << endl;
 
-    preprocess(car_state, previous_path, sensor_fusion);
+    preprocess(current_s_d, previous_path, sensor_fusion);
 
     const vector<double> start_s = {my_car.pos_s, my_car.vel_s, my_car.acc_s};
     const vector<double> start_d = {my_car.pos_d, my_car.vel_d, my_car.acc_d};
 
     ref_vel_ = conversion_ * speed_limit_;
 
-    if (start_s[1] < ref_vel_ / 2.) {
-      double ref_vel_diff = ref_vel_ - start_s[1];
-      ref_vel_ -= ref_vel_diff * 0.75;
+    if (my_car.vel_s < ref_vel_ / 1.8) {
+      double ref_vel_diff = ref_vel_ - my_car.vel_s;
+      ref_vel_ -= ref_vel_diff * 0.70;
     }
 
     ref_delta_s_ = global_interval_ * ref_vel_;
 
-    cout << "my car's local s: " << start_s[0] << " vel s: " << start_s[1] << " d: " << start_d[0] << " lane: " << lane << endl;
+    cout << "my car's local s: " << my_car.pos_s << " vel s: " << my_car.vel_s << " d: " << my_car.pos_d << " lane: " << current_lane << endl;
 
     vector<vector<double>> end_points;
     // s, s_dot, s_double_dot, d, d_dot, d_double_dot
@@ -273,39 +290,63 @@ vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<do
     // - lane change right
     // #########################################
     bool go_straight = true;
-    bool go_straight_follow_lead = false;
+    bool follow_lead = false;
     bool change_left = false;
     bool change_right = false;
 
-    vector<int> closest_cars = closest_vehicle_in_lanes(start_s);
+    vector<int> closest_cars = closest_vehicle_in_lanes();
 
-    int closest_car_id = closest_cars[lane];
+    int closest_car_id = closest_cars[current_lane];
     cout << "closest_car_id: " << closest_car_id << endl;
     if (closest_car_id != -1) {
-      if (abs(my_car.pos_s - other_cars[closest_car_id].pos_s) < 100) {
+
+      double diff_s = abs(other_cars[closest_car_id].pos_s - my_car.pos_s);
+
+      if (diff_s < 100) {
         change_left = true;
         change_right = true;
       }
-      if (abs(my_car.pos_s - other_cars[closest_car_id].pos_s) < col_buf_length_) {
+      if (diff_s < car_safe_length_) {
         go_straight = false;
-        go_straight_follow_lead = true;
+        follow_lead = true;
         change_left = true;
         change_right = true;
       }
     }
+    /*
+    bool prefer_mid_lane = false;
 
+    if ((current_lane == 0) || (current_lane == 2)) {
+      Car closest_car_current_lane = other_cars[closest_cars[current_lane]];
+      Car closest_car_mid_lane = other_cars[closest_cars[1]];
+      Car closest_car_op_lane = other_cars[closest_cars[abs(current_lane - 2)]];
+
+      if (abs(my_car.pos_s - closest_car_current_lane.pos_s) < 2*car_safe_length_) {
+        if (abs(my_car.pos_s - closest_car_mid_lane.pos_s) < 2*car_safe_length_) {
+          if (abs(my_car.pos_s - closest_car_op_lane.pos_s) > 4*car_safe_length_) {
+            prefer_mid_lane = true;
+            if (current_lane == 0) {
+              change_right = true;
+            } else {
+              change_left = true;
+            }
+          }
+        }
+      }
+    }
+  */
     if (go_straight) {
       // end_pos_s, end_vel_s, end_acc_s, end_pos_d, end_vel_d, end_acc_d
-      vector<double> end_vals = {start_s[0] + ref_delta_s_, ref_vel_, 0.0, 2. + 4. * lane, 0.0, 0.0};
+      vector<double> end_vals = {my_car.pos_s + ref_delta_s_, ref_vel_, 0.0, 2. + 4. * current_lane, 0.0, 0.0};
       vector<vector<double>> end_points_straight = {end_vals};
-      perturb_end(end_vals, end_points);
+      perturb_end(end_vals, end_points_straight);
       end_points.reserve(end_points.size() + end_points_straight.size());
       end_points.insert(end_points.end(), end_points_straight.begin(), end_points_straight.end());
     }
 
-    if (go_straight_follow_lead) {
-      Car ahead_car = other_cars[closest_car_id];
-      if ((ahead_car.pos_s - start_s[0] < col_buf_length_*0.5) && (ahead_car.vel_s < start_s[1]*0.8)) {
+    if (follow_lead) {
+      Car leading_car = other_cars[closest_car_id];
+      if ((leading_car.pos_s - my_car.pos_s < car_safe_length_*0.5) && (leading_car.vel_s < my_car.vel_s*0.8)) {
         cout << "EMERGENCY" << endl;
         current_action = "emergency";
         global_interval_ = 120;
@@ -313,69 +354,55 @@ vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<do
         change_right = false;
       }
       // end_pos_s, end_vel_s, end_acc_s, end_pos_d, end_vel_d, end_acc_d
-      vector<double> end_vals = {start_s[0] + ahead_car.vel_s * global_interval_, ahead_car.vel_s, 0.0, 2. + 4. * lane, 0.0,
-                                 0.0};
+      vector<double> end_vals = {my_car.pos_s + leading_car.vel_s * global_interval_, leading_car.vel_s, 0.0,
+                                 2. + 4. * current_lane, 0.0, 0.0};
       vector<vector<double>> end_points_follow = {end_vals};
-      perturb_end(end_vals, end_points);
+      perturb_end(end_vals, end_points_follow);
 
       end_points.reserve(end_points.size() + end_points_follow.size());
       end_points.insert(end_points.end(), end_points_follow.begin(), end_points_follow.end());
     }
 
-    if (change_left && (lane != 0)) {
-      double end_pos_s = start_s[0] + ref_delta_s_;
+    if (change_left && (current_lane != 0)) {
+      double end_pos_s = my_car.pos_s + ref_delta_s_;
       double end_vel_s = ref_vel_;
-      if (go_straight_follow_lead) {
-        Car ahead_car = other_cars[closest_car_id];
-        if (ahead_car.pos_s - start_s[0] < col_buf_length_*0.5) {
-          end_pos_s = start_s[0] + ahead_car.vel_s*global_interval_;
-          end_vel_s = ahead_car.vel_s;
+      if (follow_lead) {
+        Car leading_car = other_cars[closest_car_id];
+        if (leading_car.pos_s - my_car.pos_s < car_safe_length_*0.5) {
+          end_pos_s = my_car.pos_s + leading_car.vel_s*global_interval_;
+          end_vel_s = leading_car.vel_s;
         }
       }
       // end_pos_s, end_vel_s, end_acc_s, end_pos_d, end_vel_d, end_acc_d
-      vector<double> end_vals = {end_pos_s, end_vel_s, 0.0, (2. + 4.*lane) - 4, 0.0, 0.0};
+      vector<double> end_vals = {end_pos_s, end_vel_s, 0.0, (2. + 4.*current_lane) - 4, 0.0, 0.0};
       vector<vector<double>> end_points_left = {end_vals};
-      perturb_end(end_vals, end_points);
+      perturb_end(end_vals, end_points_left);
       end_points.reserve(end_points.size() + end_points_left.size());
       end_points.insert(end_points.end(), end_points_left.begin(), end_points_left.end());
     }
 
-    if (change_right && (lane != 2)) {
-      double end_pos_s = start_s[0] + ref_delta_s_;
+    if (change_right && (current_lane != 2)) {
+      double end_pos_s = my_car.pos_s + ref_delta_s_;
       double end_vel_s = ref_vel_;
-      if (go_straight_follow_lead) {
-        Car ahead_car = other_cars[closest_car_id];
-        if (ahead_car.pos_s - start_s[0] < col_buf_length_*0.5) {
-          end_pos_s = start_s[0] + ahead_car.vel_s * global_interval_;
-          end_vel_s = ahead_car.vel_s;
+      if (follow_lead) {
+        Car leading_car = other_cars[closest_car_id];
+        if (leading_car.pos_s - my_car.pos_s < car_safe_length_*0.5) {
+          end_pos_s = my_car.pos_s + leading_car.vel_s * global_interval_;
+          end_vel_s = leading_car.vel_s;
         }
       }
       // end_pos_s, end_vel_s, end_acc_s, end_pos_d, end_vel_d, end_acc_d
-      vector<double> end_vals = {end_pos_s, end_vel_s, 0.0, (2. + 4. * lane) + 4, 0.0, 0.0};
+      vector<double> end_vals = {end_pos_s, end_vel_s, 0.0, (2. + 4. * current_lane) + 4, 0.0, 0.0};
       vector<vector<double>> end_points_right = {end_vals};
-      perturb_end(end_vals, end_points);
+      perturb_end(end_vals, end_points_right);
       end_points.reserve(end_points.size() + end_points_right.size());
       end_points.insert(end_points.end(), end_points_right.begin(), end_points_right.end());
-    }
-
-    vector<pair<Polynomial, Polynomial>> trajectory_coefficients;
-    cout << "end_points.size: " << end_points.size() << endl;
-    for (auto end_point: end_points) {
-      vector<double> end_s = {end_point[0], end_point[1], end_point[2]};
-      vector<double> end_d = {end_point[3], end_point[4], end_point[5]};
-
-      if (end_d[0] > 1.0 && end_d[0] < 11.0) {
-        Polynomial traj_s_poly = jmt(start_s, end_s, global_interval_);
-        Polynomial traj_d_poly = jmt(start_d, end_d, global_interval_);
-        trajectory_coefficients.push_back(std::make_pair(traj_s_poly, traj_d_poly));
-        traj_ends.push_back({end_point[0], end_point[1], end_point[2], end_point[3], end_point[4], end_point[5]});
-      }
     }
 
     cout << "PLAN: ";
     if (go_straight)
       cout << " :GO STRAIGHT: ";
-    if (go_straight_follow_lead)
+    if (follow_lead)
       cout << " :FOLLOW LEAD: ";
     if (change_left)
       cout << " :CHANGE LEFT: ";
@@ -383,12 +410,31 @@ vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<do
       cout << " :CHANGE RIGHT: ";
     cout << endl;
 
+    vector<pair<Polynomial, Polynomial>> traj_coeffs;
+    for (auto end_point: end_points) {
+      vector<double> end_s = {end_point[0], end_point[1], end_point[2]};
+      vector<double> end_d = {end_point[3], end_point[4], end_point[5]};
+
+      if (end_point[3] > 1.0 && end_point[3] < 11.0) {
+        Polynomial traj_s_poly = jmt(start_s, end_s, global_interval_);
+        Polynomial traj_d_poly = jmt(start_d, end_d, global_interval_);
+        traj_coeffs.push_back(std::make_pair(traj_s_poly, traj_d_poly));
+        traj_ends.push_back({end_point[0], end_point[1], end_point[2], end_point[3], end_point[4], end_point[5]});
+      }
+    }
+
+
+
     vector<vector<double>> costs;
 
-    for (int i = 0; i < trajectory_coefficients.size(); i++) {
-      double cost = compute_cost(trajectory_coefficients[i], traj_ends[i], costs);
+    for (int i = 0; i < traj_coeffs.size(); i++) {
+      double cost = compute_cost(traj_coeffs[i], traj_ends[i], costs);
+      //if (prefer_mid_lane && (abs(6 - traj_coeffs[i].second.eval(global_interval_)) < 1.0))
+      //  cost *= 0.5;
       traj_costs.push_back(cost);
     }
+
+    cout << "traj_costs.size: " << traj_costs.size() << endl;
 
     double min_cost = traj_costs[0];
     int min_cost_id = 0;
@@ -401,12 +447,12 @@ vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<do
 
     // rare edge case: vehicle is stuck in infeasible trajectory (usually stuck close behind other car)
     if (min_cost == inf_value) {
-      double min_s = trajectory_coefficients[0].first.eval(global_interval_);
+      double min_s = traj_coeffs[0].first.eval(global_interval_);
       int min_s_id = 0;
       // find trajectory going straight with minimum s
       for (int i = 1; i < number_perturb_sample_; i++) {
-        if (trajectory_coefficients[i].first.eval(global_interval_) < min_s) {
-          min_s = trajectory_coefficients[i].first.eval(global_interval_);
+        if (traj_coeffs[i].first.eval(global_interval_) < min_s) {
+          min_s = traj_coeffs[i].first.eval(global_interval_);
           min_s_id = i;
         }
       }
@@ -417,11 +463,14 @@ vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<do
       current_action = "lane_change";
     }
 
+
+    cout << "min_cost_id: " << min_cost_id << endl;
+
     vector<double> traj_s(global_interval_);
     vector<double> traj_d(global_interval_);
     for (int t = 0; t < global_interval_; t++) {
-      traj_s[t] = trajectory_coefficients[min_cost_id].first.eval(t);
-      traj_d[t] = trajectory_coefficients[min_cost_id].second.eval(t);
+      traj_s[t] = traj_coeffs[min_cost_id].first.eval(t);
+      traj_d[t] = traj_coeffs[min_cost_id].second.eval(t);
     }
 
     global_interval_ = default_global_interval_;
@@ -429,7 +478,7 @@ vector<vector<double>> Planner::plan(vector<double> &car_state, vector<vector<do
     if (current_action == "lane_change") {
       cout << "LANE CHANGE" << endl;
       local_interval_ = global_interval_ - 50;
-    } else if (current_action == "lane_change") {
+    } else if (current_action == "emergency") {
       cout << "EMERGENCY" << endl;
       global_interval_ = 120;
       local_interval_ = global_interval_ - 80;

@@ -33,8 +33,8 @@ private:
 
   /* Planner config */
   // mp/h
-  const double default_speed_limit_ = 47.5;
-  const int default_global_interval_ = 175;
+  const double default_speed_limit_ = 48.0;
+  const int default_global_interval_ = 170;
   const int default_local_interval_ = 40;
 
   // convert mp/h to timestep
@@ -48,12 +48,12 @@ private:
   // 10 m/s
   const double hard_max_jerk_per_timestep_ = 10.0 / 50.0;
 
-  const double car_width_ = 3.0;
-  const double car_length_ = 5.0;
-  const double car_col_width_ = 0.5 * car_width_;
-  const double car_col_length_ = 0.5 * car_length_;
-  const double col_buf_width_ = car_col_width_;
-  const double col_buf_length_ = 6 * car_col_length_;
+  const double car_width_ = 2.5;
+  const double car_length_ = 4.5;
+  const double car_critical_width_ = 0.4 * car_width_;
+  const double car_critical_length_ = 0.5 * car_length_;
+  const double car_safe_width_ = car_width_;
+  const double car_safe_length_ = 5 * car_length_;
   const int number_perturb_sample_ = 10;
   const double inf_value = numeric_limits<double>::infinity();
   std::map<std::string, double> cost_weights_ = {
@@ -67,7 +67,7 @@ private:
   };
 
   /* Planner's initial value */
-  int lane = 1;
+  int current_lane = 1;
   string current_action = "straight";
   double speed_limit_ = default_speed_limit_;
   int global_interval_ = default_global_interval_;
@@ -84,27 +84,29 @@ private:
   /* Methods */
   void preprocess(vector<double> &car_state, vector<vector<double>> &previous_path,
                   vector<vector<double>> &sensor_fusion);
-  int closest_vehicle_in_lane(vector<double> const &start, int lane);
-  vector<int> closest_vehicle_in_lanes(vector<double> const &start);
+  int closest_vehicle_in_lane(int target_lane);
+  vector<int> closest_vehicle_in_lanes();
+  int get_lane_id(const double d);
 
 
-  double exceeds_speed_limit_cost(pair<Polynomial, Polynomial> &traj);
-  double exceeds_accel_limit_cost(pair<Polynomial, Polynomial> &traj);
-  double exceeds_jerk_limit_cost(pair<Polynomial, Polynomial> &traj);
-  double collision_cost(pair<Polynomial, Polynomial> &traj);
+  double exceeds_speed_limit_cost(const pair<Polynomial, Polynomial> &traj);
+  double exceeds_accel_limit_cost(const pair<Polynomial, Polynomial> &traj);
+  double exceeds_jerk_limit_cost(const pair<Polynomial, Polynomial> &traj);
+  double collision_cost(const pair<Polynomial, Polynomial> &traj);
 
-  double traffic_distance_cost(pair<Polynomial, Polynomial> &traj);
-  double accel_s_cost(pair<Polynomial, Polynomial> &traj);
-  double accel_d_cost(pair<Polynomial, Polynomial> &traj);
-  double total_jerk_cost(pair<Polynomial, Polynomial> &traj);
+  double traffic_distance_cost(const pair<Polynomial, Polynomial> &traj);
+  double accel_s_cost(const pair<Polynomial, Polynomial> &traj);
+  double accel_d_cost(const pair<Polynomial, Polynomial> &traj);
+  double total_jerk_cost(const pair<Polynomial, Polynomial> &traj);
+  double efficiency_cost(const pair<Polynomial, Polynomial> &traj, const vector<double> &ends);
 
-  double compute_cost(pair<Polynomial, Polynomial> &traj, const vector<double> &ends,
+  double compute_cost(const pair<Polynomial, Polynomial> &traj, const vector<double> &ends,
                       vector<vector<double>> &costs);
   void perturb_end(vector<double> &end_vals, vector<vector<double>> &end_points, bool no_ahead);
   Polynomial jmt(vector<double> const &start, vector<double> const &end, int t);
 
   /* Misc */
-  std::default_random_engine _rand_generator;
+  std::default_random_engine rand_generator_;
 
 };
 

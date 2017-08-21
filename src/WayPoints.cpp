@@ -8,7 +8,6 @@
 #include <sstream>
 #include <cmath>
 #include "WayPoints.h"
-#include "utils.h"
 
 using namespace std;
 

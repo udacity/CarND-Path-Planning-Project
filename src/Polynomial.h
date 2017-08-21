@@ -14,12 +14,11 @@ using namespace std;
 class Polynomial {
 public:
   Polynomial() = default;
-  Polynomial(const vector<double> &coeffs);
+  explicit Polynomial(const vector<double> &coeffs);
   virtual ~Polynomial() = default;
 
   void set_coeff(const vector<double> &coeffs);
-  vector<double> get_coeff(string order="origin");
-  double eval(double x, string order="origin");
+  double eval(double x, string order="origin") const;
 
 private:
   vector<double> coeff_;
@@ -30,7 +29,7 @@ private:
   // third derivation
   vector<double> coeff_td_;
 
-  double _eval(double x, const vector<double> &coeffs);
+  double _eval(double x, const vector<double> &coeffs) const;
 };
 
 #endif //PATH_PLANNING_POLYNOMIAL_H
