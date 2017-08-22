@@ -78,7 +78,7 @@ int NextWaypoint(double x, double y, double theta, vector<double> maps_x, vector
 		closestWaypoint++;
 	}
 
-	return closestWaypoint;
+	return closestWaypoint % maps_x.size();
 
 }
 
