@@ -18,13 +18,14 @@ void Polynomial::set_coeff(const vector<double> &coeffs) {
   for (int i = 0; i < coeffs.size(); i++) {
     coeff_.push_back(coeffs[i]);
     if (i > 0) {
-      coeff_fd_.push_back(i*coeffs[i]);
-    }
-    if (i > 1) {
-      coeff_sd_.push_back((i - 1)*coeff_fd_[i]);
-    }
-    if (i > 2) {
-      coeff_td_.push_back((i - 2)*coeff_sd_[i]);
+      double val = i*coeffs[i];
+      coeff_fd_.push_back(val);
+      if (i > 1) {
+        coeff_sd_.push_back((i - 1)*val);
+        if (i > 2) {
+          coeff_td_.push_back((i - 2)*val);
+        }
+      }
     }
   }
 
