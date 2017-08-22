@@ -8,13 +8,13 @@
 using namespace std;
 
 int Planner::get_lane_id(const double d) {
+  int lane_id = 0;
   if (d > 8) {
-    return 2;
+    lane_id = 2;
   } else if (d > 4) {
-    return 1;
-  } else {
-    return 0;
+    lane_id = 1;
   }
+  return lane_id;
 }
 
 int Planner::closest_vehicle_in_lane(int target_lane) {
@@ -238,12 +238,10 @@ void Planner::preprocess(vector<double> &car_state, vector<vector<double>> &prev
     other_cars.push_back(other_car);
   }
 
-  int lag = global_interval_ - local_interval_ - (int)previous_path[0].size();
-  if (lag > 9) lag = 0;
-  my_car.vel_s = my_car.past_states[lag][0];
-  my_car.acc_s = my_car.past_states[lag][1];
-  my_car.vel_d = my_car.past_states[lag][2];
-  my_car.acc_d = my_car.past_states[lag][3];
+  my_car.vel_s = my_car.past_states[0];
+  my_car.acc_s = my_car.past_states[1];
+  my_car.vel_d = my_car.past_states[2];
+  my_car.acc_d = my_car.past_states[3];
 
 }
 
@@ -259,7 +257,7 @@ vector<vector<double>> Planner::plan(vector<double> &current_s_d, vector<vector<
 
   if (previous_path_size < global_interval_ - local_interval_) {
 
-    cout << "update path" << endl;
+    cout << "update path - " << "previous_path_size: " << previous_path_size << " - global_interval_:" << global_interval_<< " - local_interval_: " << local_interval_ << endl;
 
     preprocess(current_s_d, previous_path, sensor_fusion);
 
@@ -466,42 +464,40 @@ vector<vector<double>> Planner::plan(vector<double> &current_s_d, vector<vector<
 
     cout << "min_cost_id: " << min_cost_id << endl;
 
-    vector<double> traj_s(global_interval_);
-    vector<double> traj_d(global_interval_);
+    vector<double> traj_s;
+    vector<double> traj_d;
     for (int t = 0; t < global_interval_; t++) {
-      traj_s[t] = traj_coeffs[min_cost_id].first.eval(t);
-      traj_d[t] = traj_coeffs[min_cost_id].second.eval(t);
+      traj_s.push_back(traj_coeffs[min_cost_id].first.eval(t));
+      traj_d.push_back(traj_coeffs[min_cost_id].second.eval(t));
     }
 
     global_interval_ = default_global_interval_;
     local_interval_ = default_local_interval_;
     if (current_action == "lane_change") {
       cout << "LANE CHANGE" << endl;
-      local_interval_ = global_interval_ - 50;
+      local_interval_ = global_interval_ - 60;
     } else if (current_action == "emergency") {
       cout << "EMERGENCY" << endl;
       global_interval_ = 120;
       local_interval_ = global_interval_ - 80;
     }
 
-    for (int i = 0; i < 10; i++) {
-      double s0 = traj_s[i + local_interval_];
-      double s1 = traj_s[i + local_interval_ + 1];
-      double s2 = traj_s[i + local_interval_ + 2];
-      double d0 = traj_d[i + local_interval_];
-      double d1 = traj_d[i + local_interval_ + 1];
-      double d2 = traj_d[i + local_interval_ + 2];
-      double s_v1 = s1 - s0;
-      double s_v2 = s2 - s1;
-      double s_a = s_v2 - s_v1;
-      double d_v1 = d1 - d0;
-      double d_v2 = d2 - d1;
-      double d_a = d_v2 - d_v1;
+    double s0 = traj_s[local_interval_];
+    double s1 = traj_s[local_interval_ + 1];
+    double s2 = traj_s[local_interval_ + 2];
+    double d0 = traj_d[local_interval_];
+    double d1 = traj_d[local_interval_ + 1];
+    double d2 = traj_d[local_interval_ + 2];
+    double s_v1 = s1 - s0;
+    double s_v2 = s2 - s1;
+    double s_a = s_v2 - s_v1;
+    double d_v1 = d1 - d0;
+    double d_v2 = d2 - d1;
+    double d_a = d_v2 - d_v1;
 
-      my_car.past_states[i] = {s_v1, s_a, d_v1, d_a};
-    }
+    my_car.past_states = {s_v1, s_a, d_v1, d_a};
 
-    double new_x, new_y;
+    double new_x = 0, new_y = 0;
     int smooth_range = 20;
     int reuse_prev_range = 15;
     vector<double> prev_xy_planned;
