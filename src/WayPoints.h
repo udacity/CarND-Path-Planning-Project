@@ -6,12 +6,15 @@
 #define WAYPOINTS_H
 
 #include <vector>
-#include "WayPoint.h"
 #include "spline.h"
 
 using namespace std;
 
 class WayPoints {
+  struct WayPoint {
+  public:
+    double x, y, s, dx, dy;
+  };
 public:
   WayPoints();
 
