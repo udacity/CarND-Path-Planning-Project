@@ -75,10 +75,12 @@ int main() {
 
           json msgJson;
 
-          vector<double> car_state = {car_s, car_d};
+          // Collect necessary information for path planning
+          vector<double> current_s_d = {car_s, car_d};
           vector<vector<double>> previous_path = {previous_path_x, previous_path_y};
 
-          vector<vector<double>> output = planner.plan(car_state, previous_path, sensor_fusion);
+          // Path planning
+          vector<vector<double>> output = planner.plan(current_s_d, previous_path, sensor_fusion);
 
           msgJson["next_x"] = output[0];
           msgJson["next_y"] = output[1];

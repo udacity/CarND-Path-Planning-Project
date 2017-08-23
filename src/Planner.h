@@ -34,42 +34,42 @@ public:
 private:
 
 
-  /* Planner config */
+  /* Planner constant */
   // mp/h
-  const double default_speed_limit_ = 48.0;
-  const int default_global_interval_ = 180;
-  const int default_local_interval_ = 40;
+  const double DEFAULT_SPEED_LIMIT = 48.0;
+  const int DEFAULT_TIMESTEPS = 180;
+  const int DEFAULT_INTERVAL = 40;
 
   // convert mp/h to timestep
-  const double conversion_ = .02/2.24;
+  const double CONVERSION = .02/2.24;
 
   /* Planner config for cost calculations */
   // 50 mp/h and a little buffer
-  const double hard_max_vel_per_timestep_ = conversion_ * 49.0;
+  const double MAX_VAL = CONVERSION * 49.5;
   // 10 m/s
-  const double hard_max_acc_per_timestep_ = 10.0 / 50.0;
+  const double MAX_ACC = 10.0 / 50.0;
   // 10 m/s
-  const double hard_max_jerk_per_timestep_ = 10.0 / 50.0;
+  const double MAX_JERK = 10.0 / 50.0;
 
-  const double car_width_ = 2.5;
-  const double car_length_ = 5.0;
-  const double car_critical_width_ = 0.5 * car_width_;
-  const double car_critical_length_ = 0.5 * car_length_;
-  const double car_safe_width_ = car_width_;
-  const double car_safe_length_ = 5 * car_length_;
-  const int number_perturb_sample_ = 10;
-  const double inf_value = numeric_limits<double>::infinity();
+  const double CAR_WID = 2.5;
+  const double CAR_LEN = 5.0;
+  const double CAR_CRI_WID = 0.5 * CAR_WID;
+  const double CAR_CRI_LEN = 0.5 * CAR_LEN;
+  const double CAR_SAFE_WID = CAR_WID;
+  const double CAR_SAFE_LEN = 5 * CAR_LEN;
+  const int N_PERTURB_SAMPLE = 10;
+  const double INF = numeric_limits<double>::infinity();
 
 
   /* Planner's initial value */
   int current_lane = 1;
   string current_action = "straight";
-  double speed_limit_ = default_speed_limit_;
-  int global_interval_ = default_global_interval_;
-  int local_interval_ = default_local_interval_;
+  double speed_limit_ = DEFAULT_SPEED_LIMIT;
+  int timesteps_ = DEFAULT_TIMESTEPS;
+  int interval_ = DEFAULT_INTERVAL;
 
-  double ref_vel_ = 0.0;
-  double ref_delta_s_ = 0.0;
+  double max_vel_ = 0.0;
+  double max_delta_s_ = 0.0;
 
   /* Planner's container */
   WayPoints way_points;
