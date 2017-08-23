@@ -28,9 +28,15 @@ public:
   Planner() = default;
   virtual ~Planner() = default;
 
-  vector<vector<double>> plan(vector<double> &car_state, vector<vector<double>> &previous_path,
-                              vector<vector<double>> &sensor_fusion);
+  void preprocess(double car_s, double car_d, const vector<double> &previous_path_x, const vector<double> &previous_path_y,
+                  vector<vector<double>> &sensor_fusion);
 
+  void plan();
+  void postprocess();
+
+  vector<vector<double>> get_planned_result();
+
+  bool do_update;
 private:
 
 
@@ -75,11 +81,15 @@ private:
   WayPoints way_points;
   Car my_car;
   vector<Car> other_cars;
+  vector<double> prev_path_x_;
+  vector<double> prev_path_y_;
+  int prev_path_size_;
+  vector<double> traj_s_;
+  vector<double> traj_d_;
+  vector<double> next_x_;
+  vector<double> next_y_;
 
   /* Methods */
-  void preprocess(vector<double> &car_state, vector<vector<double>> &previous_path,
-                  vector<vector<double>> &sensor_fusion);
-
   double calculate_cost(const pair<Polynomial, Polynomial> &traj, const vector<double> &ends,
                       vector<vector<double>> &costs);
   void perturb_end(vector<double> &end_vals, vector<vector<double>> &end_points, bool change_left=false);

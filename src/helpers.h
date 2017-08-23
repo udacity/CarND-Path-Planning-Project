@@ -44,7 +44,6 @@ namespace {
       }
       return closest_cars;
     }
-
   } //namespace h
 } // namespace
 

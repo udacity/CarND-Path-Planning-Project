@@ -75,21 +75,26 @@ int main() {
 
           json msgJson;
 
-          // Collect necessary information for path planning
-          vector<double> current_s_d = {car_s, car_d};
-          vector<vector<double>> previous_path = {previous_path_x, previous_path_y};
+          vector<vector<double>> next_path;
 
           // Path planning
-          vector<vector<double>> output = planner.plan(current_s_d, previous_path, sensor_fusion);
+          planner.preprocess(car_s, car_d, previous_path_x, previous_path_y, sensor_fusion);
+          if (planner.do_update) {
+            planner.plan();
+            planner.postprocess();
+            next_path = planner.get_planned_result();
+          } else {
+            next_path = {previous_path_x, previous_path_y};
+          }
 
-          msgJson["next_x"] = output[0];
-          msgJson["next_y"] = output[1];
+          msgJson["next_x"] = next_path[0];
+          msgJson["next_y"] = next_path[1];
 
           auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
           //this_thread::sleep_for(chrono::milliseconds(1000));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-          
+
         }
       } else {
         // Manual driving
