@@ -46,6 +46,17 @@ static Eigen::Rotation2D<double> g_rotNormal(-90.f * M_PI / 180.f);
 
 extern double distance(double x1, double y1, double x2, double y2);
 
+double SPEEDeval(const std::vector<double>& params, double T) {
+    double t2 = T;
+    return params[1] + 2 * params[2] * t2;
+}
+
+double POSeval(const std::vector<double>& params, double T) {
+    double t2 = T * T;
+    double val = params[0] + params[1] * T + params[2] * t2;
+    return val;
+}
+
 double JMTSpeedEval(const JMTCurve& jmtCurve, double T) {
     T = fmin(T, jmtCurve.Tmax);
     const std::vector<double>& params = jmtCurve.JMTparams;
@@ -207,8 +218,9 @@ bool permuteParameter(double center, double offset, double inc, bool useHigh, bo
     while (factor <= diff) {
 
         double sign = useHigh && useLow ? (factor % 2) == 0 ? -1.f : 1.f : (useHigh) ? 1.0 : (useLow) ? -1.0 : 0.0;
+        int mult = useHigh && useLow ? ((factor + 1) / 2) : factor;
 
-        p = center + factor * sign * inc;
+        p = center + mult * sign * inc;
 
         if (f(p)) {
             return true;
@@ -224,9 +236,7 @@ JMTCurve permuteJMT(double pos, double speed, double accel, double final_s, doub
     JMTCurve bestCurve;
     bestCurve.cost = 0;
 
-    double s_ddot_inc = fabs(fmin(0.2, (final_velocity - speed) / 10));
-
-    permuteParameter(0.0, final_velocity - speed, s_ddot_inc, true, true,
+    permuteParameter(0.0, 0.2, 0.02, true, true,
                      [&bestCurve, &final_s, &pos, &speed, &accel, &dt, &dT, &final_velocity, &max_velocity, &max_accel, &max_jerk, &bPermuteS](double s_ddot)->bool {
 
         double s_dot_inc = fabs(fmin(0.2, (final_velocity - speed) / 10));
@@ -242,6 +252,10 @@ JMTCurve permuteJMT(double pos, double speed, double accel, double final_s, doub
 
                 if (speed > 21) {
                     printf("JMT attempt (pos %f, speed %f, accel %f)\n", s, s_dot, s_ddot);
+                }
+
+                if (s < 0) {
+                    throw std::exception();
                 }
 
                 JMTCurve params = JMT(start, end, dT);
@@ -626,7 +640,7 @@ PathPoints PathGenerator::generate_path(VehicleState state) {
     }
 
     //generate points along this path in one second
-    auto jmtParams = im.generate_constraint_JMT(state, 22, 10, 10);
+    auto jmtParams = im.generate_constraint_JMT(state, 22.3, 10, 10);
 
     // add points to keep
     i = 0;
@@ -946,7 +960,7 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     double sOffsetToKeepTimeEnd = sOffsetToKeepTimeStart;
     double posToKeepStart = currPos;
     double posToKeepEnd = currPos;
-    double targetPosToKeepEnd = currPos + uniformInterval * 5.0;
+    double targetPosToKeepEnd = currPos + uniformInterval * 2.0;
 
     while (posToKeepEnd < targetPosToKeepEnd && toKeep < state.remaining_path_x.size()) {
         toKeep++;
@@ -973,6 +987,7 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
     double pos =  JMTeval(trajectory.sJMT, deltaT) - posNewOrigin; //subtract the waypoint origin
     double speed =  JMTSpeedEval(trajectory.sJMT, deltaT);
     double accel = JMTAccelEval(trajectory.sJMT, deltaT);
+    double currSpeed = JMTSpeedEval(trajectory.sJMT, currTime);
 
     // determine JMT using start and end state
 
@@ -984,12 +999,23 @@ TrajectoryData PathGenerator::impl::generate_constraint_JMT(VehicleState state, 
 
     //shrink the time period as we approach the speed limit to force the speed to asymptotically reach the speed limit
     JMTCurve bestCurveS;
-    double timePeriod = remT;// * fmax(fmin(1.0, (max_velocity - speed) / 1.0), 0.1);
-    double furthest_s = pos + max_velocity * timePeriod;
+    printf("curr predicted speed %f, state speed %f", currSpeed, state.speed);
 
-    bestCurveS = permuteJMT(pos, speed, accel, furthest_s, max_velocity, max_velocity, max_accel, max_jerk, timePeriod, dt);
+    double furthest_s;
+    double timePeriod = remT; //fmax(dt, remT * fmin(1.0, (max_velocity - speed) / 1.0));
+    int factor = 0;
+    double timeInc = dt;
+    //do {
+        double time = timePeriod + ((factor % 2) == 0 ? 1.0 : -1.0) * factor * timeInc;
+        if (time > 0) {
+            furthest_s = fmax(max_velocity * time, POSeval({pos, speed, accel}, time));
+            bestCurveS = permuteJMT(pos, speed, accel, furthest_s, max_velocity, max_velocity, max_accel, max_jerk,
+                                    time, dt);
+        }
+        factor++;
+    //} while (bestCurveS.JMTparams.empty() && factor <= 10);
 
-    if (bestCurveS.JMTparams.size() == 0) {
+    if (bestCurveS.JMTparams.empty()) {
         throw new std::exception();
     }
 
