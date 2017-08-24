@@ -69,8 +69,8 @@ private:
 
 
   /* Private variable with the initial values */
-  int current_lane = 1;
-  string current_action = "straight";
+  int current_lane_ = 1;
+  string current_action_ = "straight";
   double speed_limit_ = DEFAULT_SPEED_LIMIT;
   int timesteps_ = DEFAULT_TIMESTEPS;
   int interval_ = DEFAULT_INTERVAL;
@@ -78,9 +78,9 @@ private:
   double max_delta_s_ = 0.0;
 
   /* Planner's containers */
-  WayPoints way_points;
-  Car my_car;
-  vector<Car> other_cars;
+  WayPoints way_points_;
+  Car my_car_;
+  vector<Car> other_cars_;
   vector<double> prev_path_x_;
   vector<double> prev_path_y_;
   int prev_path_size_;

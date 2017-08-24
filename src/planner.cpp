@@ -57,7 +57,7 @@ double Planner::calculate_cost(const pair<Polynomial, Polynomial> &traj,
   double exceeds_speed_limit_cost_val = cf::exceeds_speed_limit_cost(traj, timesteps_, MAX_VAL);
   double exceeds_accel_limit_cost_val = cf::exceeds_accel_limit_cost(traj, timesteps_, MAX_ACC);
   double exceeds_jerk_limit_cost_val = cf::exceeds_jerk_limit_cost(traj, timesteps_, MAX_JERK);
-  double collision_cost_val = cf::collision_cost(traj,timesteps_, other_cars, CAR_CRI_WID, CAR_CRI_LEN);
+  double collision_cost_val = cf::collision_cost(traj,timesteps_, other_cars_, CAR_CRI_WID, CAR_CRI_LEN);
 
   double critical_cost = exceeds_speed_limit_cost_val + exceeds_accel_limit_cost_val + exceeds_jerk_limit_cost_val + collision_cost_val;
 
@@ -66,11 +66,11 @@ double Planner::calculate_cost(const pair<Polynomial, Polynomial> &traj,
     return INF;
   }
 
-  double traffic_distance_cost_val = cf::traffic_distance_cost(traj, timesteps_, other_cars, CAR_SAFE_WID, CAR_SAFE_LEN);
+  double traffic_distance_cost_val = cf::traffic_distance_cost(traj, timesteps_, other_cars_, CAR_SAFE_WID, CAR_SAFE_LEN);
   double accel_s_cost_val = cf::accel_s_cost(traj, timesteps_);
   double accel_d_cost_val = cf::accel_d_cost(traj, timesteps_);
   double total_jerk_cost_val = cf::total_jerk_cost(traj, timesteps_);
-  double busy_lane_cost_val = cf::busy_lane_cost(traj, timesteps_, other_cars);
+  double busy_lane_cost_val = cf::busy_lane_cost(traj, timesteps_, other_cars_);
 
   vector<double> cost_vals = {traffic_distance_cost_val, accel_s_cost_val, accel_d_cost_val, total_jerk_cost_val, busy_lane_cost_val};
   costs.push_back(cost_vals);
@@ -87,7 +87,7 @@ void Planner::preprocess(double car_s, double car_d, const vector<double> &previ
   traj_d_.clear();
   next_x_.clear();
   next_y_.clear();
-  other_cars.clear();
+  other_cars_.clear();
 
   prev_path_size_ = (int)previous_path_x.size();
 
@@ -97,22 +97,22 @@ void Planner::preprocess(double car_s, double car_d, const vector<double> &previ
     // Set the private variables
     prev_path_x_ = previous_path_x;
     prev_path_y_ = previous_path_y;
-    current_lane = h::get_lane_id(car_d);
-    way_points.fit_spline_segment(car_s);
-    my_car.pos_s = way_points.get_local_s(car_s);
-    my_car.pos_d = car_d;
+    current_lane_ = h::get_lane_id(car_d);
+    way_points_.fit_spline_segment(car_s);
+    my_car_.pos_s = way_points_.get_local_s(car_s);
+    my_car_.pos_d = car_d;
 
     // Check whether the speed is too fast or not.
     // If the speed is too fast, then scale down the speed limit.
-    double dx0 = way_points.spline_x_s_(my_car.pos_s);
-    double dx1 = way_points.spline_x_s_(my_car.pos_s + 100);
+    double dx0 = way_points_.spline_x_s(my_car_.pos_s);
+    double dx1 = way_points_.spline_x_s(my_car_.pos_s + 100);
     double diff_dx = abs(dx1 - dx0);
     speed_limit_ = DEFAULT_SPEED_LIMIT;
     double factor_ = 1.0;
     if (diff_dx > 0.25) {
-      if (current_lane == 0) {
+      if (current_lane_ == 0) {
         factor_ = (1 - ut::logistic(diff_dx)*.5) * .10 + .90;
-      } else if (current_lane == 1) {
+      } else if (current_lane_ == 1) {
         factor_ = (1 - ut::logistic(diff_dx)*.5) * .15 + .85;
       } else {
         factor_ = (1 - ut::logistic(diff_dx)*.5) * .20 + .80;
@@ -123,26 +123,26 @@ void Planner::preprocess(double car_s, double car_d, const vector<double> &previ
     // Collect the information of other cars
     for (auto data:sensor_fusion) {
       Car other_car;
-      other_car.pos_s = way_points.get_local_s(data[5]);
+      other_car.pos_s = way_points_.get_local_s(data[5]);
       other_car.pos_d = data[6];
 
       double vx = data[3];
       double vy = data[4];
       other_car.vel_s = sqrt(vx*vx + vy*vy) / 50.0;
-      other_cars.push_back(other_car);
+      other_cars_.push_back(other_car);
     }
 
     // Set the velocity and acceleration of both s and d for planning the path
-    my_car.vel_s = my_car.past_states[0];
-    my_car.acc_s = my_car.past_states[1];
-    my_car.vel_d = my_car.past_states[2];
-    my_car.acc_d = my_car.past_states[3];
+    my_car_.vel_s = my_car_.past_states[0];
+    my_car_.acc_s = my_car_.past_states[1];
+    my_car_.vel_d = my_car_.past_states[2];
+    my_car_.acc_d = my_car_.past_states[3];
 
     // Set max velocity and max delta s for planning the path
     max_vel_ = CONVERSION * speed_limit_;
     // make my car starts smoothly without exceeding acceleration or jerk limit
-    if (my_car.vel_s < max_vel_ / 1.7) {
-      double vel_diff = max_vel_ - my_car.vel_s;
+    if (my_car_.vel_s < max_vel_ / 1.7) {
+      double vel_diff = max_vel_ - my_car_.vel_s;
       max_vel_ -= vel_diff * 0.70;
     }
     max_delta_s_ = timesteps_ * max_vel_;
@@ -151,7 +151,7 @@ void Planner::preprocess(double car_s, double car_d, const vector<double> &previ
 
 void Planner::plan() {
 
-  cout << "my car's local s: " << my_car.pos_s << " vel s: " << my_car.vel_s << " d: " << my_car.pos_d << " lane: " << current_lane << endl;
+  cout << "my car's local s: " << my_car_.pos_s << " vel s: " << my_car_.vel_s << " d: " << my_car_.pos_d << " lane: " << current_lane_ << endl;
 
   vector<vector<double>> end_points;
   vector<vector<double>> traj_ends;
@@ -163,11 +163,11 @@ void Planner::plan() {
   bool change_left = false;
   bool change_right = false;
 
-  vector<int> closest_cars = h::closest_vehicle_in_lanes(my_car, other_cars);
+  vector<int> closest_cars = h::closest_vehicle_in_lanes(my_car_, other_cars_);
 
-  int closest_car_id = closest_cars[current_lane];
+  int closest_car_id = closest_cars[current_lane_];
   if (closest_car_id != -1) {
-    double diff_s = abs(other_cars[closest_car_id].pos_s - my_car.pos_s);
+    double diff_s = abs(other_cars_[closest_car_id].pos_s - my_car_.pos_s);
     if (diff_s < 100) {
       change_left = true;
       change_right = true;
@@ -181,10 +181,10 @@ void Planner::plan() {
   }
 
   if (go_straight) {
-    double end_pos_s = my_car.pos_s + max_delta_s_;
+    double end_pos_s = my_car_.pos_s + max_delta_s_;
     double end_vel_s = max_vel_;
     double end_acc_s = 0.0;
-    double end_pos_d = 2 + 4 * current_lane;
+    double end_pos_d = 2 + 4 * current_lane_;
     double end_vel_d = 0.0;
     double end_acc_d = 0.0;
 
@@ -196,19 +196,19 @@ void Planner::plan() {
   }
 
   if (follow_lead) {
-    Car leading_car = other_cars[closest_car_id];
-    if ((leading_car.pos_s - my_car.pos_s < CAR_SAFE_LEN*0.7) && (leading_car.vel_s < my_car.vel_s*0.75)) {
+    Car leading_car = other_cars_[closest_car_id];
+    if ((leading_car.pos_s - my_car_.pos_s < CAR_SAFE_LEN*0.7) && (leading_car.vel_s < my_car_.vel_s*0.75)) {
       cout << "EMERGENCY" << endl;
-      current_action = "emergency";
+      current_action_ = "emergency";
       timesteps_ = 120;
       change_left = false;
       change_right = false;
     }
 
-    double end_pos_s = my_car.pos_s + leading_car.vel_s * timesteps_;
+    double end_pos_s = my_car_.pos_s + leading_car.vel_s * timesteps_;
     double end_vel_s = leading_car.vel_s;
     double end_acc_s = 0.0;
-    double end_pos_d = 2 + 4 * current_lane;
+    double end_pos_d = 2 + 4 * current_lane_;
     double end_vel_d = 0.0;
     double end_acc_d = 0.0;
 
@@ -219,19 +219,19 @@ void Planner::plan() {
     end_points.insert(end_points.end(), end_points_follow.begin(), end_points_follow.end());
   }
 
-  if (change_left && (current_lane != 0)) {
-    double end_pos_s = my_car.pos_s + max_delta_s_;
+  if (change_left && (current_lane_ != 0)) {
+    double end_pos_s = my_car_.pos_s + max_delta_s_;
     double end_vel_s = max_vel_;
     if (follow_lead) {
-      Car leading_car = other_cars[closest_car_id];
-      if (leading_car.pos_s - my_car.pos_s < CAR_SAFE_LEN*0.7) {
-        end_pos_s = my_car.pos_s + leading_car.vel_s*timesteps_;
+      Car leading_car = other_cars_[closest_car_id];
+      if (leading_car.pos_s - my_car_.pos_s < CAR_SAFE_LEN*0.7) {
+        end_pos_s = my_car_.pos_s + leading_car.vel_s*timesteps_;
         end_vel_s = leading_car.vel_s;
       }
     }
 
     double end_acc_s = 0.0;
-    double end_pos_d = (2 + 4 * current_lane) - 4;
+    double end_pos_d = (2 + 4 * current_lane_) - 4;
     double end_vel_d = 0.0;
     double end_acc_d = 0.0;
 
@@ -242,19 +242,19 @@ void Planner::plan() {
     end_points.insert(end_points.end(), end_points_left.begin(), end_points_left.end());
   }
 
-  if (change_right && (current_lane != 2)) {
-    double end_pos_s = my_car.pos_s + max_delta_s_;
+  if (change_right && (current_lane_ != 2)) {
+    double end_pos_s = my_car_.pos_s + max_delta_s_;
     double end_vel_s = max_vel_;
     if (follow_lead) {
-      Car leading_car = other_cars[closest_car_id];
-      if (leading_car.pos_s - my_car.pos_s < CAR_SAFE_LEN*0.7) {
-        end_pos_s = my_car.pos_s + leading_car.vel_s * timesteps_;
+      Car leading_car = other_cars_[closest_car_id];
+      if (leading_car.pos_s - my_car_.pos_s < CAR_SAFE_LEN*0.7) {
+        end_pos_s = my_car_.pos_s + leading_car.vel_s * timesteps_;
         end_vel_s = leading_car.vel_s;
       }
     }
 
     double end_acc_s = 0.0;
-    double end_pos_d = (2 + 4 * current_lane) + 4;
+    double end_pos_d = (2 + 4 * current_lane_) + 4;
     double end_vel_d = 0.0;
     double end_acc_d = 0.0;
 
@@ -276,8 +276,8 @@ void Planner::plan() {
     cout << " CHANGE RIGHT ";
   cout << endl;
 
-  const vector<double> start_s = {my_car.pos_s, my_car.vel_s, my_car.acc_s};
-  const vector<double> start_d = {my_car.pos_d, my_car.vel_d, my_car.acc_d};
+  const vector<double> start_s = {my_car_.pos_s, my_car_.vel_s, my_car_.acc_s};
+  const vector<double> start_d = {my_car_.pos_d, my_car_.vel_d, my_car_.acc_d};
 
   // Generate the polynomial of s and d for generating the planned path
   vector<pair<Polynomial, Polynomial>> traj_coeffs;
@@ -320,9 +320,9 @@ void Planner::plan() {
     min_cost_id = min_s_id;
   }
 
-  current_action = "straight";
+  current_action_ = "straight";
   if (min_cost_id > N_PERTURB_SAMPLE) {
-    current_action = "lane_change";
+    current_action_ = "lane_change";
   }
 
   for (int t = 0; t < timesteps_; t++) {
@@ -335,9 +335,9 @@ void Planner::postprocess() {
   // update information for next cycle
   timesteps_ = DEFAULT_TIMESTEPS;
   interval_ = DEFAULT_INTERVAL;
-  if (current_action == "lane_change") {
+  if (current_action_ == "lane_change") {
     interval_ = timesteps_ - 55;
-  } else if (current_action == "emergency") {
+  } else if (current_action_ == "emergency") {
     timesteps_ = 120;
     interval_ = timesteps_ - 80;
   }
@@ -354,7 +354,7 @@ void Planner::postprocess() {
   double d_v2 = d2 - d1;
   double d_a = d_v2 - d_v1;
 
-  my_car.past_states = {s_v1, s_a, d_v1, d_a};
+  my_car_.past_states = {s_v1, s_a, d_v1, d_a};
 
   // generate planned path
   bool smooth_path = prev_path_size_ > 0;
@@ -364,7 +364,7 @@ void Planner::postprocess() {
   vector<double> prev_xy_planned;
 
   for (int i = 0; i < reuse_prev_range; i++) {
-    prev_xy_planned = way_points.getXY_splines(traj_s_[i], traj_d_[i]);
+    prev_xy_planned = way_points_.get_spline_xy(traj_s_[i], traj_d_[i]);
 
     if (smooth_path) {
       new_x = prev_path_x_[i];
@@ -377,7 +377,7 @@ void Planner::postprocess() {
     }
   }
   for (int i = reuse_prev_range; i < traj_s_.size(); i++) {
-    vector<double> xy_planned = way_points.getXY_splines(traj_s_[i], traj_d_[i]);
+    vector<double> xy_planned = way_points_.get_spline_xy(traj_s_[i], traj_d_[i]);
     if (smooth_path) {
       double x_dif_planned = xy_planned[0] - prev_xy_planned[0];
       double y_dif_planned = xy_planned[1] - prev_xy_planned[1];

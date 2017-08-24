@@ -19,17 +19,17 @@ public:
   WayPoints();
 
   double get_local_s(double world_s);
-  vector<double> getXY_splines(double s, double d);
+  vector<double> get_spline_xy(double s, double d);
   void fit_spline_segment(double s);
 
-  vector<WayPoint> wps_;
-  vector<double> wp_local_segment_s_;
-  vector<double> wp_global_segment_s_;
+  vector<WayPoint> way_points;
+  vector<double> way_point_local_segment_s;
+  vector<double> way_point_global_segment_s;
 
-  tk::spline spline_x_s_;
-  tk::spline spline_y_s_;
-  tk::spline spline_dx_s_;
-  tk::spline spline_dy_s_;
+  tk::spline spline_x_s;
+  tk::spline spline_y_s;
+  tk::spline spline_dx_s;
+  tk::spline spline_dy_s;
 
 private:
   double max_s_ = 6945.554;
