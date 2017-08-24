@@ -7,8 +7,8 @@
 
 #include <map>
 #include <string>
-#include "Polynomial.h"
-#include "Car.h"
+#include "polynomial.h"
+#include "car.h"
 
 namespace {
   namespace cf {

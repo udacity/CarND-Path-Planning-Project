@@ -2,7 +2,7 @@
 // Created by Joey Liu on 2017/08/16.
 //
 #include <vector>
-#include "Polynomial.h"
+#include "polynomial.h"
 
 Polynomial::Polynomial(const vector<double> &coeffs) {
   set_coeff(coeffs);

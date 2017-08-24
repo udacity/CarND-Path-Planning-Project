@@ -14,12 +14,12 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "Eigen-3.3/Eigen/LU"
-#include "WayPoints.h"
+#include "way_points.h"
 #include "utils.h"
 #include "helpers.h"
 #include "cost_functions.h"
-#include "Car.h"
-#include "Polynomial.h"
+#include "car.h"
+#include "polynomial.h"
 
 using namespace std;
 
@@ -40,7 +40,7 @@ public:
 private:
 
 
-  /* Planner constant */
+  /* Planner constants */
   // mp/h
   const double DEFAULT_SPEED_LIMIT = 48.0;
   const int DEFAULT_TIMESTEPS = 180;
@@ -57,6 +57,7 @@ private:
   // 10 m/s
   const double MAX_JERK = 10.0 / 50.0;
 
+  // Define car's size and critical and safe ranges
   const double CAR_WID = 2.5;
   const double CAR_LEN = 5.0;
   const double CAR_CRI_WID = 0.5 * CAR_WID;
@@ -67,17 +68,16 @@ private:
   const double INF = numeric_limits<double>::infinity();
 
 
-  /* Planner's initial value */
+  /* Private variable with the initial values */
   int current_lane = 1;
   string current_action = "straight";
   double speed_limit_ = DEFAULT_SPEED_LIMIT;
   int timesteps_ = DEFAULT_TIMESTEPS;
   int interval_ = DEFAULT_INTERVAL;
-
   double max_vel_ = 0.0;
   double max_delta_s_ = 0.0;
 
-  /* Planner's container */
+  /* Planner's containers */
   WayPoints way_points;
   Car my_car;
   vector<Car> other_cars;

@@ -9,7 +9,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 
-#include "Planner.h"
+#include "planner.h"
 
 using namespace std;
 

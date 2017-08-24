@@ -7,7 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
-#include "WayPoints.h"
+#include "way_points.h"
 
 using namespace std;
 

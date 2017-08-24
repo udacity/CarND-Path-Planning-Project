@@ -5,7 +5,7 @@
 #ifndef PATH_PLANNING_HELPERS_H
 #define PATH_PLANNING_HELPERS_H
 
-#include "Car.h"
+#include "car.h"
 
 namespace {
   namespace h {
