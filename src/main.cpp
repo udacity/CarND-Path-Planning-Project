@@ -79,6 +79,7 @@ int main() {
 
           // Path planning
           planner.preprocess(car_s, car_d, previous_path_x, previous_path_y, sensor_fusion);
+          // Pass the previous path directly if there is no need to update the planned path.
           if (planner.do_update) {
             planner.plan();
             planner.postprocess();
