@@ -35,20 +35,20 @@ double Polynomial::eval(double x, string order) const {
 
   double output;
   if (order == "first") {
-    output = _eval(x, coeff_fd_);
+    output = eval_(x, coeff_fd_);
   } else if (order == "second") {
-    output = _eval(x, coeff_sd_);
+    output = eval_(x, coeff_sd_);
   } else if (order == "third") {
-    output = _eval(x, coeff_td_);
+    output = eval_(x, coeff_td_);
   } else {
-    output = _eval(x, coeff_);
+    output = eval_(x, coeff_);
   }
 
   return output;
 
 }
 
-double Polynomial::_eval(double x, const vector<double> &coeffs) const {
+double Polynomial::eval_(double x, const vector<double> &coeffs) const {
   double output = 0.0;
 
   for (int i = 0; i < coeffs.size(); i++) {

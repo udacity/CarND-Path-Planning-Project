@@ -21,7 +21,7 @@ namespace {
             {"busy_cost", 8.0},
     };
 
-    inline bool exceeds_speed_limit_cost(const pair<Polynomial, Polynomial> &traj,
+    inline bool check_exceed_speed_limit(const pair<Polynomial, Polynomial> &traj,
                                            const int total_timestep, const double max_vel) {
       for (int i = 0; i < total_timestep; i++) {
         if (traj.first.eval(i, "first") + traj.second.eval(i, "first") > max_vel) {
@@ -31,7 +31,7 @@ namespace {
       return false;
     }
 
-    inline bool exceeds_accel_limit_cost(const pair<Polynomial, Polynomial> &traj,
+    inline bool check_exceed_accel_limit(const pair<Polynomial, Polynomial> &traj,
                                            const int total_timestep, const double max_acc) {
       for (int i = 0; i < total_timestep; i++) {
         if (traj.first.eval(i, "second") + traj.second.eval(i, "second") > max_acc)
@@ -40,7 +40,7 @@ namespace {
       return false;
     }
 
-    inline bool exceeds_jerk_limit_cost(const pair<Polynomial, Polynomial> &traj,
+    inline bool check_exceed_jerk_limit(const pair<Polynomial, Polynomial> &traj,
                                           const int total_timestep, const double max_jerk) {
       for (int i = 0; i < total_timestep; i++) {
         if (traj.first.eval(i, "third") + traj.second.eval(i, "third") > max_jerk)
@@ -49,7 +49,7 @@ namespace {
       return false;
     }
 
-    inline bool collision_cost(const pair<Polynomial, Polynomial> &traj,
+    inline bool check_collision(const pair<Polynomial, Polynomial> &traj,
                                  const int total_timestep, const vector<Car> &other_cars,
                                  const double car_critical_width, const double car_critical_length) {
       for (int i = 0; i < total_timestep; i++) {
@@ -95,7 +95,7 @@ namespace {
       return cost*cost_weights["tr_dist_cost"];
     }
 
-    inline double accel_s_cost(const pair<Polynomial, Polynomial> &traj, const double total_timestep) {
+    inline double total_accel_s_cost(const pair<Polynomial, Polynomial> &traj, const double total_timestep) {
       double cost = 0.0;
       for (int i = 0; i < total_timestep; i++) {
         cost += abs(traj.first.eval(i, "second"));
@@ -103,7 +103,7 @@ namespace {
       return ut::logistic(cost)*cost_weights["acc_s_cost"];
     }
 
-    inline double accel_d_cost(const pair<Polynomial, Polynomial> &traj, const double total_timestep) {
+    inline double total_accel_d_cost(const pair<Polynomial, Polynomial> &traj, const double total_timestep) {
       double cost = 0.0;
       for (int i = 0; i < total_timestep; i++) {
         cost += abs(traj.second.eval(i, "second"));
@@ -127,7 +127,7 @@ namespace {
       double my_car_pos_d_end = traj.second.eval(total_timestep);
 
       int future_lane = h::get_lane_id(my_car_pos_d_end);
-      int future_closest_car_id = h::closest_vehicle_in_lane(future_lane, my_car_pos_s, other_cars);
+      int future_closest_car_id = h::closest_car_in_lane(future_lane, my_car_pos_s, other_cars);
 
       if (future_closest_car_id != -1) {
         double future_diff_s = other_cars[future_closest_car_id].pos_s - my_car_pos_s;
@@ -135,7 +135,7 @@ namespace {
 
         if (future_diff_s < total_timestep) {
           int current_lane = h::get_lane_id(my_car_pos_d);
-          int closest_car_id = h::closest_vehicle_in_lane(current_lane, my_car_pos_s, other_cars);
+          int closest_car_id = h::closest_car_in_lane(current_lane, my_car_pos_s, other_cars);
           if ((closest_car_id != -1) && (future_diff_s < total_timestep / 2.0)) {
             double other_car_vel_s = other_cars[closest_car_id].vel_s;
             if (future_other_car_vel_s < other_car_vel_s * 0.95) {

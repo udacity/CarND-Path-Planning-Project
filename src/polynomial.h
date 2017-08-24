@@ -29,7 +29,7 @@ private:
   // third derivation
   vector<double> coeff_td_;
 
-  double _eval(double x, const vector<double> &coeffs) const;
+  double eval_(double x, const vector<double> &coeffs) const;
 };
 
 #endif //PATH_PLANNING_POLYNOMIAL_H

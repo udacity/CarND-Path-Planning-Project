@@ -29,7 +29,7 @@ Polynomial Planner::jmt(vector<double> const &start, vector<double> const &end, 
 
 }
 
-void Planner::perturb_end(vector<double> &end_vals, vector<vector<double>> &end_points, bool change_left) {
+void Planner::generate_perturbed_end_points(vector<double> &end_vals, vector<vector<double>> &end_points, bool change_left) {
   double std_dev = 0.1;
   std::normal_distribution<double> dist(0.0, std_dev);
   vector<double> point(6);
@@ -53,21 +53,21 @@ void Planner::perturb_end(vector<double> &end_vals, vector<vector<double>> &end_
 double Planner::calculate_cost(const pair<Polynomial, Polynomial> &traj,
                              const vector<double> &ends, vector<vector<double>> &costs) {
 
-  bool exceed_speed_limit = cf::exceeds_speed_limit_cost(traj, time_step_, kMaxVel);
-  bool exceeds_accel_limit = cf::exceeds_accel_limit_cost(traj, time_step_, kMaxAcc);
-  bool exceeds_jerk_limit = cf::exceeds_jerk_limit_cost(traj, time_step_, kMaxJerk);
-  bool collision = cf::collision_cost(traj,time_step_, other_cars_, kCarCriticalWidth, kCarCriticalLength);
+  bool exceed_speed_limit = cf::check_exceed_speed_limit(traj, time_step_, kMaxVel);
+  bool exceeds_accel_limit = cf::check_exceed_accel_limit(traj, time_step_, kMaxAcc);
+  bool exceeds_jerk_limit = cf::check_exceed_jerk_limit(traj, time_step_, kMaxJerk);
+  bool collision = cf::check_collision(traj,time_step_, other_cars_, kCarCriticalWidth, kCarCriticalLength);
 
-  bool critical_cost = (exceed_speed_limit || exceeds_accel_limit || exceeds_jerk_limit|| collision);
+  bool critical_check = (exceed_speed_limit || exceeds_accel_limit || exceeds_jerk_limit|| collision);
 
-  if (critical_cost) {
+  if (critical_check) {
     costs.emplace_back(kInf);
     return kInf;
   }
 
   double traffic_distance_cost_val = cf::traffic_distance_cost(traj, time_step_, other_cars_, kCarSafeWidth, kCarSafeLength);
-  double accel_s_cost_val = cf::accel_s_cost(traj, time_step_);
-  double accel_d_cost_val = cf::accel_d_cost(traj, time_step_);
+  double accel_s_cost_val = cf::total_accel_s_cost(traj, time_step_);
+  double accel_d_cost_val = cf::total_accel_d_cost(traj, time_step_);
   double total_jerk_cost_val = cf::total_jerk_cost(traj, time_step_);
   double busy_lane_cost_val = cf::busy_lane_cost(traj, time_step_, other_cars_);
 
@@ -145,12 +145,12 @@ void Planner::preprocess(double car_s, double car_d, const vector<double> &previ
       max_vel_ -= vel_diff * 0.70;
     }
     max_delta_s_ = time_step_ * max_vel_;
+
+    cout << "my car's local pos_s: " << my_car_.pos_s << " vel_s: " << my_car_.vel_s << " pos_d: " << my_car_.pos_d << " lane: " << current_lane_ << endl;
   }
 }
 
 void Planner::plan() {
-
-  cout << "my car's local s: " << my_car_.pos_s << " vel s: " << my_car_.vel_s << " d: " << my_car_.pos_d << " lane: " << current_lane_ << endl;
 
   vector<vector<double>> end_points;
   vector<vector<double>> traj_ends;
@@ -162,7 +162,7 @@ void Planner::plan() {
   bool change_left = false;
   bool change_right = false;
 
-  vector<int> closest_cars = h::closest_vehicle_in_lanes(my_car_, other_cars_);
+  vector<int> closest_cars = h::closest_car_in_lanes(my_car_, other_cars_);
 
   int closest_car_id = closest_cars[current_lane_];
   if (closest_car_id != -1) {
@@ -189,7 +189,7 @@ void Planner::plan() {
 
     vector<double> end_vals = {end_pos_s, end_vel_s, end_acc_s, end_pos_d, end_vel_d, end_acc_d};
     vector<vector<double>> end_points_straight = {end_vals};
-    perturb_end(end_vals, end_points_straight);
+    generate_perturbed_end_points(end_vals, end_points_straight);
     end_points.reserve(end_points.size() + end_points_straight.size());
     end_points.insert(end_points.end(), end_points_straight.begin(), end_points_straight.end());
   }
@@ -213,7 +213,7 @@ void Planner::plan() {
 
     vector<double> end_vals = {end_pos_s, end_vel_s, end_acc_s, end_pos_d, end_vel_d, end_acc_d};
     vector<vector<double>> end_points_follow = {end_vals};
-    perturb_end(end_vals, end_points_follow);
+    generate_perturbed_end_points(end_vals, end_points_follow);
     end_points.reserve(end_points.size() + end_points_follow.size());
     end_points.insert(end_points.end(), end_points_follow.begin(), end_points_follow.end());
   }
@@ -236,7 +236,7 @@ void Planner::plan() {
 
     vector<double> end_vals = {end_pos_s, end_vel_s, end_acc_s, end_pos_d, end_vel_d, end_acc_d};
     vector<vector<double>> end_points_left = {end_vals};
-    perturb_end(end_vals, end_points_left, true);
+    generate_perturbed_end_points(end_vals, end_points_left, true);
     end_points.reserve(end_points.size() + end_points_left.size());
     end_points.insert(end_points.end(), end_points_left.begin(), end_points_left.end());
   }
@@ -259,7 +259,7 @@ void Planner::plan() {
 
     vector<double> end_vals = {end_pos_s, end_vel_s, end_acc_s, end_pos_d, end_vel_d, end_acc_d};
     vector<vector<double>> end_points_right = {end_vals};
-    perturb_end(end_vals, end_points_right);
+    generate_perturbed_end_points(end_vals, end_points_right);
     end_points.reserve(end_points.size() + end_points_right.size());
     end_points.insert(end_points.end(), end_points_right.begin(), end_points_right.end());
   }

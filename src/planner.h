@@ -92,7 +92,7 @@ private:
   /* Methods */
   double calculate_cost(const pair<Polynomial, Polynomial> &traj, const vector<double> &ends,
                       vector<vector<double>> &costs);
-  void perturb_end(vector<double> &end_vals, vector<vector<double>> &end_points, bool change_left=false);
+  void generate_perturbed_end_points(vector<double> &end_vals, vector<vector<double>> &end_points, bool change_left=false);
   Polynomial jmt(vector<double> const &start, vector<double> const &end, int t);
 
   /* Misc */

@@ -19,7 +19,7 @@ namespace {
       return lane_id;
     }
 
-    inline int closest_vehicle_in_lane(int target_lane, const double my_car_pos_s, const vector<Car> &other_cars) {
+    inline int closest_car_in_lane(int target_lane, const double my_car_pos_s, const vector<Car> &other_cars) {
       int closest_id = -1;
       double min_s_diff = numeric_limits<double>::infinity();
 
@@ -37,10 +37,10 @@ namespace {
       return closest_id;
     }
 
-    inline vector<int> closest_vehicle_in_lanes(const Car my_car, const vector<Car> &other_cars) {
+    inline vector<int> closest_car_in_lanes(const Car my_car, const vector<Car> &other_cars) {
       vector<int> closest_cars(3);
       for (int target_lane = 0; target_lane < 3; target_lane++) {
-        closest_cars[target_lane] = closest_vehicle_in_lane(target_lane, my_car.pos_s, other_cars);
+        closest_cars[target_lane] = closest_car_in_lane(target_lane, my_car.pos_s, other_cars);
       }
       return closest_cars;
     }
