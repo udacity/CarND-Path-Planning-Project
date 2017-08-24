@@ -21,35 +21,35 @@ namespace {
             {"busy_cost", 8.0},
     };
 
-    inline double exceeds_speed_limit_cost(const pair<Polynomial, Polynomial> &traj,
+    inline bool exceeds_speed_limit_cost(const pair<Polynomial, Polynomial> &traj,
                                            const int total_timestep, const double max_vel) {
       for (int i = 0; i < total_timestep; i++) {
         if (traj.first.eval(i, "first") + traj.second.eval(i, "first") > max_vel) {
-          return 1.0;
+          return true;
         }
       }
-      return 0.0;
+      return false;
     }
 
-    inline double exceeds_accel_limit_cost(const pair<Polynomial, Polynomial> &traj,
+    inline bool exceeds_accel_limit_cost(const pair<Polynomial, Polynomial> &traj,
                                            const int total_timestep, const double max_acc) {
       for (int i = 0; i < total_timestep; i++) {
         if (traj.first.eval(i, "second") + traj.second.eval(i, "second") > max_acc)
-          return 1.0;
+          return true;
       }
-      return 0.0;
+      return false;
     }
 
-    inline double exceeds_jerk_limit_cost(const pair<Polynomial, Polynomial> &traj,
+    inline bool exceeds_jerk_limit_cost(const pair<Polynomial, Polynomial> &traj,
                                           const int total_timestep, const double max_jerk) {
       for (int i = 0; i < total_timestep; i++) {
         if (traj.first.eval(i, "third") + traj.second.eval(i, "third") > max_jerk)
-          return 1.0;
+          return true;
       }
-      return 0.0;
+      return false;
     }
 
-    inline double collision_cost(const pair<Polynomial, Polynomial> &traj,
+    inline bool collision_cost(const pair<Polynomial, Polynomial> &traj,
                                  const int total_timestep, const vector<Car> &other_cars,
                                  const double car_critical_width, const double car_critical_length) {
       for (int i = 0; i < total_timestep; i++) {
@@ -63,11 +63,11 @@ namespace {
           double diff_d = abs(other_car_latest_pos_d - my_car_latest_d);
 
           if ((diff_s <= car_critical_length*5.5) && (diff_d <= car_critical_width*2.5)) {
-            return 1.0;
+            return true;
           }
         }
       }
-      return 0.0;
+      return false;
     }
 
     inline double traffic_distance_cost(const pair<Polynomial, Polynomial> &traj,

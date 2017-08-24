@@ -33,7 +33,7 @@ void Planner::perturb_end(vector<double> &end_vals, vector<vector<double>> &end_
   double std_dev = 0.1;
   std::normal_distribution<double> dist(0.0, std_dev);
   vector<double> point(6);
-  for (int i = 0; i < N_PERTURB_SAMPLE; i++) {
+  for (int i = 0; i < kNPerturbSample; i++) {
     double multiplier = dist(rand_generator_);
     if (change_left && (multiplier > 0.0)) {
       multiplier *= -1.0;
@@ -52,30 +52,29 @@ void Planner::perturb_end(vector<double> &end_vals, vector<vector<double>> &end_
 
 double Planner::calculate_cost(const pair<Polynomial, Polynomial> &traj,
                              const vector<double> &ends, vector<vector<double>> &costs) {
-  double cost;
 
-  double exceeds_speed_limit_cost_val = cf::exceeds_speed_limit_cost(traj, timesteps_, MAX_VAL);
-  double exceeds_accel_limit_cost_val = cf::exceeds_accel_limit_cost(traj, timesteps_, MAX_ACC);
-  double exceeds_jerk_limit_cost_val = cf::exceeds_jerk_limit_cost(traj, timesteps_, MAX_JERK);
-  double collision_cost_val = cf::collision_cost(traj,timesteps_, other_cars_, CAR_CRI_WID, CAR_CRI_LEN);
+  bool exceed_speed_limit = cf::exceeds_speed_limit_cost(traj, time_step_, kMaxVel);
+  bool exceeds_accel_limit = cf::exceeds_accel_limit_cost(traj, time_step_, kMaxAcc);
+  bool exceeds_jerk_limit = cf::exceeds_jerk_limit_cost(traj, time_step_, kMaxJerk);
+  bool collision = cf::collision_cost(traj,time_step_, other_cars_, kCarCriticalWidth, kCarCriticalLength);
 
-  double critical_cost = exceeds_speed_limit_cost_val + exceeds_accel_limit_cost_val + exceeds_jerk_limit_cost_val + collision_cost_val;
+  bool critical_cost = (exceed_speed_limit || exceeds_accel_limit || exceeds_jerk_limit|| collision);
 
-  if (critical_cost > 0.0) {
-    costs.emplace_back(INF);
-    return INF;
+  if (critical_cost) {
+    costs.emplace_back(kInf);
+    return kInf;
   }
 
-  double traffic_distance_cost_val = cf::traffic_distance_cost(traj, timesteps_, other_cars_, CAR_SAFE_WID, CAR_SAFE_LEN);
-  double accel_s_cost_val = cf::accel_s_cost(traj, timesteps_);
-  double accel_d_cost_val = cf::accel_d_cost(traj, timesteps_);
-  double total_jerk_cost_val = cf::total_jerk_cost(traj, timesteps_);
-  double busy_lane_cost_val = cf::busy_lane_cost(traj, timesteps_, other_cars_);
+  double traffic_distance_cost_val = cf::traffic_distance_cost(traj, time_step_, other_cars_, kCarSafeWidth, kCarSafeLength);
+  double accel_s_cost_val = cf::accel_s_cost(traj, time_step_);
+  double accel_d_cost_val = cf::accel_d_cost(traj, time_step_);
+  double total_jerk_cost_val = cf::total_jerk_cost(traj, time_step_);
+  double busy_lane_cost_val = cf::busy_lane_cost(traj, time_step_, other_cars_);
 
   vector<double> cost_vals = {traffic_distance_cost_val, accel_s_cost_val, accel_d_cost_val, total_jerk_cost_val, busy_lane_cost_val};
   costs.push_back(cost_vals);
 
-  cost = traffic_distance_cost_val + accel_s_cost_val + accel_d_cost_val + total_jerk_cost_val + busy_lane_cost_val;
+  double cost = traffic_distance_cost_val + accel_s_cost_val + accel_d_cost_val + total_jerk_cost_val + busy_lane_cost_val;
   return cost;
 
 }
@@ -92,7 +91,7 @@ void Planner::preprocess(double car_s, double car_d, const vector<double> &previ
   prev_path_size_ = (int)previous_path_x.size();
 
   // Check to update the planned path or not.
-  do_update = prev_path_size_ < (timesteps_ - interval_);
+  do_update = prev_path_size_ < (time_step_ - interval_);
   if (do_update) {
     // Set the private variables
     prev_path_x_ = previous_path_x;
@@ -107,7 +106,7 @@ void Planner::preprocess(double car_s, double car_d, const vector<double> &previ
     double dx0 = way_points_.spline_x_s(my_car_.pos_s);
     double dx1 = way_points_.spline_x_s(my_car_.pos_s + 100);
     double diff_dx = abs(dx1 - dx0);
-    speed_limit_ = DEFAULT_SPEED_LIMIT;
+    speed_limit_ = kDefaultSpeedLimit;
     double factor_ = 1.0;
     if (diff_dx > 0.25) {
       if (current_lane_ == 0) {
@@ -139,13 +138,13 @@ void Planner::preprocess(double car_s, double car_d, const vector<double> &previ
     my_car_.acc_d = my_car_.past_states[3];
 
     // Set max velocity and max delta s for planning the path
-    max_vel_ = CONVERSION * speed_limit_;
+    max_vel_ = kConversion * speed_limit_;
     // make my car starts smoothly without exceeding acceleration or jerk limit
     if (my_car_.vel_s < max_vel_ / 1.7) {
       double vel_diff = max_vel_ - my_car_.vel_s;
       max_vel_ -= vel_diff * 0.70;
     }
-    max_delta_s_ = timesteps_ * max_vel_;
+    max_delta_s_ = time_step_ * max_vel_;
   }
 }
 
@@ -172,7 +171,7 @@ void Planner::plan() {
       change_left = true;
       change_right = true;
     }
-    if (diff_s < CAR_SAFE_LEN) {
+    if (diff_s < kCarSafeLength) {
       go_straight = false;
       follow_lead = true;
       change_left = true;
@@ -197,15 +196,15 @@ void Planner::plan() {
 
   if (follow_lead) {
     Car leading_car = other_cars_[closest_car_id];
-    if ((leading_car.pos_s - my_car_.pos_s < CAR_SAFE_LEN*0.7) && (leading_car.vel_s < my_car_.vel_s*0.75)) {
+    if ((leading_car.pos_s - my_car_.pos_s < kCarSafeLength*0.7) && (leading_car.vel_s < my_car_.vel_s*0.75)) {
       cout << "EMERGENCY" << endl;
       current_action_ = "emergency";
-      timesteps_ = 120;
+      time_step_ = 120;
       change_left = false;
       change_right = false;
     }
 
-    double end_pos_s = my_car_.pos_s + leading_car.vel_s * timesteps_;
+    double end_pos_s = my_car_.pos_s + leading_car.vel_s * time_step_;
     double end_vel_s = leading_car.vel_s;
     double end_acc_s = 0.0;
     double end_pos_d = 2 + 4 * current_lane_;
@@ -224,8 +223,8 @@ void Planner::plan() {
     double end_vel_s = max_vel_;
     if (follow_lead) {
       Car leading_car = other_cars_[closest_car_id];
-      if (leading_car.pos_s - my_car_.pos_s < CAR_SAFE_LEN*0.7) {
-        end_pos_s = my_car_.pos_s + leading_car.vel_s*timesteps_;
+      if (leading_car.pos_s - my_car_.pos_s < kCarSafeLength*0.7) {
+        end_pos_s = my_car_.pos_s + leading_car.vel_s*time_step_;
         end_vel_s = leading_car.vel_s;
       }
     }
@@ -247,8 +246,8 @@ void Planner::plan() {
     double end_vel_s = max_vel_;
     if (follow_lead) {
       Car leading_car = other_cars_[closest_car_id];
-      if (leading_car.pos_s - my_car_.pos_s < CAR_SAFE_LEN*0.7) {
-        end_pos_s = my_car_.pos_s + leading_car.vel_s * timesteps_;
+      if (leading_car.pos_s - my_car_.pos_s < kCarSafeLength*0.7) {
+        end_pos_s = my_car_.pos_s + leading_car.vel_s * time_step_;
         end_vel_s = leading_car.vel_s;
       }
     }
@@ -285,8 +284,8 @@ void Planner::plan() {
     if (end_point[3] > 1.0 && end_point[3] < 11.0) {
       vector<double> end_s = {end_point[0], end_point[1], end_point[2]};
       vector<double> end_d = {end_point[3], end_point[4], end_point[5]};
-      Polynomial traj_s = jmt(start_s, end_s, timesteps_);
-      Polynomial traj_d = jmt(start_d, end_d, timesteps_);
+      Polynomial traj_s = jmt(start_s, end_s, time_step_);
+      Polynomial traj_d = jmt(start_d, end_d, time_step_);
       traj_coeffs.emplace_back(traj_s, traj_d);
       traj_ends.emplace_back(initializer_list<double>{end_point[0], end_point[1], end_point[2],
                                                       end_point[3], end_point[4], end_point[5]});
@@ -294,7 +293,7 @@ void Planner::plan() {
   }
 
   // Calculate the costs of each possible path
-  double min_cost = INF;
+  double min_cost = kInf;
   int min_cost_id = 0;
   vector<vector<double>> costs;
   for (int i = 0; i < traj_coeffs.size(); i++) {
@@ -307,13 +306,13 @@ void Planner::plan() {
   }
 
   // rare edge case: vehicle is stuck in infeasible trajectory (usually stuck close behind other car)
-  if (min_cost == INF) {
-    double min_s = traj_coeffs[0].first.eval(timesteps_);
+  if (min_cost == kInf) {
+    double min_s = traj_coeffs[0].first.eval(time_step_);
     int min_s_id = 0;
     // find trajectory going straight with minimum s
-    for (int i = 1; i < N_PERTURB_SAMPLE; i++) {
-      if (traj_coeffs[i].first.eval(timesteps_) < min_s) {
-        min_s = traj_coeffs[i].first.eval(timesteps_);
+    for (int i = 1; i < kNPerturbSample; i++) {
+      if (traj_coeffs[i].first.eval(time_step_) < min_s) {
+        min_s = traj_coeffs[i].first.eval(time_step_);
         min_s_id = i;
       }
     }
@@ -321,11 +320,11 @@ void Planner::plan() {
   }
 
   current_action_ = "straight";
-  if (min_cost_id > N_PERTURB_SAMPLE) {
+  if (min_cost_id > kNPerturbSample) {
     current_action_ = "lane_change";
   }
 
-  for (int t = 0; t < timesteps_; t++) {
+  for (int t = 0; t < time_step_; t++) {
     traj_s_.push_back(traj_coeffs[min_cost_id].first.eval(t));
     traj_d_.push_back(traj_coeffs[min_cost_id].second.eval(t));
   }
@@ -333,13 +332,13 @@ void Planner::plan() {
 
 void Planner::postprocess() {
   // update information for next cycle
-  timesteps_ = DEFAULT_TIMESTEPS;
-  interval_ = DEFAULT_INTERVAL;
+  time_step_ = kDefaultTimeStep;
+  interval_ = kDefaultInterval;
   if (current_action_ == "lane_change") {
-    interval_ = timesteps_ - 55;
+    interval_ = time_step_ - 55;
   } else if (current_action_ == "emergency") {
-    timesteps_ = 120;
-    interval_ = timesteps_ - 80;
+    time_step_ = 120;
+    interval_ = time_step_ - 80;
   }
   double s0 = traj_s_[interval_ + 1];
   double s1 = traj_s_[interval_ + 2];

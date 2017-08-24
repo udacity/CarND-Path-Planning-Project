@@ -42,38 +42,38 @@ private:
 
   /* Planner constants */
   // mp/h
-  const double DEFAULT_SPEED_LIMIT = 48.0;
-  const int DEFAULT_TIMESTEPS = 180;
-  const int DEFAULT_INTERVAL = 40;
+  const double kDefaultSpeedLimit = 48.0;
+  const int kDefaultTimeStep = 180;
+  const int kDefaultInterval = 40;
 
   // convert mp/h to timestep
-  const double CONVERSION = .02/2.24;
+  const double kConversion = .02/2.24;
 
   /* Planner config for cost calculations */
   // 50 mp/h and a little buffer
-  const double MAX_VAL = CONVERSION * 49.5;
+  const double kMaxVel = kConversion * 49.5;
   // 10 m/s
-  const double MAX_ACC = 10.0 / 50.0;
+  const double kMaxAcc = 10.0 / 50.0;
   // 10 m/s
-  const double MAX_JERK = 10.0 / 50.0;
+  const double kMaxJerk = 10.0 / 50.0;
 
   // Define car's size and critical and safe ranges
-  const double CAR_WID = 2.5;
-  const double CAR_LEN = 5.0;
-  const double CAR_CRI_WID = 0.5 * CAR_WID;
-  const double CAR_CRI_LEN = 0.5 * CAR_LEN;
-  const double CAR_SAFE_WID = CAR_WID;
-  const double CAR_SAFE_LEN = 5 * CAR_LEN;
-  const int N_PERTURB_SAMPLE = 10;
-  const double INF = numeric_limits<double>::infinity();
+  const double kCarWidth = 2.5;
+  const double kCarLength = 5.0;
+  const double kCarCriticalWidth = 0.5 * kCarWidth;
+  const double kCarCriticalLength = 0.5 * kCarLength;
+  const double kCarSafeWidth = kCarWidth;
+  const double kCarSafeLength = 5 * kCarLength;
+  const int kNPerturbSample = 10;
+  const double kInf = numeric_limits<double>::infinity();
 
 
   /* Private variable with the initial values */
   int current_lane_ = 1;
   string current_action_ = "straight";
-  double speed_limit_ = DEFAULT_SPEED_LIMIT;
-  int timesteps_ = DEFAULT_TIMESTEPS;
-  int interval_ = DEFAULT_INTERVAL;
+  double speed_limit_ = kDefaultSpeedLimit;
+  int time_step_ = kDefaultTimeStep;
+  int interval_ = kDefaultInterval;
   double max_vel_ = 0.0;
   double max_delta_s_ = 0.0;
 
