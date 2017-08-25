@@ -103,12 +103,16 @@ void Planner::preprocess(double car_s, double car_d, const vector<double> &previ
 
     // Check whether the speed is too fast or not.
     // If the speed is too fast, then scale down the speed limit.
-    double dx0 = way_points_.spline_x_s(my_car_.pos_s);
-    double dx1 = way_points_.spline_x_s(my_car_.pos_s + 100);
-    double diff_dx = abs(dx1 - dx0);
     speed_limit_ = kDefaultSpeedLimit;
+    double dx0 = way_points_.spline_dx_s(my_car_.pos_s);
+    double dx1 = way_points_.spline_dx_s(my_car_.pos_s + 100);
+    double dy0 = way_points_.spline_dy_s(my_car_.pos_s);
+    double dy1 = way_points_.spline_dy_s(my_car_.pos_s + 100);
+    double diff_dx = abs(dx1 - dx0);
+    double diff_dy = abs(dy1 - dy0);
+    double diff_dxy = sqrt(diff_dx*diff_dx + diff_dy*diff_dy);
     double factor_ = 1.0;
-    if (diff_dx > 0.25) {
+    if (diff_dxy > 0.1) {
       if (current_lane_ == 0) {
         factor_ = (1 - ut::logistic(diff_dx)*.5) * .10 + .90;
       } else if (current_lane_ == 1) {
@@ -206,6 +210,7 @@ void Planner::plan() {
 
     double end_pos_s = my_car_.pos_s + leading_car.vel_s * time_step_;
     double end_vel_s = leading_car.vel_s;
+    if (leading_car.vel_s < my_car_.vel_s*0.5) end_vel_s = my_car_.vel_s*0.8;
     double end_acc_s = 0.0;
     double end_pos_d = 2 + 4 * current_lane_;
     double end_vel_d = 0.0;
@@ -226,6 +231,7 @@ void Planner::plan() {
       if (leading_car.pos_s - my_car_.pos_s < kCarSafeLength*0.7) {
         end_pos_s = my_car_.pos_s + leading_car.vel_s*time_step_;
         end_vel_s = leading_car.vel_s;
+        if (leading_car.vel_s < my_car_.vel_s*0.5) end_vel_s = my_car_.vel_s*0.8;
       }
     }
 
@@ -249,6 +255,7 @@ void Planner::plan() {
       if (leading_car.pos_s - my_car_.pos_s < kCarSafeLength*0.7) {
         end_pos_s = my_car_.pos_s + leading_car.vel_s * time_step_;
         end_vel_s = leading_car.vel_s;
+        if (leading_car.vel_s < my_car_.vel_s*0.5) end_vel_s = my_car_.vel_s*0.8;
       }
     }
 
@@ -358,8 +365,8 @@ void Planner::postprocess() {
   // generate planned path
   bool smooth_path = prev_path_size_ > 0;
   double new_x = 0.0, new_y = 0.0;
-  int smooth_range = 30;
-  int reuse_prev_range = 20;
+  int smooth_range = 20;
+  int reuse_prev_range = 15;
   vector<double> prev_xy_planned;
 
   for (int i = 0; i < reuse_prev_range; i++) {

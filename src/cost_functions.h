@@ -22,8 +22,8 @@ namespace {
     };
 
     inline bool check_exceed_speed_limit(const pair<Polynomial, Polynomial> &traj,
-                                           const int total_timestep, const double max_vel) {
-      for (int i = 0; i < total_timestep; i++) {
+                                           const int time_step, const double max_vel) {
+      for (int i = 0; i < time_step; i++) {
         if (traj.first.eval(i, "first") + traj.second.eval(i, "first") > max_vel) {
           return true;
         }
@@ -32,8 +32,8 @@ namespace {
     }
 
     inline bool check_exceed_accel_limit(const pair<Polynomial, Polynomial> &traj,
-                                           const int total_timestep, const double max_acc) {
-      for (int i = 0; i < total_timestep; i++) {
+                                           const int time_step, const double max_acc) {
+      for (int i = 0; i < time_step; i++) {
         if (traj.first.eval(i, "second") + traj.second.eval(i, "second") > max_acc)
           return true;
       }
@@ -41,8 +41,8 @@ namespace {
     }
 
     inline bool check_exceed_jerk_limit(const pair<Polynomial, Polynomial> &traj,
-                                          const int total_timestep, const double max_jerk) {
-      for (int i = 0; i < total_timestep; i++) {
+                                          const int time_step, const double max_jerk) {
+      for (int i = 0; i < time_step; i++) {
         if (traj.first.eval(i, "third") + traj.second.eval(i, "third") > max_jerk)
           return true;
       }
@@ -50,9 +50,9 @@ namespace {
     }
 
     inline bool check_collision(const pair<Polynomial, Polynomial> &traj,
-                                 const int total_timestep, const vector<Car> &other_cars,
+                                 const int time_step, const vector<Car> &other_cars,
                                  const double car_critical_width, const double car_critical_length) {
-      for (int i = 0; i < total_timestep; i++) {
+      for (int i = 0; i < time_step; i++) {
         double my_car_latest_s = traj.first.eval(i);
         double my_car_latest_d = traj.second.eval(i);
 
@@ -71,12 +71,12 @@ namespace {
     }
 
     inline double traffic_distance_cost(const pair<Polynomial, Polynomial> &traj,
-                                        const int total_timestep, const vector<Car> &other_cars,
+                                        const int time_step, const vector<Car> &other_cars,
                                         const double car_safe_width, const double car_safe_length) {
       double cost = 0.0;
 
       for (auto other_car:other_cars) {
-        for (int i = 0; i < total_timestep; i++) {
+        for (int i = 0; i < time_step; i++) {
           double my_car_latest_s = traj.first.eval(i);
           double my_car_latest_d = traj.second.eval(i);
           double other_car_latest_pos_s = other_car.pos_s + i*other_car.vel_s;
@@ -88,32 +88,32 @@ namespace {
           double diff_d = abs(other_car.pos_d - my_car_latest_d);
 
           if ((diff_s <= car_safe_length) && (diff_d <= car_safe_width)) {
-            cost += ut::logistic(1 - (diff_s / car_safe_length)) / total_timestep;
+            cost += ut::logistic(1 - (diff_s / car_safe_length)) / time_step;
           }
         }
       }
       return cost*cost_weights["tr_dist_cost"];
     }
 
-    inline double total_accel_s_cost(const pair<Polynomial, Polynomial> &traj, const double total_timestep) {
+    inline double total_accel_s_cost(const pair<Polynomial, Polynomial> &traj, const double time_step) {
       double cost = 0.0;
-      for (int i = 0; i < total_timestep; i++) {
+      for (int i = 0; i < time_step; i++) {
         cost += abs(traj.first.eval(i, "second"));
       }
       return ut::logistic(cost)*cost_weights["acc_s_cost"];
     }
 
-    inline double total_accel_d_cost(const pair<Polynomial, Polynomial> &traj, const double total_timestep) {
+    inline double total_accel_d_cost(const pair<Polynomial, Polynomial> &traj, const double time_step) {
       double cost = 0.0;
-      for (int i = 0; i < total_timestep; i++) {
+      for (int i = 0; i < time_step; i++) {
         cost += abs(traj.second.eval(i, "second"));
       }
       return ut::logistic(cost)*cost_weights["acc_d_cost"];
     }
 
-    inline double total_jerk_cost(const pair<Polynomial, Polynomial> &traj, const double total_timestep) {
+    inline double total_jerk_cost(const pair<Polynomial, Polynomial> &traj, const double time_step) {
       double cost = 0.0;
-      for (int i = 0; i < total_timestep; i++) {
+      for (int i = 0; i < time_step; i++) {
         cost += traj.first.eval(i, "third");
         cost += traj.second.eval(i, "third");
       }
@@ -121,10 +121,10 @@ namespace {
     }
 
     inline double busy_lane_cost(const pair<Polynomial, Polynomial> &traj,
-                             const double total_timestep, const vector<Car> &other_cars) {
+                             const double time_step, const vector<Car> &other_cars) {
       double my_car_pos_s = traj.first.eval(0);
       double my_car_pos_d = traj.second.eval(0);
-      double my_car_pos_d_end = traj.second.eval(total_timestep);
+      double my_car_pos_d_end = traj.second.eval(time_step);
 
       int future_lane = h::get_lane_id(my_car_pos_d_end);
       int future_closest_car_id = h::closest_car_in_lane(future_lane, my_car_pos_s, other_cars);
@@ -133,16 +133,16 @@ namespace {
         double future_diff_s = other_cars[future_closest_car_id].pos_s - my_car_pos_s;
         double future_other_car_vel_s = other_cars[future_closest_car_id].vel_s;
 
-        if (future_diff_s < total_timestep) {
+        if (future_diff_s < time_step*0.8) {
           int current_lane = h::get_lane_id(my_car_pos_d);
           int closest_car_id = h::closest_car_in_lane(current_lane, my_car_pos_s, other_cars);
-          if ((closest_car_id != -1) && (future_diff_s < total_timestep / 2.0)) {
+          if ((closest_car_id != -1) && (future_diff_s < time_step*0.8/2.0)) {
             double other_car_vel_s = other_cars[closest_car_id].vel_s;
             if (future_other_car_vel_s < other_car_vel_s * 0.95) {
               return 1000*cost_weights["busy_cost"];
             }
           }
-          return ut::logistic(1 - (future_diff_s / total_timestep))*cost_weights["busy_cost"];
+          return ut::logistic(1 - (future_diff_s / time_step))*cost_weights["busy_cost"];
         }
       }
       return 0.0;

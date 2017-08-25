@@ -42,7 +42,7 @@ private:
 
   /* Planner constants */
   // mp/h
-  const double kDefaultSpeedLimit = 48.0;
+  const double kDefaultSpeedLimit = 47;
   const int kDefaultTimeStep = 180;
   const int kDefaultInterval = 40;
 
