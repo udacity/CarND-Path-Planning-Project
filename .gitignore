@@ -1,0 +1,13 @@
+.vscode
+build
+tags
+.editorconfig
+
+# ide profile
+.idea
+cmake-build-debug/
+
+## Xcode
+xcode/
+
+.DS_Store
