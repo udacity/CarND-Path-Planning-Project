@@ -46,6 +46,7 @@ typedef struct {
     std::vector<double> remaining_path_x;
     std::vector<double> remaining_path_y;
     std::vector<SensorVehicleState> sensor_state;
+    int forceLane;
 } VehicleState;
 
 class PathGenerator {
