@@ -1,140 +1,63 @@
 # CarND-Path-Planning-Project
-Self-Driving Car Engineer Nanodegree Program
+This is my submission for the Path Planning project in term 3 of the Udacity Self-Driving Car Engineer Nanodegree Program. For details of the project, build/run instructions, simulator and dependencies, refer to the source [repo](https://github.com/udacity/CarND-Path-Planning-Project).
    
-### Simulator.
-You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
-
-### Goals
+## Goals
 In this project your goal is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit. You will be provided the car's localization and sensor fusion data, there is also a sparse map list of waypoints around the highway. The car should try to go as close as possible to the 50 MPH speed limit, which means passing slower traffic when possible, note that other cars will try to change lanes too. The car should avoid hitting other cars at all cost as well as driving inside of the marked road lanes at all times, unless going from one lane to another. The car should be able to make one complete loop around the 6946m highway. Since the car is trying to go 50 MPH, it should take a little over 5 minutes to complete 1 loop. Also the car should not experience total acceleration over 10 m/s^2 and jerk that is greater than 50 m/s^3.
 
-#### The map of the highway is in data/highway_map.txt
-Each waypoint in the list contains  [x,y,s,dx,dy] values. x and y are the waypoint's map coordinate position, the s value is the distance along the road to get to that waypoint in meters, the dx and dy values define the unit normal vector pointing outward of the highway loop.
-
-The highway's waypoints loop around so the frenet s value, distance along the road, goes from 0 to 6945.554.
-
 ## Basic Build Instructions
-
 1. Clone this repo.
 2. Make a build directory: `mkdir build && cd build`
 3. Compile: `cmake .. && make`
 4. Run it: `./path_planning`.
 
-Here is the data provided from the Simulator to the C++ Program
+## Code compopents
+The code is split into 3 parts:
+* `main.cpp` handles the communication with the udacity simulator and calls each individual functions during each processing frame.
+* `path.cpp/path.h` contains all main functionalities of the path planner.
+* `helpers.h` contains all the helper functions, tools and conversions. It also contains some of the constants defintions.
 
-#### Main car's localization Data (No Noise)
+## Project Rubric
+The following rubric points are met. 
 
-["x"] The car's x position in map coordinates
+### Compilation
+Code compiles without error with `cmake` and `make`.
 
-["y"] The car's y position in map coordinates
+### Valid Trajectories
+#### Required Distance
+The car is able to drive more than 4.32 miles without incident.
 
-["s"] The car's s position in frenet coordinates
+#### Speed Limit
+The car doesn't drive faster than the speed limit of 50mph. This limit is set in `path.cpp: line 43`:
+```speed_limit = 49.8;```
 
-["d"] The car's d position in frenet coordinates
+#### Max Accerelation and Jerk
+The car does not exceed total acceleration of 10m/s^2 and a jerk of 10m/s^3. This is taken care by carefully making sure each path point sent to the simulator is properly spaced from the previous point such that the maximum distance (max_accel x dt^2) is respected. When accelerating/decelerating, the points spacing are gradually increased/decreased until the desired spacing corresponding to the target velocity is met. This is done is `path.cpp: lines 636-650`.
 
-["yaw"] The car's yaw angle in the map
+#### Collisions
+The car does not come into contact with other cars on the road, and the car is able to drive around the track without collisions. Rules for adapting the car's speed is put place to prevent the car from tailgating into front vehicles when driving in its own lane (`path.cpp: lines 190-222`). (However, sometimes other cars in adjacent lanes swerve into our lane and may cause an unavoidable collision event. See example video at [https://youtu.be/EnUeVVJZnc8](https://youtu.be/EnUeVVJZnc8)).
 
-["speed"] The car's speed in MPH
+#### Stay in Lane
+The car stays inside one of the 3 lanes unless changing lane, for which it does not spend more than 3 seconds outside the lane lines. This is achieved via a state machine implementation as illustrated below.
+![alt text](Path_Planning_Behavior_State_Machine.png)
+The car only change lanes in the `CHANGE LANE` state, where the `path.trajectory()` function generates a single lane change trajectory. The car can only change lanes after the lane change is complete.
 
-#### Previous path data given to the Planner
+#### Changing Lanes
+The car is able to smoothly change lanes when it makes sense. This is achieved via a set of heuristic rules in the `path.behavior()` function, which implements the above-mentioned behavior state machine. 
 
-//Note: Return the previous list but with processed points removed, can be a nice tool to show how far along
-the path has processed since last time. 
+In the `Keep Lane` state, as long as the car can proceed near the speed limit and not come within 5 car-lengths of the car in front (`path.cpp: line 192`), it will stay in the current lane. Otherwise, it progresses to the `Prepare Lane Change` state.
 
-["previous_path_x"] The previous list of x points previously given to the simulator
+In the `Prepare Lane Change` state, the car decides the target lane, target speed and when to excecute the lane change, depending on the traffic situation (`path.cpp: lines 228-464`). It can also decide to give up changing lanes and go back to driving in its current lane if the traffic becomes favorable.
 
-["previous_path_y"] The previous list of y points previously given to the simulator
+In the `Change Lanes` state, the car simply execute the lane change trajectory (`path.cpp: lines 472-485`).
 
-#### Previous path's end s and d values 
+### Code Model
+The code model is structured based on the three blocks in path planning - 1) Prediction, 2) Behavior Planning and 3) Trajectory Planning. The Prediction block (`path.prediction()`) uses the information from sensor fusion to update the current and predicted future positions and speed of surrounding cars. It also calculates the score of each lane, which is a simple function based on the available space in front of the car 1.0 sec in the future (`path.cpp: lines 124-130`). The Behavior Planning block (`path.behavior()`) is where the main decision making takes place. It relies on a set of pre-determined scenarios and rules to guide the car in its decision to stay / change lanes, set speed and react to traffic. Finally the Trajectory planner generates a set of path points that are passed to the control unit for execution.
 
-["end_path_s"] The previous list's last point's frenet s value
+### Reflection
+This project took a longer time to complete that expected. Part of the reason is because there are endless traffic conditions that could happen on the track. As such, many of the rules are put in to react to or prevent certain accidents. For example, while changing lanes from the outer to the center lane, another car can also cut in from the other side (see video example at [https://youtu.be/6zqVfNLIDiU](https://youtu.be/6zqVfNLIDiU)). Hence, a new rule is added to avoid changing to the center lane when there is a fast car in the other outer lane (`path.cpp: lines 280-301`). 
 
-["end_path_d"] The previous list's last point's frenet d value
+This reflects one of the major difficulty of a rule-based / robotics way of planning paths. It is very challenging to construct enough rules to take care of all types of traffic situation. Perhaps an initial set of rules with reinforcement learning will be a better solution.
 
-#### Sensor Fusion Data, a list of all other car's attributes on the same side of the road. (No Noise)
-
-["sensor_fusion"] A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position in frenet coordinates. 
-
-## Details
-
-1. The car uses a perfect controller and will visit every (x,y) point it recieves in the list every .02 seconds. The units for the (x,y) points are in meters and the spacing of the points determines the speed of the car. The vector going from a point to the next point in the list dictates the angle of the car. Acceleration both in the tangential and normal directions is measured along with the jerk, the rate of change of total Acceleration. The (x,y) point paths that the planner recieves should not have a total acceleration that goes over 10 m/s^2, also the jerk should not go over 50 m/s^3. (NOTE: As this is BETA, these requirements might change. Also currently jerk is over a .02 second interval, it would probably be better to average total acceleration over 1 second and measure jerk from that.
-
-2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would either return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
-
-## Tips
-
-A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file is really easy to use.
-
----
-
-## Dependencies
-
-* cmake >= 3.5
- * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools]((https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
-* [uWebSockets](https://github.com/uWebSockets/uWebSockets)
-  * Run either `install-mac.sh` or `install-ubuntu.sh`.
-  * If you install from source, checkout to commit `e94b6e1`, i.e.
-    ```
-    git clone https://github.com/uWebSockets/uWebSockets 
-    cd uWebSockets
-    git checkout e94b6e1
-    ```
-
-## Editor Settings
-
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
-
+### Demo
+Here's a video of a demo of the result after several rounds around the simulation track (~20 mies):
+[https://youtu.be/Ugx2VEx-JSM](https://youtu.be/Ugx2VEx-JSM)
