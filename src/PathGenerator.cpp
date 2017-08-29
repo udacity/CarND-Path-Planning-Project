@@ -14,6 +14,7 @@ typedef NaturalSpline<Vector2d,double> SplineType;
 static const int MAX_LANES = 3;
 static const double CAR_WIDTH = 2.5;
 static const double CAR_LENGTH = 4.5;
+static const double MAX_RELATIVE_VELOCITY = 10.0;
 
 static Eigen::Rotation2D<double> g_rotNormal(-90.f * M_PI / 180.f);
 
@@ -28,6 +29,24 @@ double POSeval(const std::vector<double>& params, double T) {
     double t2 = T * T;
     double val = params[0] + params[1] * T + params[2] * t2;
     return val;
+}
+
+Eigen::Vector2d subtractVectors(const std::vector<double>& p1, const std::vector<double>& p2) {
+    Eigen::Vector2d v1, v2;
+    v1 << p1[0], p1[1];
+    v2 << p2[0], p2[1];
+    return v2 - v1;
+}
+
+double tangentialAccel(const Eigen::Vector2d& v, const Eigen::Vector2d& a) {
+    return v.dot(a) / v.norm();
+}
+
+double normalAccel(const Vector2d& v, const Vector2d& a) {
+    Eigen::Vector3d vv, aa;
+    vv << v[0], v[1], 0;
+    aa << a[0], a[1], 0;
+    return vv.cross(aa).norm() / vv.norm();
 }
 
 Eigen::Vector2d getNormalFromCurvature(SplineType::InterpolatedPTC& curvature, double t) {
@@ -609,10 +628,10 @@ public:
             waypoints_[i] = newWaypoints;
         }
 
-        dT = 3.f;
+        dT = 3.5f;
         dt = 0.02;
         laneWidth = 4.0;
-        trajectory.init(22.25, 10, 10, dt);
+        trajectory.init(22.3, 10, 10, dt);
     }
 
     ~impl() {
@@ -728,7 +747,7 @@ public:
         //state.d = dOffset;
 
         //generate points along this path in one second
-        auto jmtParams = updateTrajectory(trajectory, state, 22.28, 10, 10);
+        auto jmtParams = updateTrajectory(trajectory, state, 22.3, 10, 10);
 
         // add points to keep
         i = 0;
@@ -1005,36 +1024,15 @@ public:
                     throw std::exception();
                 }
 
-                //determine if there's a free adjacent lane
-                std::vector<double> leftLaneState = {fmax(0, (currentLane - 1) * laneWidth + laneWidth / 2), 0, 0};
-                std::vector<double> rightLaneState = {fmin(10.0, (currentLane + 1) * laneWidth + laneWidth / 2), 0, 0};
-                JMT dLeftLane = JMT().init(leftLaneState, leftLaneState, remT);
-                JMT dRightLane = JMT().init(rightLaneState, rightLaneState, remT);
-
-                FTS hypoLaneT = ego.fts();
-
-                hypoLaneT.d(dLeftLane, remT);
-                ego.initWithFTS(hypoLaneT, CAR_WIDTH, CAR_LENGTH);
-                auto overlapsLeft = check_overlap(other_vehicles, ego, remT);
-
-                hypoLaneT.d(dRightLane, remT);
-                ego.initWithFTS(hypoLaneT, CAR_WIDTH, CAR_LENGTH);
-                auto overlapsRight = check_overlap(other_vehicles, ego, remT);
-
-                int newLane = currentLane;
-
-                if (overlapsLeft.empty()) {
-                    newLane = (int) fmax(0, currentLane - 1);
-                } else if (overlapsRight.empty()) {
-                    newLane = (int) fmin(2, currentLane + 1);
-                }
+                //determine the best lane
+                int newLane = determine_best_lane(ego, other_vehicles, currentLane, remT);
 
                 if (currentLane != newLane) {
                     //generate jmt 'd' trajectory
                     switch_lanes(nextFTS, dOffset, newLane, remT);
 
                     //determine new max speed
-                    bestCurvesS = nextFTS.sCTS().searchJMTSpace(pos, speed, accel, collisionS, fmin(max_velocity, collisionSpeed + 2.0), remT, nextFTS.dt());
+                    bestCurvesS = nextFTS.sCTS().searchJMTSpace(pos, speed, accel, collisionS, fmin(max_velocity, collisionSpeed), remT, nextFTS.dt());
                     if (bestCurvesS.empty()) {
                         throw std::exception();
                     }
@@ -1118,9 +1116,79 @@ public:
 
     }
 
+    int determine_best_lane(Vehicle& ego, const std::vector<Vehicle>& other_vehicles, int currentLane, double dT) {
+
+        const double COLLISION_PROXITY_WEIGHT = 100;
+        const double LANE_GAP_WEIGHT = 75;
+        const double LANE_GAP_THRESHOLD = 10.0;
+        const double VEHICLE_SPEED_WEIGHT = 25.0;
+
+        //determine collisions in each lane
+        std::vector<double> costs(MAX_LANES);
+        std::vector<Collision> collision_lanes(MAX_LANES);
+
+        int newLane = currentLane;
+        for (int i = 0; i < MAX_LANES; i++) {
+            std::vector<double> otherLaneState = {i * laneWidth + laneWidth / 2, 0, 0};
+            JMT dOtherLane = JMT().init(otherLaneState, otherLaneState, dT);
+
+            FTS hypoLaneT = ego.fts();
+            hypoLaneT.d(dOtherLane, dT);
+            ego.initWithFTS(hypoLaneT, CAR_WIDTH, CAR_LENGTH);
+            auto collision = find_nearest_collision(check_collisions(other_vehicles, ego, dT));
+
+            collision_lanes[i] = collision;
+        }
+
+        // score based on furthest collision proximity to ego vehicle
+        printf("Lane costs based on proximity\n");
+        for (int i = 0; i < MAX_LANES; i++) {
+            //if a lane has no collision (time == -1), then the multiplier is very large to almost always bias this lane to be chosen
+            costs[i] += (collision_lanes[i].time != -1 ? (collision_lanes[i].time / this->dT) : 10) * COLLISION_PROXITY_WEIGHT;
+            printf("[lane %d: %f], ", i, costs[i]);
+        }
+        printf("\n");
+
+        // compare lanes to each other
+        printf("Lane costs based on relative characteristics\n");
+        for (int i = 0; i < MAX_LANES; i++) {
+            Vehicle vehicleInLane = other_vehicles[i];
+            std::vector<int> other_lane = {1};
+            if (i == 1)
+                other_lane = {0,2};
+            for (int lane = 0; lane < other_lane.size(); lane++) {
+                Vehicle vehicleInOtherLane = other_vehicles[lane];
+
+                // score based on gap between lanes
+                if (collision_lanes[i].time != -1 && collision_lanes[other_lane[lane]].time != -1) {
+                    //find the positions of the vehicles at the greatest time
+                    double time = collision_lanes[i].time;
+                    double posInLane = vehicleInLane.fts().s().position(time);
+                    double posInOtherLane = vehicleInOtherLane.fts().s().position(time);
+
+                    //this is a binary result, it either allows you to switch lanes well enough or not
+                    costs[i] += (posInLane - posInOtherLane >= LANE_GAP_THRESHOLD ? 1.0 : 0.0) * LANE_GAP_WEIGHT;
+                }
+
+                // score based on relative differences in vehicles speeds
+                if (collision_lanes[i].time != -1) {
+                    double delta_speed = vehicleInLane.fts().s().speed(collision_lanes[i].time) - vehicleInOtherLane.fts().s().speed(collision_lanes[i].time);
+                    if (delta_speed > 0)
+                        costs[i] += delta_speed / MAX_RELATIVE_VELOCITY * VEHICLE_SPEED_WEIGHT;
+                }
+            }
+
+            printf("[lane %d: %f], ", i, costs[i]);
+        }
+        printf("\n");
+
+        //choose the lane with the highest score
+        return (int) std::distance(costs.begin(), std::max_element(costs.begin(), costs.end()));
+    }
+
     void switch_lanes(FTS& nextFTS, double dOffset, int newLane, double dT) {
         std::vector<JMT> bestCurvesD;
-        double timeToLiveD = dT;
+        double timeToLiveD = dT = 3.5;
 
         //generate jmt 'd' trajectory
         double startD = dOffset;
@@ -1130,7 +1198,7 @@ public:
 
         CTS dCTS = CTS().init(10, 10, 10);
         //XXX the speed and accel are assumed to be 0?
-        permuteParameter(dT, fmax(1.0, fmin(dT, 0)), 0.25, true, true, [&bestCurvesD, &timeToLiveD, &dCTS, &startD, &nextFTS, &endD](double T) -> bool {
+        permuteParameter(dT, fmax(1.0, fmin(dT, 0)), 0.1, true, true, [&bestCurvesD, &timeToLiveD, &dCTS, &startD, &nextFTS, &endD](double T) -> bool {
             bestCurvesD = dCTS.searchJMTSpace(startD, 0, 0, endD, 0, T, nextFTS.dt(), false);
             timeToLiveD = T + 0.5; //give the lane change slightly more ttl because of the scaling of the arc length
             return !bestCurvesD.empty();
@@ -1220,32 +1288,36 @@ public:
             point[0] = x;
             point[1] = y;
 
-            if (points.size() > 0) {
+            if (!points.empty()) {
                 Vector2d &prevPoint = points[points.size() - 1];
                 double dist = distance(point[0], point[1], prevPoint[0], prevPoint[1]);
                 double dists = 0;
                 if (sv.size() > 0) {
                     dists = s_curr_delta - sv[sv.size() - 1];
-                    if (validate && dists > 25.f * 0.02f) {
-                        throw new std::exception();
+                    if (validate && dists > 23.5f * 0.02f) {
+                        throw std::exception();
                     }
                 }
-                if (validate && dist > 25 * 0.02f) {
-                    throw new std::exception();
+                if (validate && dist > 23.5 * 0.02f) {
+                    throw std::exception();
                 }
             }
 
             if (points.size() > 1) {
                 Vector2d &point1 = points[points.size() - 1];
                 Vector2d &point2 = points[points.size() - 2];
+                Vector2d v2 = point1 - point2;
+                Vector2d v1 = point - point1;
+                Vector2d a = v2 - v1;
                 double dist1 = distance(point1[0], point1[1], point[0], point[1]);
                 double dist2 = distance(point1[0], point1[1], point2[0], point2[1]);
-                if (validate && fabs(dist1 - dist2) > 7 * 0.02f) {
-                    throw new std::exception();
+                double na = normalAccel(v2, a);
+                if (validate && na > 3 * 0.02f) {
+                    throw std::exception();
                 }
-                if (point.dotProduct(point - point1, point1 - point2) < 0) {
+                if (v1.dotProduct(v1, v2) < 0) {
                     //point is not continuous
-                    throw new std::exception();
+                    throw std::exception();
                 }
             }
 
