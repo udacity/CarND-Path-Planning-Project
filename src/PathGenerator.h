@@ -28,10 +28,9 @@ typedef struct {
     double y;
     double v_x;
     double v_y;
-    double yaw;
-    double speed;
     double s;
     double d;
+    double speed;
 } SensorVehicleState;
 
 typedef struct {
