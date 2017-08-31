@@ -24,7 +24,7 @@ static const double PASSING_SPEED_INCREMENT = 1.0;
 static const double MAX_ACCEL_JERK = 10;
 static const double D_MAX_VELOCITY = 4.0;
 static const double D_MAX_ACCEL_JERK = 3.0;
-static const double LANE_CHANGE_TIME = 4.0;
+static const double LANE_CHANGE_TIME = 5.0;
 
 static Eigen::Rotation2D<double> g_rotNormal(-90.f * M_PI / 180.f);
 
@@ -1044,7 +1044,7 @@ public:
 
             if (currentLane != newLane) {
                 //generate jmt 'd' trajectory
-                switch_lanes(nextFTS, dOffset, currentLane, newLane, LANE_CHANGE_TIME + 1.0);
+                switch_lanes(nextFTS, dOffset, currentLane, newLane, LANE_CHANGE_TIME);
             }
 
             if (bestCollision.id != -1) {
@@ -1104,7 +1104,7 @@ public:
 
             if (currentLane != newLane) {
                 //generate jmt 'd' trajectory
-                switch_lanes(nextFTS, dOffset, currentLane, newLane, LANE_CHANGE_TIME + 1.0);
+                switch_lanes(nextFTS, dOffset, currentLane, newLane, LANE_CHANGE_TIME);
             }
 
             if (bestCollision.id != -1) {
