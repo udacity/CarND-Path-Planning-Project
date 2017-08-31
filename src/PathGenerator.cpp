@@ -204,8 +204,10 @@ bool permuteParameter(double center, double offset, double inc, bool useHigh, bo
 
 typedef struct {
     int id;
-    double time;
     int lane;
+    double time;
+    double position;
+    double speed;
 } Collision;
 
 class JMT {
@@ -1050,32 +1052,33 @@ public:
             if (bestCollision.id != -1) {
 
                 const Vehicle& collidingVehicle = other_vehicles[bestCollision.id];
-                double collisionS = nextFTS.s().position(bestCollision.time);
-                double collisionSpeed = collidingVehicle.fts().s().speed(bestCollision.time);
+                double collisionS = bestCollision.position;//nextFTS.s().position(bestCollision.time);
+                double collisionSpeed = bestCollision.speed;
+                double collisionT = bestCollision.time;
 
                 if (currentLane != newLane) {
                     //determine new max speed
-                    bestCurvesS = nextFTS.sCTS().searchJMTSpace(pos, speed, accel, collisionS,
+                    printf("new lane: lane %d, collision id %d, pos %f, time %f, speed %f\n",
+                           newLane, bestCollision.id, collisionS, collisionT, collisionSpeed);
+                    bestCurvesS = nextFTS.sCTS().searchJMTSpace(pos, speed, accel,
+                                                                fmax(collisionS / 2.0, collisionS - MINIMUM_FOLLOW_DISTANCE),
                                                                 fmin(max_velocity, collisionSpeed),
-                                                                fmin(bestCollision.time, remT), nextFTS.dt());
-                    if (bestCurvesS.empty()) {
-                        throw std::exception();
-                    }
-
+                                                                fmin(collisionT, remT), nextFTS.dt());
                 } else {
                     printf("collision detected: id %d, pos %f time %f, speed %f\n", bestCollision.id, collisionS,
                            bestCollision.time, collisionSpeed);
                     //determine new max speed
                     bestCurvesS = nextFTS.sCTS().searchJMTSpace(pos, speed, accel,
-                                                                fmax(collisionS / 2.0,
-                                                                     collisionS - MINIMUM_FOLLOW_DISTANCE),
+                                                                fmax(collisionS / 2.0, collisionS - MINIMUM_FOLLOW_DISTANCE),
                                                                 collisionSpeed,
-                                                                bestCollision.time, nextFTS.dt());
-                    if (bestCurvesS.empty()) {
-                        throw std::exception();
-                    }
+                                                                collisionT, nextFTS.dt());
                 }
             }
+
+            if (bestCurvesS.empty()) {
+                throw std::exception();
+            }
+
 
 
             /*
@@ -1261,9 +1264,11 @@ public:
         const double KEEP_LANE_WEIGHT = 10.0;
         const double ADJACENT_LANE_WEIGHT = 2.0;
         const double LEAST_TRAFFIC_LANE_WEIGHT = 15.0;
+        const double CURRENT_LANE_COLLISION_THRESHOLD_TIME = 3.0;
+        const double CURRENT_LANE_COLLISION_WEIGHT = 300.0;
         const double MIDDLE_LANE_COLLISION_THRESHOLD_TIME = 4.0;
         const double MIDDLE_LANE_COLLISION_PENALTY_WEIGHT= -200.0;
-        const double COLLISION_LIKELIHOOD_THRESHOLD_TIME = 1.25;
+        const double COLLISION_LIKELIHOOD_THRESHOLD_TIME = 1.75;
         const double COLLISION_LIKELIHOOD_THRESHOLD_DISTANCE = CAR_LENGTH * 1.5;
 
         //determine collisions in each lane
@@ -1334,6 +1339,12 @@ public:
         //is there a potential collision by changing between two lanes?
         if ((currentLane == 0 || currentLane == 2) && collision_lanes[1].time < MIDDLE_LANE_COLLISION_THRESHOLD_TIME) {
             costs[currentLane == 0 ? 2 : 0] += MIDDLE_LANE_COLLISION_PENALTY_WEIGHT;
+        }
+
+        // if threre's a collision too close in the current lane, then current lane will have very high weight
+        double currentLaneCollisionWeight = CURRENT_LANE_COLLISION_THRESHOLD_TIME - collision_lanes[currentLane].time;
+        if (currentLaneCollisionWeight > 0) {
+            costs[currentLane] += CURRENT_LANE_COLLISION_WEIGHT;
         }
 
         // score based on furthest collision proximity to ego vehicle
@@ -1536,7 +1547,7 @@ public:
                 double accelN = k * speed * speed;
 
                 if (validate && accelN > MAX_ACCEL_JERK) {
-                    //throw std::exception();
+                    throw std::exception();
                 }
                 if (v1.dotProduct(v1, v2) < 0) {
                     //point is not continuous
@@ -1687,19 +1698,20 @@ public:
             double collisionT = vehicle.collisionTime(ego, dT, COLLISION_BUFFER_RANGE);
             int lane = (int) (vehicle.fts().d().position(collisionT) / laneWidth);
             if (collisionT != -1) {
-                printf("    collision detected with %d at pos %f, time %f, lane %f (ego lane %f)\n",
+                printf("    collision detected with %d at pos %f, time %f, lane %f, speed %f (ego lane %f)\n",
                        vehicle.id(), vehicle.fts().s().position(collisionT), collisionT,
                        vehicle.fts().d().position(collisionT) / laneWidth,
+                       vehicle.fts().s().speed(collisionT),
                        ego.fts().d().position(collisionT) / laneWidth
                 );
-                retval.push_back({vehicle.id(), collisionT, lane });
+                retval.push_back({vehicle.id(), lane, collisionT, ego.fts().s().position(collisionT), vehicle.fts().s().speed(collisionT) });
             }
         }
         return retval;
     }
 
     Collision find_nearest_collision(const std::vector<Collision>& collision) {
-        Collision retval = { -1, -1, -1 };
+        Collision retval = { -1, -1, -1, -1, -1 };
         for (const Collision& c : collision) {
             if (retval.id == -1 || c.time < retval.time) {
                 retval = c;
