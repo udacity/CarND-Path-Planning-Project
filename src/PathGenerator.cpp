@@ -1,5 +1,7 @@
 //
 // Created by Jose Rojas on 7/23/17.
+// Copyright © 2017, Jose Luis Rojas
+// All Rights Reserved.
 //
 
 #include "PathGenerator.h"
@@ -16,8 +18,8 @@ static const int MAX_LANES = 3;
 static const double CAR_WIDTH = 2.75;
 static const double CAR_LENGTH = 4.5;
 static const double MAX_RELATIVE_VELOCITY = 10.0;
-static const double SPEED_LIMIT = 22.285;
-static const double SPEED_LIMIT_VALIDATION = 22.34;
+static const double SPEED_LIMIT = 22.286;
+static const double SPEED_LIMIT_VALIDATION = 22.292;
 static const double COLLISION_HORIZON = 8.0;
 static const double COLLISION_BUFFER_RANGE = 1.0;
 static const double MINIMUM_FOLLOW_DISTANCE = 10.0;
@@ -433,7 +435,7 @@ public:
     std::vector<JMT> searchJMTSpace(std::vector<double> start, double final_s, double final_velocity, std::vector<double> limits, double dT, double dt, bool bPermute = true) const {
         JMT bestCurve;
 
-        permuteParameter(0.0, MAX_ACCEL_JERK, 0.25, bPermute, bPermute,
+        permuteParameter(0.0, dt * 10, dt, bPermute, bPermute,
             [this, &bestCurve, &final_s,&start, &limits, &dT, &dt, &final_velocity, &bPermute](double s_ddot)->bool {
 
                 double s_dot_inc = fabs(fmax(dt * 10, (final_velocity - start[1]) / 10));
@@ -445,10 +447,6 @@ public:
                         [this, &bestCurve, &start, &limits, &s_dot, &s_ddot, &dT, &dt](double s)->bool {
 
                         std::vector<double> end{s, s_dot, s_ddot};
-
-                        if (s < 0) {
-                            throw std::exception();
-                        }
 
                         JMT params = JMT().init(start, end, dT);
 
@@ -691,7 +689,7 @@ public:
             waypoints_[i] = newWaypoints;
         }
 
-        dT = LANE_CHANGE_TIME;
+        dT = 3.5;
         dt = 0.02;
         laneWidth = 4.0;
         trajectory.init(SPEED_LIMIT, MAX_ACCEL_JERK, MAX_ACCEL_JERK, dt);
@@ -989,7 +987,7 @@ public:
         double sOffsetToKeepTimeEnd = sOffsetToKeepTimeStart;
         double posToKeepStart = currPos;
         double posToKeepEnd = currPos;
-        double targetPosToKeepEnd = currPos + uniformInterval * 0.4;
+        double targetPosToKeepEnd = currPos + uniformInterval * 2.0;
         double sOffset = currFTS.sOffset();
 
         while (posToKeepEnd < targetPosToKeepEnd && toKeep < state.remaining_path_x.size()) {
