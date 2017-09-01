@@ -1,5 +1,7 @@
 //
 // Created by Jose Rojas on 7/23/17.
+// Copyright © 2017, Jose Luis Rojas
+// All Rights Reserved.
 //
 
 #ifndef PATH_PLANNING_PATHGENERATOR_H
@@ -9,6 +11,9 @@
 #include "SplineLibrary/spline_library/vector.h"
 #include "SplineLibrary/spline_library/splines/uniform_cr_spline.h"
 
+/* Public Data structures used by main.cpp to access the PathGenerator class */
+
+// Waypoints - contains the map waypoints
 typedef struct {
     std::vector<double> x;
     std::vector<double> y;
@@ -17,11 +22,13 @@ typedef struct {
     std::vector<double> dy;
 } Waypoints;
 
+// PathPoints - contains the points for the simulated trajectory path
 typedef struct {
     std::vector<double> x;
     std::vector<double> y;
 } PathPoints;
 
+// SensorVehicleState - contains the sensor information regarding other vehicles on the road
 typedef struct {
     int id;
     double x;
@@ -33,6 +40,7 @@ typedef struct {
     double speed;
 } SensorVehicleState;
 
+// VehicleState - contains all the sensor and localization data of the ego vehicle
 typedef struct {
     double x;
     double y;
@@ -48,6 +56,7 @@ typedef struct {
     int forceLane;
 } VehicleState;
 
+// The PathGenerator class public interface.
 class PathGenerator {
 
 public:
@@ -55,6 +64,7 @@ public:
     ~PathGenerator();
     PathGenerator(Waypoints waypoints, double s_max);
 
+    //The main function to call - given the vehicle state, returns a set of PathPoints for the trajectory
     PathPoints generate_path(VehicleState state);
 
 private:

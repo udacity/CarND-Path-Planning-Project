@@ -218,10 +218,6 @@ int main() {
     //auto sdata = string(data).substr(0, length);
     //cout << sdata << endl;
 
-    std::istream& input = std::cin;
-    char buff[256];
-    long nextChar = input.readsome(buff, 1);
-
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
@@ -273,20 +269,7 @@ int main() {
                 sensor_state.push_back(state);
             }
 
-            int forceLane = -1;
-            if (nextChar > 0) {
-                switch (buff[0]) {
-                    case '1':
-                        forceLane = 0;
-                        break;
-                    case '2':
-                        forceLane = 1;
-                        break;
-                    case '3':
-                        forceLane = 2;
-                        break;
-                }
-            }
+            int forceLane = -1; //for debugging purposes
 
             VehicleState state {
                 car_x,
@@ -305,9 +288,10 @@ int main() {
 
             lastSpeed = car_speed;
 
+            // generate the path using the PathGenerator object
             PathPoints points = path_gen.generate_path(state);
 
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+          	// define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = points.x;
           	msgJson["next_y"] = points.y;
 
