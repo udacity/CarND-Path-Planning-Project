@@ -30,12 +30,14 @@ static const double COLLISION_HORIZON = 8.0;
 static const double COLLISION_BUFFER_RANGE = 1.0;
 static const double MINIMUM_FOLLOW_DISTANCE = 10.0;
 static const double COLLISION_DISTANCE_THRESHOLD = 80.0;
-static const double PASSING_SPEED_INCREMENT = 5.0;
+static const double PASSING_SPEED_INCREMENT = 3.0;
 static const double MAX_ACCEL_JERK = 10;
 static const double D_MAX_VELOCITY = 4.0;
 static const double D_MAX_ACCEL_JERK = 3.0;
-static const double LANE_CHANGE_TIME = 3.0;
+static const double LANE_CHANGE_TIME = 3.5;
 static const double LANE_CHANGE_TIME_EXTENDED = 5.0;
+static const bool ALLOW_PRINT_OUTS = false;
+static const bool ALLOW_EXCEPTIONS = false;
 
 /*
  * Helper Routines
@@ -44,6 +46,29 @@ static const double LANE_CHANGE_TIME_EXTENDED = 5.0;
 static Eigen::Rotation2D<double> g_rotNormal(-90.f * M_PI / 180.f);
 
 extern double distance(double x1, double y1, double x2, double y2);
+
+void myprint(const char* buf, ...) {
+    if (ALLOW_PRINT_OUTS) {
+        va_list args;
+        va_start(args, buf);
+        vprintf(buf, args);
+        va_end(args);
+    }
+}
+
+void myexception(const char* buf) {
+    if (ALLOW_EXCEPTIONS) {
+        if (buf != NULL) myprint(buf);
+        throw std::exception();
+    }
+}
+
+using namespace std::chrono;
+long numberOfMillisSince() {
+    return duration_cast<milliseconds>(
+            system_clock::now().time_since_epoch()
+    ).count();
+}
 
 /*
  * Speed and position evaluators
@@ -173,7 +198,7 @@ Waypoints generate_scaled_waypoints_from_points(const std::vector<Vector2d>& xv,
         err += (length - destInterval);
     }
 
-    //printf("Total error = %f\n", err);
+    //myprint("Total error = %f\n", err);
 
     return newWaypoints;
 }
@@ -386,7 +411,7 @@ public:
             double accel = jmtCurve.accel(t);
             if (fabs(accel) > limits[1]) {
                 failedConstraint = true;
-                //printf("accel violation: %f\n", accel);
+                //myprint("accel violation: %f\n", accel);
                 break;
             }
         }
@@ -396,7 +421,7 @@ public:
             double speed = jmtCurve.speed(t);
             if (fabs(speed) > limits[0]) {
                 failedConstraint = true;
-                //printf("speed violation: %f\n", speed);
+                //myprint("speed violation: %f\n", speed);
                 break;
             }
         }
@@ -406,7 +431,7 @@ public:
             double jerk = jmtCurve.jerk(t);
             if (fabs(jerk) > limits[2]) {
                 failedConstraint = true;
-                //printf("jerk violation: %f\n", jerk);
+                //myprint("jerk violation: %f\n", jerk);
                 break;
             }
         }
@@ -445,34 +470,32 @@ public:
             std::normal_distribution<>(meanEnd[2], stdDeviation[2])
         };
 
-        permuteParameter(dT, dvT, dt, true, true, [this, &limits, &start, &numberOfStateSamples, &meanEnd, &dist, &gen, &dT, &dt, &verbose, &map](double timeInterval)->bool {
+        long startTime = numberOfMillisSince();
+        long innerLoop = 0;
+
+        permuteParameter(dT, dvT, dt, true, true, [this, &limits, &start, &numberOfStateSamples, &meanEnd, &dist, &gen, &dT, &dt, &verbose, &innerLoop, &map](double timeInterval)->bool {
+
+            long startTimeInner = numberOfMillisSince();
 
             if (verbose)
-                printf("searching within time interval %f\n", timeInterval);
+                myprint("searching within time interval %f\n", timeInterval);
 
             if (timeInterval > 0) {
                 for (int i = 0; i < numberOfStateSamples; i++) {
                     double v = limits[0] + 1, acc = limits[1] + 1, pos;
-                    do pos = dist[0](gen); while (pos < 0);
-                    while (v > limits[0] || v < 0)
-                        v = dist[1](gen);
-                    while (fabs(acc) > limits[1])
-                        acc = dist[2](gen);
-
-                    if (v > limits[0])
-                        throw std::exception();
-                    if (fabs(acc) > limits[1])
-                        throw std::exception();
+                    pos = dist[0](gen);
+                    v = dist[1](gen);
+                    acc = dist[2](gen);
 
                     std::vector<double> end{pos, v, acc};
 
                     JMT params = JMT().init(start, end, timeInterval);
 
                     if (verbose)
-                        printf("    start { pos %f, v %f, accl %f}, end { pos %f, v %f, accl %f}\n", start[0], start[1], start[2], pos, v, acc);
+                        myprint("    start { pos %f, v %f, accl %f}, end { pos %f, v %f, accl %f}\n", start[0], start[1], start[2], pos, v, acc);
 
-                    if (this->validateJMT(params, limits, timeInterval, dt)) {
-                        if (verbose) printf("    found!\n");
+                    if (v >= 0 && this->validateJMT(params, limits, timeInterval, dt)) {
+                        if (verbose) myprint("    found!\n");
                         params.cost(cost_function(meanEnd, end));
                         // if JMTs share the lowest cost, they will be overwritten, but that's generally okay for this purpose
                         map.insert(std::make_pair(params.cost(), params));
@@ -480,10 +503,11 @@ public:
 
                 }
 
-                return false;
+                innerLoop += (numberOfMillisSince() - startTimeInner);
+
             }
 
-            return false;
+            return !map.empty();
 
         } );
 
@@ -491,6 +515,9 @@ public:
         for (auto it : map) {
             retval.push_back(it.second);
         }
+
+        long endTime = numberOfMillisSince();
+        myprint("searchJMTs time to execute: %ld ms, inner %ld ms \n", endTime - startTime, innerLoop);
 
         return retval;
     }
@@ -501,6 +528,8 @@ public:
 
     std::vector<JMT> searchJMTSpace(std::vector<double> start, double final_s, double final_velocity, std::vector<double> limits, double dT, double dt, bool bPermute = true) const {
         JMT bestCurve;
+
+        long starTime =numberOfMillisSince();
 
         permuteParameter(0.0, dt * 10, dt, bPermute, bPermute,
             [this, &bestCurve, &final_s,&start, &limits, &dT, &dt, &final_velocity, &bPermute](double s_ddot)->bool {
@@ -519,7 +548,7 @@ public:
 
                         if (this->validateJMT(params, limits, dT, dt)) {
                             bestCurve = params;
-                            //printf("jmt final (pos %f, speed %f, accel %f)\n", s, s_dot, s_ddot);
+                            //myprint("jmt final (pos %f, speed %f, accel %f)\n", s, s_dot, s_ddot);
                             return true;
                         }
 
@@ -529,6 +558,9 @@ public:
                 });
 
             });
+
+        long endTime = numberOfMillisSince();
+        myprint("searchJMTSpace time to execute: %ld ms \n", endTime - starTime);
 
         //XXX Cost is not considered. Use the first result.
         if (bestCurve.isDefined())
@@ -573,6 +605,7 @@ private:
     CTS _sCTS;
     int _toKeep;
     double _sOffset;
+    double _dOffset;
     double _dt;
 
 public:
@@ -580,6 +613,7 @@ public:
     FTS() {
         _toKeep = 0;
         _sOffset = 0;
+        _dOffset = 0;
         _dt = 0;
     }
 
@@ -596,6 +630,7 @@ public:
     const CTS& dCTS() const { return _dCTS; }
     double dt() const { return _dt; }
     double sOffset() const { return _sOffset; }
+    double dOffset() const { return _dOffset; }
     int toKeep() const { return _toKeep; }
 
     void updateTime(double dT) {
@@ -603,8 +638,9 @@ public:
         _sCTS.updateTime(dT);
     }
 
-    void d(const JMT& d, double dT) {
+    void d(const JMT& d, double dT, double dOffset) {
         _dCTS.defineJMT(d, dT);
+        _dOffset = dOffset;
     }
 
     void s(const JMT& s, double dT, double sOffset, int toKeep) {
@@ -654,7 +690,7 @@ public:
 
         trajectory.init(state.speed, 0, 0, dT);
         trajectory.s(sJMT, dT, 0, 0);
-        trajectory.d(dJMT, dT);
+        trajectory.d(dJMT, dT, 0);
     }
 
     int id() const { return _id; }
@@ -678,9 +714,9 @@ public:
 
         while (t <= dT) {
             s = lowest.trajectory.s().position(t) + lowest.trajectory.sOffset();
-            d = lowest.trajectory.d().position(t);
+            d = lowest.trajectory.d().position(t) + lowest.trajectory.dOffset();
             double vs = other.trajectory.s().position(t) + other.trajectory.sOffset();
-            double td = other.trajectory.d().position(t);
+            double td = other.trajectory.d().position(t) + other.trajectory.dOffset();
             bool right = (td + hlw >= d - hlw) && (td + hlw <= d + hlw);
             bool left = (td - hlw >= d - hlw) && (td - hlw <= d + hlw);
             bool ahead = s > vs - rr;
@@ -707,10 +743,10 @@ public:
                         v.trajectory.s().position(dT) + v.trajectory.sOffset()};
         double s2[2] = {trajectory.s().position(0) + trajectory.sOffset(),
                         trajectory.s().position(dT) + trajectory.sOffset()};
-        double d1[2] = {v.trajectory.d().position(0),
-                        v.trajectory.d().position(dT)};
-        double d2[2] = {trajectory.d().position(0),
-                        trajectory.d().position(dT)};
+        double d1[2] = {v.trajectory.d().position(0) + trajectory.dOffset(),
+                        v.trajectory.d().position(dT) + trajectory.dOffset()};
+        double d2[2] = {trajectory.d().position(0) + trajectory.dOffset(),
+                        trajectory.d().position(dT) + trajectory.dOffset()};
 
         double vw1 = v.width / 2;
         double vw2 = width / 2;
@@ -807,11 +843,7 @@ public:
 
         static double totalTime = 0;
 
-        if (state.speed < 18) {
-          dT = 3.5;
-        } else {
-          dT = LANE_CHANGE_TIME;
-        }
+        dT = LANE_CHANGE_TIME;
 
         int used = (int) fmax(0, (int) prevPoints.size() - (int) state.remaining_path_x.size());
         double deltaT = used * trajectory.dt();
@@ -824,7 +856,7 @@ public:
 
         double offsetTime = trajectory.sCTS().originTime();
 
-        printf("used %d, time delta %f, jmt time offset %f, jmt time remaining %f, distance traveled %f, speed %f, accel %f\n",
+        myprint("used %d, time delta %f, jmt time offset %f, jmt time remaining %f, distance traveled %f, speed %f, accel %f\n",
                used,
                deltaT,
                offsetTime,
@@ -849,14 +881,14 @@ public:
 
         if (bSkip) {
             prevPoints = points;
-            //printf("skipped - time to cover %f\n", trajectory.sCTS().timeToLive());
+            //myprint("skipped - time to cover %f\n", trajectory.sCTS().timeToLive());
             return retval;
         }
 
         // For debugging purposes
-        if (totalTime > 5.0) {
+        if (totalTime > 0.5) {
             //do state.forceLane = (int)(state.d / laneWidth) == 2 ? 0 : 2; while (state.forceLane == (int)(state.d / laneWidth));
-            totalTime = -5.0;
+            totalTime = -0.25;
         }
 
         /* update the other vehicle state */
@@ -873,7 +905,7 @@ public:
         }
 
         //generate points along this path in one second
-        auto jmtParams = updateTrajectory(trajectory, state, SPEED_LIMIT, 10, 10);
+        auto jmtParams = updateTrajectory(trajectory, state, SPEED_LIMIT, 10, 10, dT);
 
         // add points to keep
         for (i = 0; i < jmtParams.toKeep(); i++) {
@@ -881,13 +913,12 @@ public:
             points.push_back(point);
         }
 
-        int currentLane = 0; //(int) round(jmtParams.currentLane);
         int targetItems = (int) (dT / dt);
 
         //localize the s/d based on the last point to keep
         double currPos = state.s;
         double originPos = currPos;
-        double dOffset = state.d;
+        double dOffset = jmtParams.d().position(0);
         if (prevPoints.size() > 0) {
 
             /* Debugging purposes */
@@ -898,56 +929,57 @@ public:
             pointAhead = points[points.size() - 1];
             posFrenetAhead = getFrenet(state.s, pointAhead[0], pointAhead[1], waypoints_, *spline_, uniformInterval)[0];
 
-            //printf("Current x, y [%f, %f], state x, y [%f, %f] \n", point[0], point[1], state.x, state.y);
-            //printf("pos %f, currPos %f, posFrenet %f, posFrenetAhead %f, posState %f, diffFrenet %f, diffCurrFrenet %f, diffFrenetAhead %f, diffState %f\n", pos, currPos, posFrenet, posFrenetAhead, state.s, pos - posFrenet, currPos - posFrenet, pos - posFrenetAhead, pos - state.s);
-            //printf("old jmt sOffset %f, new jmt sOffset %f\n", trajectory.sOffset(), jmtParams.sOffset());
+            //myprint("Current x, y [%f, %f], state x, y [%f, %f] \n", point[0], point[1], state.x, state.y);
+            //myprint("pos %f, currPos %f, posFrenet %f, posFrenetAhead %f, posState %f, diffFrenet %f, diffCurrFrenet %f, diffFrenetAhead %f, diffState %f\n", pos, currPos, posFrenet, posFrenetAhead, state.s, pos - posFrenet, currPos - posFrenet, pos - posFrenetAhead, pos - state.s);
+            //myprint("old jmt sOffset %f, new jmt sOffset %f\n", trajectory.sOffset(), jmtParams.sOffset());
 
-            printf("Current x, y [%f, %f], state x, y [%f, %f] \n", point[0], point[1], state.x, state.y);
-            printf("curPos %f, posFrenet %f, state.s %f, originPos %f, originFrenet %f \n", currPos, posFrenet, state.s, originPos, posFrenetAhead);
-            printf("old jmt sOffset %f, new jmt sOffset %f\n", trajectory.sOffset(), jmtParams.sOffset());
+            myprint("Current x, y [%f, %f], state x, y [%f, %f] \n", point[0], point[1], state.x, state.y);
+            myprint("curPos %f, posFrenet %f, state.s %f, originPos %f, originFrenet %f \n", currPos, posFrenet, state.s, originPos, posFrenetAhead);
+            myprint("old jmt sOffset %f, new jmt sOffset %f\n", trajectory.sOffset(), jmtParams.sOffset());
 
             if (distance(point[0], point[1], state.x, state.y) > 0.001) {
-                throw std::exception();
+                myexception(NULL);
             }
 
             if (fabs(point[0] - state.x) > 0.001 || fabs(point[1]- state.y) > 0.001) {
-                throw std::exception();
+                myexception(NULL);
             }
 
-            if (fabs(posFrenet - currPos) > 0.001) {
-                throw std::exception();
-            }
+            /*if (fabs(posFrenet - currPos) > 0.001) {
+                myexception(NULL);
+            }*/
 
             originPos = posFrenetAhead;
 
             /* Debugging
             if (fabs(pos - state.s) > 20) {
                 posFrenetAhead = getFrenet(state.s, pointAhead[0], pointAhead[1], waypoints_[currentLane], *spline_[currentLane], uniformInterval)[0];
-                throw std::exception();
+                myexception(NULL);
             }*/
         }
 
         // determine optimal length
-        double remT = dT - jmtParams.sCTS().timeToLive();
+        double remT = dT;
         double s_start = jmtParams.s().position(0) + originPos;
         double s_end = jmtParams.s().position(remT) + originPos;
         double s_diff = s_end - s_start;
+        double d_start = /*jmtParams.d().position(0) +*/ jmtParams.dOffset();
 
-        //printf("Pos = %f, s_start %f, s_end %f, s_diff %f\n", pos, s_start, s_end, s_diff);
+        //myprint("Pos = %f, s_start %f, s_end %f, s_diff %f\n", pos, s_start, s_end, s_diff);
 
         // determine optimal path along jmt using original road waypoints
         std::vector<Vector2d> newPoints;
         std::vector<Vector2d> optimalPoints = generate_path_points(spline_, waypoints_,
                                                                    jmtParams, newPoints, (int) newPoints.size(), 1 * jmtParams.dt(),
-                                                                   s_start, s_end, s_max_, 0, true,
+                                                                   s_start, s_end, s_max_, d_start, true,
                                                                    targetItems, false);
 
 
         double optimalArcLength = arcLength(optimalPoints, 0, optimalPoints.size());
 
         if (optimalArcLength == 0) {
-            printf("Error: arc length for trajectory is 0!");
-            throw std::exception();
+            myprint("Error: arc length for trajectory is 0!");
+            myexception(NULL);
         }
 
         // add keep points to optimal set
@@ -963,23 +995,23 @@ public:
         std::vector<Vector2d> vScaledWaypoints = xyVectorsToVector2d(scaledWaypoints.x, scaledWaypoints.y);
         SplineType localizedSpline(vScaledWaypoints);
 
-        printf("To Keep points\n");
+        myprint("To Keep points\n");
         for (Vector2d point : points) {
-            printf(" [%f, %f], ", point[0], point[1]);
+            myprint(" [%f, %f], ", point[0], point[1]);
         }
-        printf("\n");
+        myprint("\n");
 
-        printf("\nOptimal points\n");
+        myprint("\nOptimal points\n");
         for (Vector2d point : optimalPoints) {
-            printf(" [%f, %f], ", point[0], point[1]);
+            myprint(" [%f, %f], ", point[0], point[1]);
         }
-        printf("\n");
+        myprint("\n");
 
-        printf("\nScaled waypoints\n");
+        myprint("\nScaled waypoints\n");
         for (Vector2d point : vScaledWaypoints) {
-            printf(" [%f, %f], ", point[0], point[1]);
+            myprint(" [%f, %f], ", point[0], point[1]);
         }
-        printf("\n");
+        myprint("\n");
 
         double toKeepArcLength = arcLength(points, 0, points.size());
         double scaledWayPointsArcLength = arcLength(vScaledWaypoints, 0, vScaledWaypoints.size());
@@ -994,17 +1026,17 @@ public:
 
         double scaledArcLength = arcLength(points, 0, points.size());
 
-        printf("\nScaled path points\n");
+        myprint("\nScaled path points\n");
         for (Vector2d point : points) {
             retval.x.push_back(point[0]);
             retval.y.push_back(point[1]);
-            printf(" [%f, %f], ", point[0], point[1]);
+            myprint(" [%f, %f], ", point[0], point[1]);
         }
-        printf("\n");
+        myprint("\n");
 
-        //printf("s_diff %f, toKeepArcLength %f, optimalArcLength %f, appendedArcLength %f, scaled waypoint arcLength %f, scaledArcLength %f\n", s_diff, toKeepArcLength, optimalArcLength, appendedArcLength, scaledWayPointsArcLength, scaledArcLength);
+        //myprint("s_diff %f, toKeepArcLength %f, optimalArcLength %f, appendedArcLength %f, scaled waypoint arcLength %f, scaledArcLength %f\n", s_diff, toKeepArcLength, optimalArcLength, appendedArcLength, scaledWayPointsArcLength, scaledArcLength);
 
-        //printf("complete\n");
+        //myprint("complete\n");
 
         //validate frenet coordinates
         /*
@@ -1031,7 +1063,7 @@ public:
      * considering future collisions with vehicles.
      * */
 
-    FTS updateTrajectory(const FTS& currFTS, VehicleState state, double max_velocity, double max_accel, double max_jerk) {
+    FTS updateTrajectory(const FTS& currFTS, VehicleState state, double max_velocity, double max_accel, double max_jerk, double dT) {
 
         FTS nextFTS = currFTS;
 
@@ -1039,7 +1071,7 @@ public:
         double currPos = currFTS.s().position(currTime);
         double currPosAbs = currFTS.s().position(currTime) + currFTS.sOffset();
         double currAbsPos = currPos + currFTS.sOffset();
-        double currD = currFTS.d().position(currTime);
+        double currD = currFTS.d().position(currTime) + currFTS.dOffset();
 
         // iterate to find how many points to keep
         int toKeep = 0;
@@ -1050,6 +1082,7 @@ public:
         double posToKeepEnd = currPos;
         double targetPosToKeepEnd = currPos + uniformInterval * 2.0;
         double sOffset = currFTS.sOffset();
+        double dOffset = state.d;//currFTS.dOffset();
 
         while (posToKeepEnd < targetPosToKeepEnd && toKeep < state.remaining_path_x.size()) {
             toKeep++;
@@ -1089,25 +1122,23 @@ public:
             sOffset = state.s;
             stateD[0] = state.d;
             lastCollision.lane = (int) (state.d / laneWidth);
-            nextFTS.d(JMT().init(stateD, stateD, nextFTS.dt()), timeToLiveS);
+            timeToLiveD = timeToLiveS;
         }
+        nextFTS.d(currFTS.d(), timeToLiveD, /*dOffset + stateD[0]*/ 0);
 
         if (fabs(stateD[0] - state.d) > 3) {
-            throw std::exception();
+            //myexception(NULL);
         }
 
-        auto currentLane = (int) (stateD[0] / 4.0);
+        int currentLane = /*(int) ((dOffset + stateD[0]) / laneWidth);*/ (int) (stateD[0] / 4.0);
 
         // determine jmt using start and end state
 
         // amount of time necessary to generate a full prediction horizon
-        double remT = dT - toKeep * currFTS.dt();
-        if (remT <= toKeep * currFTS.dt()) {
-            throw std::exception();
-        }
+        double remT = dT;
 
         std::vector<JMT> bestCurvesS;
-        //printf("curr predicted speed %f, state speed %f", currSpeed, state.speed);
+        //myprint("curr predicted speed %f, state speed %f", currSpeed, state.speed);
 
         double furthest_s;
         double timePeriod = remT;
@@ -1119,21 +1150,21 @@ public:
 
         /*
         if (bestCurvesS.empty()) {
-            throw std::exception();
+            myexception(NULL);
         }
          */
 
         /*if (fabs(state.d - stateD[0]) > 1) {
-            throw std::exception();
+            myexception(NULL);
         }*/
 
-        printf("toKeep %d, currPos %f, posToKeepStart %f, posToKeepEnd %f, sOffsetToKeepTimeStart %f, sOffsetToKeepTimeEnd %f, timeToLiveD %lf, sOffset %lf, dOffset %lf\n",
-               toKeep, currPos, posToKeepStart, posToKeepEnd, sOffsetToKeepTimeStart, sOffsetToKeepTimeEnd, timeToLiveD, sOffset, stateD[0]);
+        myprint("toKeep %d, currPos %f, posToKeepStart %f, posToKeepEnd %f, sOffsetToKeepTimeStart %f, sOffsetToKeepTimeEnd %f, timeToLiveD %lf, sOffset %lf, dOffset %lf\n",
+               toKeep, currPos, posToKeepStart, posToKeepEnd, sOffsetToKeepTimeStart, sOffsetToKeepTimeEnd, timeToLiveD, sOffset, dOffset);
 
         sOffset += posNewOrigin;
         if (sOffset > s_max_) {
             sOffset -= s_max_;
-            printf("sOffset has been reset to  %f\n", sOffset);
+            myprint("sOffset has been reset to  %f\n", sOffset);
         }
 
         nextFTS.s(bestCurvesS[0],
@@ -1150,19 +1181,23 @@ public:
         // create the vehicle states at the current time
         std::vector<Vehicle> other_vehicles = create_vehicles(state.sensor_state, COLLISION_HORIZON, 0);
 
-        printf("Ego vehicle\n");
-        printf("[id %d, pos %f, speed %f, lane %f]\n", ego.id(), ego.fts().s().position(0) + ego.fts().sOffset(), ego.fts().s().speed(0), ego.fts().d().position(0) /  laneWidth);
-        printf("Vehicles\n");
+        myprint("Ego vehicle\n");
+        myprint("[id %d, pos %f, speed %f, lane %f]\n",
+                ego.id(), ego.fts().s().position(0) + ego.fts().sOffset(), ego.fts().s().speed(0),
+                (ego.fts().d().position(0) + ego.fts().dOffset()) /  laneWidth);
+        myprint("Vehicles\n");
         for (Vehicle v : other_vehicles) {
-            printf("[id %d, pos %f, speed %f, lane %f], ", v.id(), v.fts().s().position(0), v.fts().s().speed(0), v.fts().d().position(0) /  laneWidth);
+            myprint("[id %d, pos %f, speed %f, lane %f], ",
+                    v.id(), v.fts().s().position(0), v.fts().s().speed(0),
+                    (v.fts().d().position(0) + v.fts().dOffset()) /  laneWidth);
         }
-        printf("\n");
+        myprint("\n");
 
         //check for collisions
         auto overlaps = check_overlap(other_vehicles, ego, remT);
         if (!overlaps.empty()) {
 
-            //printf("overlaps detected, calculating new d trajectory\n");
+            //myprint("overlaps detected, calculating new d trajectory\n");
 
             //determine the best lane
 
@@ -1170,8 +1205,8 @@ public:
             int newLane = bestCollision.lane;
 
             if (newLane == -1) {
-                printf("Error: invalid lane.\n");
-                throw std::exception();
+                myprint("Error: invalid lane.\n");
+                myexception(NULL);
             }
 
             if (bestCollision.id != -1) {
@@ -1190,10 +1225,10 @@ public:
                     /* Debugging */
                     if (currentLane != newLane) {
                         //determine new max speed
-                        printf("new lane: lane %d, collision id %d, pos %f, time %f, speed %f\n",
+                        myprint("new lane: lane %d, collision id %d, pos %f, time %f, speed %f\n",
                                newLane, bestCollision.id, collisionS, collisionT, collisionSpeed);
                     } else {
-                        printf("collision detected: id %d, pos %f time %f, speed %f\n", bestCollision.id, collisionS,
+                        myprint("collision detected: id %d, pos %f time %f, speed %f\n", bestCollision.id, collisionS,
                                bestCollision.time, collisionSpeed);
                     }
 
@@ -1228,14 +1263,14 @@ public:
                     if (bestCurvesS.empty()) {
                         //
                         //bestCurvesS = nextFTS.sCTS().searchJMTs(stateS, end, stdDev, limits, 100, collisionT, nextFTS.dt(), 2, true);
-                        throw std::exception();
+                        myexception(NULL);
                     }*/
                 }
             }
 
             lastCollision.speed = stateS[1] + PASSING_SPEED_INCREMENT;
             if (lastCollision.lane != newLane) {
-                printf("lane change initiating: lane %d\n", newLane);
+                myprint("lane change initiating: lane %d\n", newLane);
                 lastCollision.lane = newLane;
             }
 
@@ -1256,7 +1291,7 @@ public:
             double latSpeed = currFTS.d().speed(timeToLiveS + currFTS.dCTS().deltaTime());
             double latAccel = currFTS.d().accel(timeToLiveS + currFTS.dCTS().deltaTime());
             if (fabs(latSpeed) > 0.1) {
-                printf("reduce acceleration, lateral accel %f, accel %f, lastCollisionSpeed %f, latSpeed %f, speed %f\n", latAccel, stateS[2], lastCollision.speed, latSpeed, stateS[1]);
+                myprint("reduce acceleration, lateral accel %f, accel %f, lastCollisionSpeed %f, latSpeed %f, speed %f\n", latAccel, stateS[2], lastCollision.speed, latSpeed, stateS[1]);
                 double posSlow = lastCollision.speed * remT;
                 nextFTS.setLimits(lastCollision.speed, max_accel / 2, max_jerk);
 
@@ -1268,7 +1303,7 @@ public:
                 };
                 bestCurvesS = nextFTS.sCTS().searchJMTs(stateS, end, stdDev, 100, remT, nextFTS.dt(), 0.4);
                 if (bestCurvesS.empty()) {
-                    throw std::exception();
+                    myexception(NULL);
                 }
                 nextFTS.s(bestCurvesS[0], timeToLiveS, sOffset, (int) fmin(toKeep, remainingPoints));
             }
@@ -1288,7 +1323,6 @@ public:
         }
 
         switch_lanes(nextFTS, stateD, currentLane, lastCollision.lane, remT, timeToLiveD);
-
 
         return nextFTS;
 
@@ -1311,7 +1345,7 @@ public:
         const double MIDDLE_LANE_COLLISION_PENALTY_WEIGHT= -200.0;
         const double COLLISION_LIKELIHOOD_THRESHOLD_TIME = 1.5;
         const double COLLISION_LIKELIHOOD_THRESHOLD_DISTANCE = CAR_LENGTH * 1.5;
-        const double ACTIVE_LANE_CHANGE_WEIGHT = 0;//150.0;
+        const double ACTIVE_LANE_CHANGE_WEIGHT = 450.0;
         const double LANE_CHANGE_SPEED_PENALTY_WEIGHT = -100.0;
         const double LANE_CHANGE_SPEED_THRESHOLD = 40.0;
         const double STUCK_IN_LANE_THRESHOLD_TIME_LIMIT = 15.0;
@@ -1333,7 +1367,7 @@ public:
             JMT dOtherLane = JMT().init(otherLaneState, otherLaneState, dT);
 
             FTS hypoLaneT = egoCopy.fts();
-            hypoLaneT.d(dOtherLane, dT);
+            hypoLaneT.d(dOtherLane, dT, 0);
             egoCopy.initWithFTS(hypoLaneT, CAR_WIDTH, CAR_LENGTH);
             auto collisions = check_collisions(other_vehicles, egoCopy, dT);
 
@@ -1350,7 +1384,7 @@ public:
                     if (currPos > vehiclePosNow + v.length() &&
                         posDelta > COLLISION_LIKELIHOOD_THRESHOLD_DISTANCE) {
                         //ignore this collision
-                        printf("collision with id %d at time %f ignored (delta %f)\n", c.id, c.time, posDelta);
+                        myprint("collision with id %d at time %f ignored (delta %f)\n", c.id, c.time, posDelta);
                         it = collisions.erase(it);
                         continue;
                     }
@@ -1369,7 +1403,7 @@ public:
 
         if (ego.fts().dCTS().timeToLive() > 0.0001) {
             //prefer the active lane change
-            costs[lastCollision.lane] += 1 * ACTIVE_LANE_CHANGE_WEIGHT;
+            costs[lastCollision.lane] += (LANE_CHANGE_TIME_EXTENDED - ego.fts().dCTS().timeToLive()) * ACTIVE_LANE_CHANGE_WEIGHT;
         }
 
         //prefer adjacent lanes to the current lane
@@ -1382,7 +1416,7 @@ public:
 
         // score based on number of vehicles ahead (within the horizon)
         for (Vehicle v: other_vehicles) {
-            int lane = (int)(v.fts().d().position(0) / laneWidth);
+            int lane = (int)((v.fts().d().position(0) + v.fts().dOffset()) / laneWidth);
             double distance = v.fts().s().position(0);
             if (distance >= currPos && distance <= finalPos)
                 car_count_lanes[lane]++;
@@ -1408,31 +1442,31 @@ public:
             costs[currentLane] += currentLaneCollisionWeight * CURRENT_LANE_COLLISION_WEIGHT;
         }
 
-        printf("   ttl d %f\n", ego.fts().dCTS().timeToLive());
+        myprint("   ttl d %f\n", ego.fts().dCTS().timeToLive());
 
         if (collision_lanes[currentLane].id != -1 &&
             collision_lanes[currentLane].position < STUCK_IN_LANE_THRESHOLD_DISTANCE &&
             ego.fts().dCTS().timeToLive() < -STUCK_IN_LANE_THRESHOLD_TIME_LIMIT) {
-            printf("Stuck in lane for too long... slow down... to try and find another lane\n");
+            myprint("Stuck in lane for too long... slow down... to try and find another lane\n");
             collision_lanes[currentLane].speed = fmax(collision_lanes[currentLane].speed -10.0, 0);
         }
 
-        printf("Lane costs based on biases\n");
+        myprint("Lane costs based on biases\n");
         for (int i = 0; i < MAX_LANES; i++) {
-            printf("[lane %d: %f], ", i, costs[i]);
+            myprint("[lane %d: %f], ", i, costs[i]);
         }
-        printf("\n");
+        myprint("\n");
 
         // score based on furthest collision proximity to ego vehicle
-        printf("Lane costs based on proximity\n");
+        myprint("Lane costs based on proximity\n");
         for (int i = 0; i < MAX_LANES; i++) {
             costs[i] += (collision_lanes[i].time != -1 ? (collision_lanes[i].time / dT) : 1) * COLLISION_PROXITY_WEIGHT;
-            printf("[lane %d: %f], ", i, costs[i]);
+            myprint("[lane %d: %f], ", i, costs[i]);
         }
-        printf("\n");
+        myprint("\n");
 
         // compare lanes to each other
-        printf("Lane costs based on relative characteristics\n");
+        myprint("Lane costs based on relative characteristics\n");
         for (int i = 0; i < MAX_LANES; i++) {
             Collision collision = collision_lanes[i];
             Vehicle vehicleInLane;
@@ -1458,12 +1492,12 @@ public:
                     if (posInLane - posInOtherLane >= LANE_GAP_THRESHOLD) {
                         // consider which side the lane gap is on... higher weight if it's nearer to current lane
                         costs[i] += LANE_GAP_WEIGHT * (abs(lane - currentLane) <= 1 ? 1.0 : 0.25);
-                        printf("    lane gap found for lane %d and %d, between %d (%f time %f pos) and %d (%f pos)\n",
+                        myprint("    lane gap found for lane %d and %d, between %d (%f time %f pos) and %d (%f pos)\n",
                                i, lane, vehicleInLane.id(), time, posInLane, vehicleInOtherLane.id(), posInOtherLane);
                     }
                 } else if (collision.time == -1) {
                     costs[i] += LANE_GAP_WEIGHT;
-                    printf("    lane gap found for lane %d due to no collisions\n", i);
+                    myprint("    lane gap found for lane %d due to no collisions\n", i);
                 }
 
                 // score based on relative differences in vehicles speeds
@@ -1477,9 +1511,9 @@ public:
                 }
             }
 
-            printf("[lane %d: %f], ", i, costs[i]);
+            myprint("[lane %d: %f], ", i, costs[i]);
         }
-        printf("\n");
+        myprint("\n");
 
         /*if (ego.fts().s().speed(0) > 17.f) {
             costs[currentLane] += 400;
@@ -1495,36 +1529,44 @@ public:
         //generate jmt 'd' trajectory
         //position the car barely in the lane
         double currPos = nextFTS.s().position(0) + nextFTS.sOffset();
+        double currD = nextFTS.d().position(0) + nextFTS.dOffset();
         //XXX fix error in waypoints that might cause car to drive barely off the road.
         double deltaF = currPos > 4500 && currPos < 6000 && newLane == 2 ? - (laneWidth - CAR_WIDTH) / 2 : 0;
         double endD = (newLane * laneWidth + laneWidth / 2) + deltaF;
+        double deltaD = endD - currD;
 
-        printf("calculating lane position: lane %d, startD %f, endD %f\n", newLane, start[0], endD);
+        myprint("calculating lane position: lane %d, startD %f, endD %f\n", newLane, start[0], endD);
 
         CTS dCTS = CTS();
-        std::vector<double> end = {endD, 0, 0};
-        std::vector<double> stdDev = {0, 0, 0};
+        std::vector<double> end = {deltaD, 0, 0};
+        std::vector<double> stdDev = {1, 4, 4};
         std::vector<double> limits = {D_MAX_VELOCITY, D_MAX_ACCEL_JERK, D_MAX_ACCEL_JERK};
+        //bestCurvesD = nextFTS.dCTS().searchJMTs(start, end, stdDev, limits, 100, dT, nextFTS.dt(), 0.2);
         bestCurvesD = nextFTS.dCTS().searchJMTSpace(start, endD, 0, limits, dT, nextFTS.dt());
 
-        /*
+
         if (bestCurvesD.empty()) {
-            throw std::exception();
+            //stay in current lane
+            //myexception(NULL);
         }
 
+        /*
         if (fabs(bestCurvesD[0].position(0) - bestCurvesD[0].position(dt)) > 0.1) {
-            throw std::exception();
+            myexception(NULL);
         }
         */
 
         if (!bestCurvesD.empty()) {
-            printf("updating D trajectory: ttl %f, d %f\n", timeToLiveD, bestCurvesD[0].position(0));
+            myprint("updating D trajectory: ttl %f, d %f\n", timeToLiveD, bestCurvesD[0].position(0));
             nextFTS.d(bestCurvesD[0],
-                      timeToLiveD);
+                      timeToLiveD,
+                      nextFTS.dOffset()
+            );
+            if (newLane != currentLane)
+                myprint("changing lanes: lane %d change ttl %f", newLane, timeToLiveD);
+        } else {
+            myprint("failing to update D trajectory\n");
         }
-
-        if (newLane != currentLane)
-            printf("changing lanes: lane %d change ttl %f", newLane, timeToLiveD);
     }
 
     std::vector<Vector2d> generate_path_points(SplineCommonType* spline, Waypoints& waypoints,
@@ -1561,7 +1603,7 @@ public:
             waypointDiff += waypoints.s.size();
         }
 
-        //printf("prevWaypoint %d, nextWaypoint %d\n", prevWaypoint, nextWaypoint);
+        //myprint("prevWaypoint %d, nextWaypoint %d\n", prevWaypoint, nextWaypoint);
 
         double maxAccelN = 0;
         std::vector<double> sv;
@@ -1583,7 +1625,7 @@ public:
 
             if (useD) {
                 double d = fts.d().position(fts.dCTS().deltaTime() + j * fts.dt()) + d_start;
-                //printf("[j %d, offset %f, d %f], ", j, fts.dCTS().deltaTime() + j * fts.dt() + tOffset, d);
+                myprint("[j %d, offset %f, d %f], ", j, fts.dCTS().deltaTime() + j * fts.dt() + tOffset, d);
 
                 x += normal[0] * d;
                 y += normal[1] * d;
@@ -1602,11 +1644,11 @@ public:
                     if (sv.size() > 0) {
                         dists = s_curr_delta - sv[sv.size() - 1];
                         if (validate && dists > SPEED_LIMIT_VALIDATION * 0.02f) {
-                            throw std::exception();
+                            myexception(NULL);
                         }
                     }
                     if (validate && dist > SPEED_LIMIT_VALIDATION * 0.02f) {
-                        throw std::exception();
+                        //myexception(NULL);
                     }
                 }
 
@@ -1624,11 +1666,11 @@ public:
                     double accelN = k * speed * speed;
 
                     if (validate && accelN > MAX_ACCEL_JERK) {
-                        //throw std::exception();
+                        //myexception(NULL);
                     }
                     if (v1.dotProduct(v1, v2) < 0) {
                         //point is not continuous
-                        throw std::exception();
+                        myexception(NULL);
                     }
 
                     if (accelN > maxAccelN) maxAccelN = accelN;
@@ -1638,10 +1680,10 @@ public:
             points.push_back(point);
             sv.push_back(s_curr_delta);
         }
-        //printf("\n");
+        //myprint("\n");
 
         if (validate) {
-            printf("maximum normal acceleration %f", maxAccelN);
+            myprint("maximum normal acceleration %f", maxAccelN);
         }
 
         return points;
@@ -1667,7 +1709,7 @@ public:
 
         if (validate && dist > interval + 0.01) {
             //the distance should not be this large.
-            throw std::exception();
+            myexception(NULL);
         }
 
         int next = (closest + 1) % size;
@@ -1778,22 +1820,22 @@ public:
     std::vector<Collision> check_collisions(const std::vector<Vehicle>& vehicles,
                                                 const Vehicle& ego,
                                                 double dT) {
-        printf("checking collisions with ego vehicles at pos %f, lane %f\n",
+        myprint("checking collisions with ego vehicles at pos %f, lane %f\n",
                ego.fts().s().position(0) + ego.fts().sOffset(),
-               ego.fts().d().position(0) / laneWidth
+                (ego.fts().d().position(0) + ego.fts().dOffset()) / laneWidth
         );
         std::vector<Collision> retval;
         for (const Vehicle& vehicle : vehicles) {
             bool doesCollide = false;
             //determine exact moment of collision
             double collisionT = vehicle.collisionTime(ego, dT, COLLISION_BUFFER_RANGE);
-            int lane = (int) (vehicle.fts().d().position(collisionT) / laneWidth);
+            int lane = (int) ((vehicle.fts().d().position(collisionT) + vehicle.fts().dOffset()) / laneWidth);
             if (collisionT != -1) {
-                printf("    collision detected with %d at pos %f, time %f, lane %f, speed %f (ego lane %f)\n",
+                myprint("    collision detected with %d at pos %f, time %f, lane %f, speed %f (ego lane %f)\n",
                        vehicle.id(), vehicle.fts().s().position(collisionT), collisionT,
-                       vehicle.fts().d().position(collisionT) / laneWidth,
+                        (vehicle.fts().d().position(collisionT) + vehicle.fts().dOffset()) / laneWidth,
                        vehicle.fts().s().speed(collisionT),
-                       ego.fts().d().position(collisionT) / laneWidth
+                        (ego.fts().d().position(collisionT) + ego.fts().dOffset()) / laneWidth
                 );
                 retval.push_back({vehicle.id(), lane, collisionT, ego.fts().s().position(collisionT), vehicle.fts().s().speed(collisionT) });
             }
