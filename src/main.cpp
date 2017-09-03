@@ -171,13 +171,12 @@ int main() {
   vector<double> map_waypoints_dy;
 
   // Waypoint map to read from
-  string map_file_ = "../data/highway_map_bosch1.csv";
-  //string map_file_ = "../data/highway_map.csv";
-  // The max s value before wrapping around the track back to 0
-  double max_s = 5105;//6945.554;
-  //double max_s = 6945.554;
+  //string map_file_ = "../data/highway_map_bosch1.csv";
+  string map_file_ = "../data/highway_map.csv";
+  //double max_s = *std::max_element(map_waypoints_s.begin(), map_waypoints_s.end());
+  double max_s = 6945.554;
 
-  ifstream in_map_(map_file_.c_str(), ifstream::in);
+    ifstream in_map_(map_file_.c_str(), ifstream::in);
 
   string line;
   while (getline(in_map_, line)) {
