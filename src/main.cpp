@@ -8,6 +8,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "PathGenerator.h"
 
 using namespace std;
 
@@ -170,11 +171,12 @@ int main() {
   vector<double> map_waypoints_dy;
 
   // Waypoint map to read from
+  //string map_file_ = "../data/highway_map_bosch1.csv";
   string map_file_ = "../data/highway_map.csv";
-  // The max s value before wrapping around the track back to 0
+  //double max_s = *std::max_element(map_waypoints_s.begin(), map_waypoints_s.end());
   double max_s = 6945.554;
 
-  ifstream in_map_(map_file_.c_str(), ifstream::in);
+    ifstream in_map_(map_file_.c_str(), ifstream::in);
 
   string line;
   while (getline(in_map_, line)) {
@@ -196,13 +198,25 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  Waypoints waypoints {
+          map_waypoints_x,
+          map_waypoints_y,
+          map_waypoints_s,
+          map_waypoints_dx,
+          map_waypoints_dy
+  };
+  PathGenerator path_gen(waypoints, max_s);
+
+  double lastSpeed = 0;
+
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&path_gen,&lastSpeed](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     //auto sdata = string(data).substr(0, length);
     //cout << sdata << endl;
+
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
@@ -235,13 +249,50 @@ int main() {
 
           	json msgJson;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
+            car_speed = 0.447039 * car_speed;
 
+            std::vector<SensorVehicleState> sensor_state;
 
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-          	msgJson["next_x"] = next_x_vals;
-          	msgJson["next_y"] = next_y_vals;
+            for (int i = 0; i < sensor_fusion.size(); i++) {
+                std::vector<double> values = sensor_fusion[i];
+                SensorVehicleState state {
+                    (int) values[0],
+                    values[1],
+                    values[2],
+                    values[3],
+                    values[4],
+                    values[5],
+                    values[6],
+					0
+                };
+                sensor_state.push_back(state);
+            }
+
+            int forceLane = -1; //for debugging purposes
+
+            VehicleState state {
+                car_x,
+                car_y,
+                car_s,
+                car_d,
+                car_yaw,
+                car_speed,
+                end_path_d,
+                end_path_s,
+                previous_path_x,
+                previous_path_y,
+                sensor_state,
+                forceLane
+            };
+
+            lastSpeed = car_speed;
+
+            // generate the path using the PathGenerator object
+            PathPoints points = path_gen.generate_path(state);
+
+          	// define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+          	msgJson["next_x"] = points.x;
+          	msgJson["next_y"] = points.y;
 
           	auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
