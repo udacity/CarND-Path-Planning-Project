@@ -1,6 +1,20 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
-   
+
+### Solution adopted.
+Following the recommendations of the walktrough and using interpolation by splines, it is possible to implement a lanes change logic, very effective and simple to program.
+
+The main change is to continuously monitor whether a lane change is possible, either to the left or to the right.
+
+If we find a car on our lane at a shorter distance = s than the safety, we slow down and try a lane change, if possible, first trying a change to the left and if not possible, to the right.
+
+I have tested several safety distances of the cars in front of us and the safe space for a change of lane, in the order of magnitude suggested in the walktrhoug and have them adjusted manually.
+
+As possible improvements, introduce a cost function that penalizes staying in the leftmost lanes, to return to the right lane if circumstances permit.
+
+But the fundamental insight of the solution, which makes it elegant and simple, is that it is not necessary to change lanes, unless we find an obstacle in front of us.
+
+
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
 
