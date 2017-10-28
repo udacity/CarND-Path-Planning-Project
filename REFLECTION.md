@@ -41,4 +41,4 @@ Finally, we calculate our prediction path in lines 374-411 in `main.cpp`, which 
 
 This model manages to complete the 4.32 mile circuit in about 5 minutes and 54 seconds, without violating any of the restrictions specified in the project rubric.  A video of this implementation is available at https://youtu.be/33I5X-qdBb8:
 
-[![YouTube video](/mnt/e4/pato/Projects/HomeMac/Udacity/SDCE/Term3/Project - Path Planning/CarND-Path-Planning-Project/youtube_frame.png)](https://youtu.be/33I5X-qdBb8)
+[![YouTube video](./youtube_frame.png)](https://youtu.be/33I5X-qdBb8)
