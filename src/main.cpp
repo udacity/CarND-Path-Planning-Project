@@ -71,9 +71,9 @@ int NextWaypoint(double x, double y, double theta, const vector<double> &maps_x,
 
 	double heading = atan2( (map_y-y),(map_x-x) );
 
-	double angle = abs(theta-heading);
+	double angle = abs(atan2(sin(theta - heading), cos(theta - heading)));
 
-	if(angle > pi()/4)
+	if(angle > pi()/2)
 	{
 		closestWaypoint++;
 	}
