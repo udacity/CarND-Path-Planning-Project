@@ -9,7 +9,7 @@ using Eigen::VectorXd;
 /* 
     TrajectoryPlanner
         Purpose: interpolates JMT and spline curves given 
-                 start and waypoints of trajectory
+                 start and waypoints of trajectory2
  */
 class TrajectoryPlanner 
 {

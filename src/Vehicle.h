@@ -1,13 +1,12 @@
 #pragma once 
+
 #include <iostream>
 #include <random>
 #include <vector>
 #include <map>
 #include <string>
 
-#include "costs.h"
-#include "TrajectoryPlanner.h"
-#include "helpers.h"
+// #include "helpers.h"
 
 class Vehicle 
 {
@@ -20,61 +19,73 @@ public:
     virtual ~Vehicle();
 
     /* FSM */
-    vector<Vehicle> chooseNextState(map<int, vector<Vehicle>> predictions);
-    vector<std::string> successorStates();
+    std::vector<Vehicle> chooseNextState(std::map<int, std::vector<Vehicle>> predictions);
+    std::vector<std::string> successorStates();
 
-    vector<Vehicle> generateTrajectory(std::string, map<int, vector<Vehicle>> predictions);
-    vector<float> getKinematics(map<int, vector<Vehicle>> predictions, int lane);
+    std::vector<Vehicle> generateTrajectory(std::string, std::map<int, std::vector<Vehicle>> predictions);
+    std::vector<float> getKinematics(std::map<int, std::vector<Vehicle>> predictions, int lane);
 
-    vector<Vehicle> constantSpeedTrajectory();
-    vector<Vehicle> keepLaneTrajectory(map<int, vector<Vehicle>> predictions);
-    vector<Vehicle> laneChangeTrajectory(std::string state, map<int, vector<Vehicle>> predictions);
-    vector<Vehicle> prepLaneChangeTrajectory(std::string state, map<int, vector<Vehicle>> predictions);
+    std::vector<Vehicle> constantSpeedTrajectory();
+    std::vector<Vehicle> keepLaneTrajectory(std::map<int, std::vector<Vehicle>> predictions);
+    std::vector<Vehicle> laneChangeTrajectory(std::string state, std::map<int, std::vector<Vehicle>> predictions);
+    std::vector<Vehicle> prepLaneChangeTrajectory(std::string state, std::map<int, std::vector<Vehicle>> predictions);
 
     void increment(int dt);
     float positionAt(int t);
 
-    bool getVehicleBehind(map<int, vector<Vehicle>> predictions, int lane);
-    bool getVehicleAhead(map<int, vector<Vehicle>> predictions, int lane);
-    bool getVehicleRight(map<int, vector<Vehicle>> predictions, int lane);
-    bool getVehicleLeft(map<int, vector<Vehicle>> predictions, int lane);
+    bool getVehicleBehind(std::map<int, std::vector<Vehicle>> predictions, int lane, Vehicle & rVehicle);
+    bool getVehicleAhead(std::map<int, std::vector<Vehicle>> predictions, int lane, Vehicle & rVehicle);
+    bool getVehicleRight(std::map<int, std::vector<Vehicle>> predictions, int lane, Vehicle & rVehicle);
+    bool getVehicleLeft(std::map<int, std::vector<Vehicle>> predictions, int lane, Vehicle & rVehicle);
 
-    vector<Vehicle> generatePredictions(int horizon);
-    void realizeNextState(vector<Vehicle> trajectory);
-    void configure(vector<int> roadData);
+    // float calculate_cost(const Vehicle & vehicle, const std::map<int, std::vector<Vehicle>> & predictions, const std::vector<Vehicle> & trajectory);
+    // float goal_distance_cost(const Vehicle & vehicle, const std::vector<Vehicle> & trajectory, const std::map<int, std::vector<Vehicle>> & predictions, std::map<std::string, float> & data);
+    // float inefficiency_cost(const Vehicle & vehicl, const std::vector<Vehicle> & trajectory, const std::map<int, std::vector<Vehicle>> & predictions, std::map<std::string, float> & data);
+    // float lane_speed(const std::map<int, std::vector<Vehicle>> & predictions, int lane);
+    // std::map<std::string, float> get_helper_data(const Vehicle & vehicle, const std::vector<Vehicle> & trajectory, const std::map<int, std::vector<Vehicle>> & predictions);
 
-    /* FSM Cost Functions */
-    float calculate_cost(const Vehicle & vehicle, const map<int, vector<Vehicle>> & predictions, const vector<Vehicle> & trajectory);
-    float goal_distance_cost(const Vehicle & vehicle, const vector<Vehicle> & trajectory, const map<int, vector<Vehicle>> & predictions, map<string, float> & data)
-    float inefficiency_cost(const Vehicle & vehicl, const vector<Vehicle> & trajectory, const map<int, vector<Vehicle>> & predictions, map<string, float> & data);
-    float lane_speed(const map<int, vector<Vehicle>> & predictions, int lane);
-    map<string, float> get_helper_data(const Vehicle & vehicle, const vector<Vehicle> & trajectory, const map<int, vector<Vehicle>> & predictions);
+    std::vector<Vehicle> generatePredictions(int horizon);
+    void realizeNextState(std::vector<Vehicle> trajectory);
+    void configure(std::vector<int> roadData);
+
+    void updateGlobalMap(std::vector<double> map_waypoints_x, std::vector<double> map_waypoints_y, std::vector<double> map_waypoints_s, std::vector<double> map_waypoints_dx, std::vector<double> map_waypoints_dy);
 
     /* Trajectory Generation */
-    vector<double> getTrajectoryX();
-    vector<double> getTrajectoryY();
+    std::vector<double> getTrajectoryX();
+    std::vector<double> getTrajectoryY();
 
     /* Getters and Setters */
     void setLane(int lane);
+    void setGoalLane(int goalLane);
     void setS(float s);
+    void setGoalS(float goalS);
     void setV(float v);
     void setA(float a);
     void setTargetSpeed(float targetSpeed);
     void setMaxAcceleration(float maxAcceleration);
     void setString(std::string state);
 
-    int getLane();
-    int getS();
-    int getV();
-    int getA();
-    int getTargetSpeed();
-    int getMaxAcceleration();
-    std::string getState();
+    int getLane() const;
+    int getGoalLane() const;
+    int getS() const;
+    int getGoalS() const;
+    int getV() const;
+    int getA() const;
+    int getTargetSpeed() const;
+    int getMaxAcceleration() const;
+    std::string getState() const;
 
 private: 
+    std::map<std::string, int> lane_direction = {
+        {"PLCL", 1}, 
+        {"LCL", 1}, 
+        {"LCR", -1}, 
+        {"PLCR", -1}
+    };
+
     int L = 1;
 
-    int preferred_buffer = 6;
+    int preferredBuffer = 6;
 
     int lane;
 
@@ -90,12 +101,19 @@ private:
 
     float maxAcceleration;
 
-    // int goal_lane;
-    // float goal_s;
+    int goal_lane;
+
+    float goal_s;
 
     std::string state;
 
-    TrajectoryPlanner tp;
+    std::vector<double> map_waypoints_x;
+    std::vector<double> map_waypoints_y;
+    std::vector<double> map_waypoints_s;
+    std::vector<double> map_waypoints_dx;
+    std::vector<double> map_waypoints_dy;
+
+    //TrajectoryPlanner tp;
     // BehaviorPlanner bp;
 
 };

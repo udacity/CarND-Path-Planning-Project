@@ -9,8 +9,8 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "spline.h"
-
-#include "Vehicle.h"
+#include "vehicle.h"
+#include "helpers.h"
 
 using namespace std;
 
@@ -79,9 +79,9 @@ int main() {
     // reference MPH
     double ref_vel = 0.0;
 
-    // Create a new vehicle object here 
-        // - global map coordinates
-        // - initial local x, y, s, d
+    // Create a new vehicle object here and update global map of waypoints
+    Vehicle ego;
+    // ego.updateGlobalMap(map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy);
 
     h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) 
@@ -123,6 +123,16 @@ int main() {
                   	// Sensor Fusion Data, a list of all other cars on the same side of the road.
                   	auto sensor_fusion = j[1]["sensor_fusion"];
 
+                    std::cout << "START Vehicle Health: " << std::endl;
+                    std::cout << "X: " << car_x << std::endl;
+                    std::cout << "Y: " << car_y << std::endl;
+                    std::cout << "S: " << car_s << std::endl;
+                    std::cout << "D: " << car_d << std::endl;
+                    std::cout << "YAW: " << car_yaw << std::endl;
+                    std::cout << "SPEED: " << car_speed << std::endl;
+                    std::cout << "Length of SF: " << sensor_fusion.size() << std::endl;
+                    std::cout << "END Vehicle Health" << std::endl;
+                    std::cout << std::endl;
                     // update Vehicle object x, y, s, d, yaw, speed, path
                     // update sensor fusion information
 
