@@ -6,10 +6,14 @@
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
+/* 
+    TrajectoryPlanner
+        Purpose: interpolates JMT and spline curves given 
+                 start and waypoints of trajectory
+ */
 class TrajectoryPlanner 
 {
 public: 
-    
     TrajectoryPlanner();
     
     virtual ~TrajectoryPlanner();

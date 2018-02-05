@@ -79,9 +79,9 @@ int main() {
     // reference MPH
     double ref_vel = 0.0;
 
-    // Create a new vehicle object here
-    // Create it's Behavioral Planner
-    // Create it's Trajectory Planner
+    // Create a new vehicle object here 
+        // - global map coordinates
+        // - initial local x, y, s, d
 
     h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) 
@@ -297,6 +297,9 @@ int main() {
                     }
 
                     json msgJson;
+
+                    // next_x_vals = vehicle.getTrajectoryX();
+                    // next_y_vals = vehicle.getTrajectoryY();
 
             // END -- Intermediate Planner
 

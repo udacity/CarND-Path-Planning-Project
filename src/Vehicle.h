@@ -5,8 +5,8 @@
 #include <map>
 #include <string>
 
+#include "costs.h"
 #include "TrajectoryPlanner.h"
-#include "BehaviorPlanner.h"
 #include "helpers.h"
 
 class Vehicle 
@@ -18,6 +18,41 @@ public:
     
     /* Destructor */
     virtual ~Vehicle();
+
+    /* FSM */
+    vector<Vehicle> chooseNextState(map<int, vector<Vehicle>> predictions);
+    vector<std::string> successorStates();
+
+    vector<Vehicle> generateTrajectory(std::string, map<int, vector<Vehicle>> predictions);
+    vector<float> getKinematics(map<int, vector<Vehicle>> predictions, int lane);
+
+    vector<Vehicle> constantSpeedTrajectory();
+    vector<Vehicle> keepLaneTrajectory(map<int, vector<Vehicle>> predictions);
+    vector<Vehicle> laneChangeTrajectory(std::string state, map<int, vector<Vehicle>> predictions);
+    vector<Vehicle> prepLaneChangeTrajectory(std::string state, map<int, vector<Vehicle>> predictions);
+
+    void increment(int dt);
+    float positionAt(int t);
+
+    bool getVehicleBehind(map<int, vector<Vehicle>> predictions, int lane);
+    bool getVehicleAhead(map<int, vector<Vehicle>> predictions, int lane);
+    bool getVehicleRight(map<int, vector<Vehicle>> predictions, int lane);
+    bool getVehicleLeft(map<int, vector<Vehicle>> predictions, int lane);
+
+    vector<Vehicle> generatePredictions(int horizon);
+    void realizeNextState(vector<Vehicle> trajectory);
+    void configure(vector<int> roadData);
+
+    /* FSM Cost Functions */
+    float calculate_cost(const Vehicle & vehicle, const map<int, vector<Vehicle>> & predictions, const vector<Vehicle> & trajectory);
+    float goal_distance_cost(const Vehicle & vehicle, const vector<Vehicle> & trajectory, const map<int, vector<Vehicle>> & predictions, map<string, float> & data)
+    float inefficiency_cost(const Vehicle & vehicl, const vector<Vehicle> & trajectory, const map<int, vector<Vehicle>> & predictions, map<string, float> & data);
+    float lane_speed(const map<int, vector<Vehicle>> & predictions, int lane);
+    map<string, float> get_helper_data(const Vehicle & vehicle, const vector<Vehicle> & trajectory, const map<int, vector<Vehicle>> & predictions);
+
+    /* Trajectory Generation */
+    vector<double> getTrajectoryX();
+    vector<double> getTrajectoryY();
 
     /* Getters and Setters */
     void setLane(int lane);
@@ -61,6 +96,6 @@ private:
     std::string state;
 
     TrajectoryPlanner tp;
-    BehaviorPlanner bp;
+    // BehaviorPlanner bp;
 
 };
