@@ -6,6 +6,8 @@
 
 #IncludeRegexTransform: 
 
+/Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/BehaviorPlanner.h
+
 /Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/Cholesky
 Core
 /Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/Core
@@ -772,6 +774,44 @@ lapacke_mangling.h
 
 /Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/plugins/MatrixCwiseUnaryOps.h
 
+/Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/TrajectoryPlanner.h
+vector
+-
+cmath
+-
+iostream
+-
+
+/Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/Vehicle.h
+iostream
+-
+random
+-
+vector
+-
+map
+-
+string
+-
+TrajectoryPlanner.h
+/Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/TrajectoryPlanner.h
+BehaviorPlanner.h
+/Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/BehaviorPlanner.h
+helpers.h
+/Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/helpers.h
+
+/Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/helpers.h
+fstream
+-
+math.h
+-
+chrono
+-
+iostream
+-
+vector
+-
+
 /Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/json.hpp
 algorithm
 -
@@ -851,6 +891,8 @@ json.hpp
 /Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/json.hpp
 spline.h
 /Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/spline.h
+Vehicle.h
+/Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/Vehicle.h
 
 /Users/abhishekmantha/Desktop/SDC-Nano/Official-Projects/CarND-Term3/CarND-Path-Planning-Project/src/spline.h
 cstdio
