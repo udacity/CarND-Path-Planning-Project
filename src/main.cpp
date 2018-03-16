@@ -200,11 +200,7 @@ int main() {
   ifstream in_map_(map_file_.c_str(), ifstream::in);
 
 
-  bool debug = false;
-  // The current lane.
-  int lane = 1;
-  // Our target speed.
-  double ref_vel = 49.5; // In miles per hour(mph).
+
 
   string line;
   while (getline(in_map_, line)) {
@@ -226,6 +222,11 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
+  bool debug = false;
+  // The current lane.
+  int lane = 1;
+  // Our target speed.
+  double ref_vel = 0; // In miles per hour(mph).
 
 
   h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &debug](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -305,7 +306,7 @@ int main() {
             if (too_close) {
               ref_vel -= 0.224;
             } else if (ref_vel < 49.5) {
-              ref_vel+= 0224;
+              ref_vel+= 0.224;
             }
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
