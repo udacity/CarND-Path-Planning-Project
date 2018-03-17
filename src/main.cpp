@@ -358,10 +358,16 @@ int main() {
             bool try_lane_shift = false;
             if (too_close && ref_vel > other_car_speed) {
               ref_vel -= 0.224 + 1 / dist_to_car;
+              if (ref_vel < other_car_speed) {
+                ref_vel = other_car_speed;
+              }
               try_lane_shift = true;
               //print("try lane shift");
             } else if (ref_vel < 49.5) {
               ref_vel+= 0.224;
+              if (ref_vel > 49.5) {
+                ref_vel = 49.5;
+              }
             }
 
             if (try_lane_shift) {
