@@ -53,6 +53,33 @@ void print(const char* input, double val) {
   std::cout << input << val << std::endl;
 }
 
+bool collide(vector<double> point, vector<double> car_point, vector<double> old_car_point, int lane_check) {
+  double temp_d = point[0];
+  double back_s = point[1] - old_car_point[1];
+  double temp_s = point[1] - car_point[1];
+  //print(temp_d);
+  //print(temp_s);
+  //print(car_point[0]);
+
+  double front_distance = 5.0;//min_s
+  double back_distance = -2.0;//max_s
+  double lane_width = 4.0;
+
+  // If it is in the lane we are looking at.
+  if (temp_d < lane_check * lane_width + lane_width && temp_d > lane_width * lane_check){
+      // If it is close enough to worry about..
+      if (back_s > back_distance && temp_s < front_distance) {
+        //print(temp_d);
+        //print(temp_s);
+        //print("lane_check ",lane_check);
+        return true;
+      }
+  } else {
+    return false;
+  }
+  return false;
+}
+
 double distance(double x1, double y1, double x2, double y2)
 {
 	return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
@@ -226,7 +253,7 @@ int main() {
   // The current lane.
   int lane = 1;
   // Our target speed.
-  double ref_vel = 0; // In miles per hour(mph).
+  double ref_vel = 0.0; // In miles per hour(mph).
 
 
   h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &debug](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -275,39 +302,86 @@ int main() {
           	vector<double> next_y_vals;
 
 
+            double old_car_s;
             if (previous_size > 0) {
+              old_car_s = car_s;
               car_s = end_path_s;
             }
 
             bool too_close = false;
+            double other_car_speed = 0.0;
+            double dist_to_car = 0.0;
 
+            //double lane_width = 4.0;
+            //double distance_ahead = 10;
+            //double distance_behind = -10;
+            int num_lanes = 3;
+            vector<bool> safe_lanes;// = {true, true, true};
+            for (int j = 0; j < num_lanes; j++) {
+              safe_lanes.push_back(true);
+            }
             // Find ref_v to use.
+            int telemetry_size = sensor_fusion.size();
+            //print("telemetry", telemetry_size);
             for (int i = 0; i < sensor_fusion.size(); i++) {
               // Car is in my lane.
               float d = sensor_fusion[i][6];
+              float s = sensor_fusion[i][5];
+              for (int j = 0; j < num_lanes; j++) {
+                if (collide({d, s}, {car_d, car_s}, {car_d, old_car_s}, j)) {safe_lanes[j] = false;}
+              }
               if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
                 double vx = sensor_fusion[i][3];
                 double vy = sensor_fusion[i][4];
                 double check_speed = sqrt(vx * vx + vy * vy);
                 double check_car_s = sensor_fusion[i][5];
+                //print(check_car_s - car_s);
 
                 // If using previous points can project s value out.
-                check_car_s += ((double)previous_size * 0.2 * check_speed);
+                check_car_s += ((double)previous_size * 0.02 * check_speed);
                 // Check s values greater than mine and the gap between us.
                 if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
                   // Lower reference velocity so we don't crash into the car in
                   // front of us. Could also flag to try to change lanes.
                   //ref_vel = 29.5; // In miles per hour(mps).
                   too_close = true;
+                  other_car_speed = check_speed;
+                  dist_to_car = check_car_s - car_s;
                 }
               }
             }
+            if (debug) {
+              print(too_close);
+              print(car_d);
+            }
 
-            if (too_close) {
-              ref_vel -= 0.224;
+            bool try_lane_shift = false;
+            if (too_close && ref_vel > other_car_speed) {
+              ref_vel -= 0.224 + 1 / dist_to_car;
+              try_lane_shift = true;
+              //print("try lane shift");
             } else if (ref_vel < 49.5) {
               ref_vel+= 0.224;
             }
+
+            if (try_lane_shift) {
+              //print("Trying to shift lanes.");
+              for (int j = 0; j < num_lanes; j++) {
+                //print(safe_lanes[j]);
+                if (j != lane) {
+                  if (abs(j - lane) == 1) {
+                    // We are right next to the lane being considered.
+                    if (safe_lanes[j] && try_lane_shift) {
+                      lane = j;
+                      //print("Changed to lane ", lane);
+                      try_lane_shift = false;
+                    }
+                  }
+                }
+              }
+              //print("");
+              }
+
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
             // Spline based system.
