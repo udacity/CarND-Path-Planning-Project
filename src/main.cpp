@@ -8,6 +8,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "spline.h"
 
 using namespace std;
 
@@ -200,7 +201,9 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  int lane = 1;
+  double ref_vel = 49.5;
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -244,6 +247,67 @@ int main() {
 
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+    vector<double> ptsx;
+    vector<double> ptsy;
+    int prev_size = previous_path_x.size();
+
+    double ref_x = car_x;
+    double ref_y = car_y;
+    double ref_yaw = deg2rad(car_yaw);
+
+    if(prev_size < 2)
+    {
+      double prev_car_x = car_x - cos(car_yaw);
+      double prev_car_y = car_y - sin(car_yaw);
+
+      ptsx.push_back(prev_car_x);
+      ptsx.push_back(car_x);
+      ptsx.push_back(prev_car_y);
+      ptsx.push_back(car_y);
+    }
+    else
+    {
+      ref_x = previous_path_x[prev_size-1];
+      ref_y = previous_path_y[prev_size-1];
+
+      double ref_x_prev = previous_path_x[prev_size-2];
+      double ref_y_prev = previous_path_y[prev_size-2];
+      ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
+
+      ptsx.push_back(ref_x_prev);
+      ptsx.push_back(ref_x);
+      ptsx.push_back(ref_y_prev);
+      ptsx.push_back(ref_y);
+    }
+
+    vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+    vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+    vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+    ptsx.push_back(next_wp0[0]);
+    ptsx.push_back(next_wp1[0]);
+    ptsx.push_back(next_wp2[0]);
+    ptsy.push_back(next_wp0[1]);
+    ptsy.push_back(next_wp1[1]);
+    ptsy.push_back(next_wp2[1]);
+
+    tk::spline s;
+    s.set_points(ptsx, ptsy);
+
+    for (int i=0; i<previous_path_x.size(); ++i)
+    {
+      next_x_vals.push_back(previous_path_x[i]);
+      next_y_vals.push_back(previous_path_y[i]);
+    }
+    for (int i=0; i<ptsx.size(); ++i)
+    {
+      double shift_x = ptsx[i] - ref_x;
+      double shift_y = ptsx[i] - ref_y;
+
+      ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
+      ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
+    }
+
     double dist_inc = 0.3;
     for (int i=0; i < 50; ++i)
     {
@@ -253,6 +317,7 @@ int main() {
       next_x_vals.push_back(xy[0]);
       next_y_vals.push_back(xy[1]);
     }
+
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
 
