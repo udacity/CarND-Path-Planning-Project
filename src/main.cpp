@@ -203,7 +203,7 @@ int main() {
 
   int lane = 1;
   double ref_vel = 49.5;
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -262,8 +262,8 @@ int main() {
 
       ptsx.push_back(prev_car_x);
       ptsx.push_back(car_x);
-      ptsx.push_back(prev_car_y);
-      ptsx.push_back(car_y);
+      ptsy.push_back(prev_car_y);
+      ptsy.push_back(car_y);
     }
     else
     {
@@ -276,8 +276,8 @@ int main() {
 
       ptsx.push_back(ref_x_prev);
       ptsx.push_back(ref_x);
-      ptsx.push_back(ref_y_prev);
-      ptsx.push_back(ref_y);
+      ptsy.push_back(ref_y_prev);
+      ptsy.push_back(ref_y);
     }
 
     vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
@@ -287,6 +287,7 @@ int main() {
     ptsx.push_back(next_wp0[0]);
     ptsx.push_back(next_wp1[0]);
     ptsx.push_back(next_wp2[0]);
+
     ptsy.push_back(next_wp0[1]);
     ptsy.push_back(next_wp1[1]);
     ptsy.push_back(next_wp2[1]);
@@ -302,20 +303,35 @@ int main() {
     for (int i=0; i<ptsx.size(); ++i)
     {
       double shift_x = ptsx[i] - ref_x;
-      double shift_y = ptsx[i] - ref_y;
+      double shift_y = ptsy[i] - ref_y;
 
-      ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
-      ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
+      ptsx[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
+      ptsy[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
     }
 
-    double dist_inc = 0.3;
-    for (int i=0; i < 50; ++i)
+    double target_x = 30.0;
+    double target_y = s(target_x);
+    double target_dist = sqrt(target_x*target_x + target_y*target_y);
+    double x_add_on = 0;
+
+    for (int i=0; i<=50-previous_path_x.size(); ++i)
     {
-      double next_s = car_s + (i+1)*dist_inc;
-      double next_d = 6;
-      vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-      next_x_vals.push_back(xy[0]);
-      next_y_vals.push_back(xy[1]);
+      double N = target_dist/(0.02 * ref_vel / 2.24);
+      double x_point = x_add_on + target_x/N;
+      double y_point = s(x_point);
+      x_add_on = x_point;
+
+      double x_ref = x_point;
+      double y_ref = y_point;
+
+      x_point = x_ref * cos(ref_yaw) - y_ref*sin(ref_yaw);
+      y_point = y_ref * sin(ref_yaw) + y_ref*cos(ref_yaw);
+
+      x_point += ref_x;
+      y_point += ref_y;
+
+      next_x_vals.push_back(x_point);
+      next_y_vals.push_back(y_point);
     }
 
           	msgJson["next_x"] = next_x_vals;
