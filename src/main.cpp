@@ -203,7 +203,7 @@ int main() {
 
   int lane = 1;
   double ref_vel = 49.5;
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, lane, ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -227,6 +227,8 @@ int main() {
           	double car_y = j[1]["y"];
           	double car_s = j[1]["s"];
           	double car_d = j[1]["d"];
+            cout << "car_s: " << car_s << endl;
+            cout << "car_d: " << car_d << endl;
           	double car_yaw = j[1]["yaw"];
           	double car_speed = j[1]["speed"];
 
@@ -257,6 +259,7 @@ int main() {
 
     if(prev_size < 2)
     {
+      cout << "a" << endl;
       double prev_car_x = car_x - cos(car_yaw);
       double prev_car_y = car_y - sin(car_yaw);
 
@@ -267,6 +270,7 @@ int main() {
     }
     else
     {
+      cout << "b" << endl;
       ref_x = previous_path_x[prev_size-1];
       ref_y = previous_path_y[prev_size-1];
 
@@ -291,6 +295,13 @@ int main() {
     ptsy.push_back(next_wp0[1]);
     ptsy.push_back(next_wp1[1]);
     ptsy.push_back(next_wp2[1]);
+
+    cout << "ptsx: " << endl;
+    for (int i=0; i<ptsx.size(); ++i)
+      cout << ptsx[i] << endl;
+    cout << "ptsy: " << endl;
+    for (int i=0; i<ptsy.size(); ++i)
+      cout << ptsy[i] << endl;
 
     tk::spline s;
     s.set_points(ptsx, ptsy);
@@ -333,6 +344,12 @@ int main() {
       next_x_vals.push_back(x_point);
       next_y_vals.push_back(y_point);
     }
+    cout << "next_x_vals: " << endl;
+    for (int i=0; i<next_x_vals.size(); ++i)
+      cout << next_x_vals[i] << endl;
+    cout << "next_y_vals: " << endl;
+    for (int i=0; i<next_y_vals.size(); ++i)
+      cout << next_y_vals[i] << endl;
 
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
