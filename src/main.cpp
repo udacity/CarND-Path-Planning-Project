@@ -303,14 +303,6 @@ int main() {
     for (int i=0; i<ptsy.size(); ++i)
       cout << ptsy[i] << endl;
 
-    tk::spline s;
-    s.set_points(ptsx, ptsy);
-
-    for (int i=0; i<previous_path_x.size(); ++i)
-    {
-      next_x_vals.push_back(previous_path_x[i]);
-      next_y_vals.push_back(previous_path_y[i]);
-    }
     for (int i=0; i<ptsx.size(); ++i)
     {
       double shift_x = ptsx[i] - ref_x;
@@ -318,6 +310,15 @@ int main() {
 
       ptsx[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
       ptsy[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
+    }
+
+    tk::spline s;
+    s.set_points(ptsx, ptsy);
+
+    for (int i=0; i<previous_path_x.size(); ++i)
+    {
+      next_x_vals.push_back(previous_path_x[i]);
+      next_y_vals.push_back(previous_path_y[i]);
     }
 
     double target_x = 30.0;
@@ -328,15 +329,15 @@ int main() {
     for (int i=0; i<=50-previous_path_x.size(); ++i)
     {
       double N = target_dist/(0.02 * ref_vel / 2.24);
-      double x_point = x_add_on + target_x/N;
+      double x_point = x_add_on + target_x / N;
       double y_point = s(x_point);
       x_add_on = x_point;
 
       double x_ref = x_point;
       double y_ref = y_point;
 
-      x_point = x_ref * cos(ref_yaw) - y_ref*sin(ref_yaw);
-      y_point = y_ref * sin(ref_yaw) + y_ref*cos(ref_yaw);
+      x_point = x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
+      y_point = x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
 
       x_point += ref_x;
       y_point += ref_y;
