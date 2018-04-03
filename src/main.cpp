@@ -202,8 +202,10 @@ int main() {
   }
 
   int lane = 1;
-  double ref_vel = 49.5;
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, lane, ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  double ref_vel = 0;
+  const double target_vel = 49.5;
+
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel, target_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -227,8 +229,6 @@ int main() {
           	double car_y = j[1]["y"];
           	double car_s = j[1]["s"];
           	double car_d = j[1]["d"];
-            cout << "car_s: " << car_s << endl;
-            cout << "car_d: " << car_d << endl;
           	double car_yaw = j[1]["yaw"];
           	double car_speed = j[1]["speed"];
 
@@ -256,10 +256,13 @@ int main() {
     double ref_x = car_x;
     double ref_y = car_y;
     double ref_yaw = deg2rad(car_yaw);
+    if (ref_vel < target_vel)
+      ref_vel += .224;
+    if (ref_vel > target_vel)
+      ref_vel -= .224;
 
     if(prev_size < 2)
     {
-      cout << "a" << endl;
       double prev_car_x = car_x - cos(car_yaw);
       double prev_car_y = car_y - sin(car_yaw);
 
@@ -270,7 +273,6 @@ int main() {
     }
     else
     {
-      cout << "b" << endl;
       ref_x = previous_path_x[prev_size-1];
       ref_y = previous_path_y[prev_size-1];
 
