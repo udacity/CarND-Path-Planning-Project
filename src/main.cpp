@@ -302,13 +302,6 @@ int main()
           ptsy.push_back(next_wp1[1]);
           ptsy.push_back(next_wp2[1]);
 
-          // cout << "ptsx: " << endl;
-          // for (int i=0; i<ptsx.size(); ++i)
-          //   cout << ptsx[i] << endl;
-          // cout << "ptsy: " << endl;
-          // for (int i=0; i<ptsy.size(); ++i)
-          //   cout << ptsy[i] << endl;
-
           for (int i = 0; i < ptsx.size(); ++i)
           {
             double shift_x = ptsx[i] - ref_x;
@@ -351,13 +344,6 @@ int main()
             next_x_vals.push_back(x_point);
             next_y_vals.push_back(y_point);
           }
-
-          // cout << "next_x_vals: " << endl;
-          // for (int i=0; i<next_x_vals.size(); ++i)
-          //   cout << next_x_vals[i] << endl;
-          // cout << "next_y_vals: " << endl;
-          // for (int i=0; i<next_y_vals.size(); ++i)
-          //   cout << next_y_vals[i] << endl;
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
