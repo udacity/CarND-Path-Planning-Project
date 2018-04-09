@@ -1,6 +1,23 @@
 #include "vehicle.hpp"
 #include "helper.hpp"
 
+void Vehicle::Update(json msg) {
+  this->car_x = msg[1]["x"];
+  this->car_y = msg[1]["y"];
+  this->car_s = msg[1]["s"];
+  this->car_d = msg[1]["d"];
+  this->car_yaw = msg[1]["yaw"];
+  this->car_speed = msg[1]["speed"];
+  // Previous path's end s and d values 
+  this->end_path_s = msg[1]["end_path_s"];
+  this->end_path_d = msg[1]["end_path_d"];
+  // Previous path data given to the Planner
+  this->previous_path_x = msg[1]["previous_path_x"].get<vector<double>>();
+  this->previous_path_y = msg[1]["previous_path_y"].get<vector<double>>();
+  // Sensor fusion data.
+  this->sensor_fusion = msg[1]["sensor_fusion"].get<vector<vector<double>>>();
+}
+
 void Vehicle::Next() {
   this->next_x_vals.clear();
   this->next_y_vals.clear();

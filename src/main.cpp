@@ -88,52 +88,23 @@ int main() {
         auto j = json::parse(s);
         
         string event = j[0].get<string>();
-        
+
         if (event == "telemetry") {
-          // j[1] is the data JSON object
-          
-        	// Main car's localization Data
-          	double car_x = j[1]["x"];
-          	double car_y = j[1]["y"];
-          	double car_s = j[1]["s"];
-          	double car_d = j[1]["d"];
-          	double car_yaw = j[1]["yaw"];
-          	double car_speed = j[1]["speed"];
+          vehicle.Update(j);
+          vehicle.Next();
+          json msgJson;
 
-          	// Previous path data given to the Planner
-          	auto previous_path_x = j[1]["previous_path_x"];
-          	auto previous_path_y = j[1]["previous_path_y"];
-          	// Previous path's end s and d values 
-          	double end_path_s = j[1]["end_path_s"];
-          	double end_path_d = j[1]["end_path_d"];
+          vector<double> next_x_vals = vehicle.next_x_vals;
+          vector<double> next_y_vals = vehicle.next_y_vals;
 
-            
-          	// Sensor Fusion Data, a list of all other cars on the same side of the road.
-          	auto sensor_fusion = j[1]["sensor_fusion"];
+          // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+          msgJson["next_x"] = next_x_vals;
+          msgJson["next_y"] = next_y_vals;
 
-            vehicle.car_x = car_x;
-            vehicle.car_y = car_y;
-            vehicle.car_s = car_s;
-            vehicle.car_d = car_d;
-            vehicle.previous_path_x = previous_path_x.get<vector<double>>();
-            vehicle.previous_path_y = previous_path_y.get<vector<double>>();
-            vehicle.end_path_s = end_path_s;
-            vehicle.end_path_d = end_path_d;
-            vehicle.Next();
-          	json msgJson;
+          auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
-          	vector<double> next_x_vals = vehicle.next_x_vals;
-          	vector<double> next_y_vals = vehicle.next_y_vals;
-
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-          	msgJson["next_x"] = next_x_vals;
-          	msgJson["next_y"] = next_y_vals;
-
-          	auto msg = "42[\"control\","+ msgJson.dump()+"]";
-
-          	//this_thread::sleep_for(chrono::milliseconds(1000));
-          	ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-          
+          //this_thread::sleep_for(chrono::milliseconds(1000));
+          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
         // Manual driving

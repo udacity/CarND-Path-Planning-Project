@@ -2,8 +2,10 @@
 #define PPP_VEHICLE
 
 #include <vector>
+#include "json.hpp"
 
 using namespace std;
+using json = nlohmann::json;
 
 static constexpr double mile_in_meter = 1609.344;
 
@@ -19,6 +21,7 @@ class Vehicle {
   public:
   double car_x;
   double car_y;
+  double car_yaw;
   double car_s;
   double car_d;
   // meter/s
@@ -31,6 +34,7 @@ class Vehicle {
   double end_path_s;
   double end_path_d;
 
+  vector<vector<double>> sensor_fusion;
   vector<double> map_waypoints_x;
   vector<double> map_waypoints_y;
   vector<double> map_waypoints_s;
@@ -38,6 +42,7 @@ class Vehicle {
   vector<double> next_x_vals;
   vector<double> next_y_vals;
 
+  void Update(json msg);
   void Next();
 };
 
