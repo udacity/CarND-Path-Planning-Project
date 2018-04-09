@@ -24,6 +24,24 @@ class Vehicle {
   double car_yaw;
   double car_s;
   double car_d;
+
+  double car_s_d;
+  double car_s_dd;
+
+  double car_d_d;
+  double car_d_dd;
+
+  double prev_car_s;
+  double prev_car_s_d;
+
+  double prev_car_d;
+  double prev_car_d_d;
+
+  double timestamp;
+  double prev_timestamp;
+
+  int update_count;
+
   // meter/s
   double car_speed;
   // meter/s
@@ -42,7 +60,8 @@ class Vehicle {
   vector<double> next_x_vals;
   vector<double> next_y_vals;
 
-  void Update(json msg);
+  void Init();
+  void Update(json msg, double timestamp);
   void Next();
 };
 

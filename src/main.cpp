@@ -90,7 +90,11 @@ int main() {
         string event = j[0].get<string>();
 
         if (event == "telemetry") {
-          vehicle.Update(j);
+          auto now = chrono::system_clock::now();
+          auto epoch = now.time_since_epoch();
+          double timestamp = chrono::duration_cast<chrono::milliseconds>(epoch).count();
+          
+          vehicle.Update(j, timestamp);
           vehicle.Next();
           json msgJson;
 
