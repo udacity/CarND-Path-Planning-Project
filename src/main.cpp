@@ -8,6 +8,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "vehicle.hpp"
 
 using namespace std;
 
@@ -67,7 +68,12 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  Vehicle vehicle;
+  vehicle.map_waypoints_x = map_waypoints_x;
+  vehicle.map_waypoints_y = map_waypoints_y;
+  vehicle.map_waypoints_s = map_waypoints_s;
+
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &vehicle](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -101,14 +107,23 @@ int main() {
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
 
+            
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
           	auto sensor_fusion = j[1]["sensor_fusion"];
 
+            vehicle.car_x = car_x;
+            vehicle.car_y = car_y;
+            vehicle.car_s = car_s;
+            vehicle.car_d = car_d;
+            vehicle.previous_path_x = previous_path_x.get<vector<double>>();
+            vehicle.previous_path_y = previous_path_y.get<vector<double>>();
+            vehicle.end_path_s = end_path_s;
+            vehicle.end_path_d = end_path_d;
+            vehicle.Next();
           	json msgJson;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
-
+          	vector<double> next_x_vals = vehicle.next_x_vals;
+          	vector<double> next_y_vals = vehicle.next_y_vals;
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;

@@ -1,6 +1,8 @@
 #ifndef PPP_HELPER
 #define PPP_HELPER
 
+#include <math.h>
+
 namespace helper {
     // For converting back and forth between radians and degrees.
 inline constexpr double pi() { return M_PI; }
@@ -56,6 +58,11 @@ inline int NextWaypoint(double x, double y, double theta, const vector<double> &
   }
 
   return closestWaypoint;
+}
+
+inline double getYaw(double x, double y, double prev_x, double prev_y)
+{
+	return atan2(y - prev_y, x - prev_x);
 }
 
 // Transform from Cartesian x,y coordinates to Frenet s,d coordinates
