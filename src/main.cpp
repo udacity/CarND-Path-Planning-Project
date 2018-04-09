@@ -69,6 +69,7 @@ int main() {
   }
 
   Vehicle vehicle;
+  vehicle.Init();
   vehicle.map_waypoints_x = map_waypoints_x;
   vehicle.map_waypoints_y = map_waypoints_y;
   vehicle.map_waypoints_s = map_waypoints_s;
@@ -95,7 +96,17 @@ int main() {
           double timestamp = chrono::duration_cast<chrono::milliseconds>(epoch).count();
           
           vehicle.Update(j, timestamp);
-          vehicle.Next();
+          cout << "=============" << endl;
+          cout << "vehicle.car_s: " << vehicle.car_s << endl;
+          cout << "vehicle.car_s_d: " << vehicle.car_s_d << endl;
+          cout << "vehicle.car_s_dd: " << vehicle.car_s_dd << endl;
+          cout << "=============" << endl;
+          if (vehicle.update_count < 2) {
+            vehicle.Next();
+          } else {
+            vehicle.NextJMT();
+          }
+
           json msgJson;
 
           vector<double> next_x_vals = vehicle.next_x_vals;

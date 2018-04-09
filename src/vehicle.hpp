@@ -63,6 +63,8 @@ class Vehicle {
   void Init();
   void Update(json msg, double timestamp);
   void Next();
+  void NextJMT();
+
 };
 
 #endif

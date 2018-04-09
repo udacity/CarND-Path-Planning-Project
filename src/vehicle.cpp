@@ -4,6 +4,10 @@
 void Vehicle::Init()
 {
   this->update_count = 0;
+  this->car_s_d = 0;
+  this->car_s_dd = 0;
+  this->car_d_d = 0;
+  this->car_d_dd = 0;
 }
 
 void Vehicle::Update(json msg, double timestamp)
@@ -32,19 +36,19 @@ void Vehicle::Update(json msg, double timestamp)
   {
     this->prev_car_s = this->car_s;
     this->prev_car_d = this->car_d;
-    this->car_s_d = (car_s - prev_car_s) / duration;
-    this->car_d_d = (car_d - prev_car_d) / duration;
+    this->car_s_d = (car_s - prev_car_s) / (duration / 1000);
+    this->car_d_d = (car_d - prev_car_d) / (duration / 1000);
   }
   if (update_count > 1) {
     this->prev_car_s = this->car_s;
     this->prev_car_d = this->car_d;
     this->prev_car_s_d = this->car_s_d;
     this->prev_car_d_d = this->car_d_d;
-    this->car_s_d = (car_s - prev_car_s) / duration;
-    this->car_d_d = (car_d - prev_car_d) / duration;
+    this->car_s_d = (car_s - prev_car_s) / (duration / 1000);
+    this->car_d_d = (car_d - prev_car_d) / (duration / 1000);
 
-    this->car_s_dd = (car_s_d - prev_car_s_d) / duration;
-    this->car_d_dd = (car_d_d - prev_car_d_d) / duration;
+    this->car_s_dd = (car_s_d - prev_car_s_d) / (duration / 1000);
+    this->car_d_dd = (car_d_d - prev_car_d_d) / (duration / 1000);
   }
 
   this->car_x = car_x;
@@ -99,6 +103,57 @@ void Vehicle::Next()
   }
 
   for (int i = 0; i < num; ++i)
+  {
+    auto xy = helper::getXY(next_s_vals[i], next_d_vals[i], this->map_waypoints_s, this->map_waypoints_x, this->map_waypoints_y);
+    this->next_x_vals.push_back(xy[0]);
+    this->next_y_vals.push_back(xy[1]);
+  }
+}
+
+void Vehicle::NextJMT()
+{
+  this->next_x_vals.clear();
+  this->next_y_vals.clear();
+  int max_num = 20;
+  int remain = previous_path_x.size();
+
+  if (remain > 0) {
+    for (auto px : previous_path_x)
+    {
+      this->next_x_vals.push_back(px);
+    }
+    for (auto py : previous_path_y)
+    {
+      this->next_y_vals.push_back(py);
+    }
+    return;
+  }
+
+  vector<double> next_s_vals;
+  vector<double> next_d_vals;
+  double T = 10;
+  double N = 20;
+  double tstep = T/N;
+  double s_diff = 10;
+  vector<double> start;
+  vector<double> end;
+
+  start = {this->car_s, this->car_s_d, this->car_s_dd};
+  end = {this->car_s + s_diff, 0, 0};
+  auto coeffs = helper::JMT(start, end, T);
+  
+  for (int i=0; i<max_num; ++i) {
+    double new_s = 0;
+    double t = tstep * (i+1);
+    for (int j=0; j<coeffs.size(); ++j) {
+      new_s += coeffs[j] * pow(t, j);
+    }
+    cout << "new_s: " << new_s << endl;
+    next_s_vals.push_back(new_s);
+    next_d_vals.push_back(this->car_d);
+  }
+
+  for (int i = 0; i < max_num; ++i)
   {
     auto xy = helper::getXY(next_s_vals[i], next_d_vals[i], this->map_waypoints_s, this->map_waypoints_x, this->map_waypoints_y);
     this->next_x_vals.push_back(xy[0]);
