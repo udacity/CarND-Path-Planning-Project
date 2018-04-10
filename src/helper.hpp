@@ -194,6 +194,17 @@ inline vector<double> JMT(vector<double> start, vector<double> end, double T)
   return result;  
 }
 
+inline double nonzero(double val, double error) {
+	error = fabs(error);
+	if (0 <= val && val <= error) {
+		return error;
+	}
+	if (-error <= val && val < 0) {
+		return -error;
+	}
+	return val;
+}
+
 }
 
 #endif
