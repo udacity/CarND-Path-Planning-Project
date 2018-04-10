@@ -100,12 +100,15 @@ int main() {
           cout << "vehicle.car_s: " << vehicle.car_s << endl;
           cout << "vehicle.car_s_d: " << vehicle.car_s_d << endl;
           cout << "vehicle.car_s_dd: " << vehicle.car_s_dd << endl;
+          cout << "vehicle.acc: " << vehicle.acc << endl;
+          cout << "vehicle.car_speed: " << vehicle.car_speed << endl;
           cout << "=============" << endl;
-          if (vehicle.update_count < 2) {
-            vehicle.Next();
-          } else {
-            vehicle.NextJMT();
-          }
+          // if (vehicle.update_count < 2) {
+          //   vehicle.Next();
+          // } else {
+          //   vehicle.NextJMT();
+          // }
+          vehicle.NextHybrid();
 
           json msgJson;
 

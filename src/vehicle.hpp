@@ -41,11 +41,14 @@ class Vehicle {
   double prev_timestamp;
 
   int update_count;
+  int lane;
 
   // meter/s
   double car_speed;
   // meter/s
   static constexpr double target_speed = convert_mph_ms(50.);
+  // meter/s^2
+  double acc;
 
   vector<double> previous_path_x;
   vector<double> previous_path_y;
@@ -64,6 +67,8 @@ class Vehicle {
   void Update(json msg, double timestamp);
   void Next();
   void NextJMT();
+  void NextHybrid();
+  double LaneS() { return 2. + 4. * this->lane; };
 
 };
 
