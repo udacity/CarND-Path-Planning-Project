@@ -66,7 +66,7 @@ void Vehicle::Update(json msg, double timestamp)
   ++(this->update_count);
 
   if (this->car_speed < Vehicle::target_speed) {
-    this->acc = 5.;
+    this->acc = 1;
   } else {
     this->acc = 0;
   }
@@ -200,8 +200,10 @@ void Vehicle::NextHybrid()
 
   // Assume constant acceleration.
   // Note: acc is calcurated in current frame, but car point is previously calcurated.
+  double speed = this->car_speed;
   for (int i=0; i<max_num; ++i) {
-    double new_s = ref_s + this->car_speed * tstep + (this->acc * tstep * tstep) / 2;
+    speed += tstep * i * this->acc;
+    double new_s = ref_s + speed * tstep + (this->acc * tstep * tstep) / 2;
     next_s_vals.push_back(new_s);
     next_d_vals.push_back(ref_d);
     ref_s = new_s;
