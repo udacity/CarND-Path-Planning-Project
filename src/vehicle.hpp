@@ -45,10 +45,12 @@ class Vehicle {
 
   // meter/s
   double car_speed;
+  double prev_car_speed;
   // meter/s
   static constexpr double target_speed = convert_mph_ms(50.);
   // meter/s^2
   double acc;
+  double prev_acc;
 
   vector<double> previous_path_x;
   vector<double> previous_path_y;
@@ -60,6 +62,7 @@ class Vehicle {
   vector<double> map_waypoints_y;
   vector<double> map_waypoints_s;
 
+  static constexpr int vals_num = 20;
   vector<double> next_x_vals;
   vector<double> next_y_vals;
 

@@ -57,7 +57,10 @@ void Vehicle::Update(json msg, double timestamp)
   this->car_s = car_s;
   this->car_d = car_d;
   this->car_yaw = yaw;
+  
+  this->prev_car_speed = this->car_speed;
   this->car_speed = speed;
+  
   this->end_path_d = end_path_d;
   this->end_path_s = end_path_s;
   this->previous_path_x = previous_path_x;
@@ -65,6 +68,7 @@ void Vehicle::Update(json msg, double timestamp)
   this->sensor_fusion = sensor_fusion;
   ++(this->update_count);
 
+  this->prev_acc = this->acc;
   if (this->car_speed < Vehicle::target_speed) {
     this->acc = 1;
   } else {
@@ -174,15 +178,18 @@ void Vehicle::NextHybrid()
   this->next_x_vals.clear();
   this->next_y_vals.clear();
 
-  int max_num = 20;
+  int max_num = Vehicle::vals_num;
   int remain = previous_path_x.size();
   int num = max_num - remain;
   double ref_s = this->car_s;
   double ref_d = this->car_d;
+  double ref_speed = this->car_speed;
 
+  double tstep = 0.02;
   if (remain > 0) {
     ref_s = this->end_path_s;
     ref_d = this->end_path_d;
+    ref_speed = this->prev_car_speed + remain * tstep * this->prev_acc;
     for (auto px : previous_path_x)
     {
       this->next_x_vals.push_back(px);
@@ -193,14 +200,14 @@ void Vehicle::NextHybrid()
     }
   }
 
-  double tstep = 0.02;
+  
 
   vector<double> next_s_vals;
   vector<double> next_d_vals;
 
   // Assume constant acceleration.
   // Note: acc is calcurated in current frame, but car point is previously calcurated.
-  double speed = this->car_speed;
+  double speed = ref_speed;
   for (int i=0; i<max_num; ++i) {
     speed += tstep * i * this->acc;
     double new_s = ref_s + speed * tstep + (this->acc * tstep * tstep) / 2;
