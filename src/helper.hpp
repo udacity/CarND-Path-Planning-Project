@@ -205,6 +205,31 @@ inline double nonzero(double val, double error) {
 	return val;
 }
 
+
+inline vector<vector<double>> diffs(vector<double> target, double current, double current_d) {
+	vector<double> d_vals;
+	for (int i=0; i<target.size(); ++i) {
+		double diff;
+		if (i == 0) {
+			diff = target[i] - current;
+		} else {
+			diff = target[i] - target[i-1];
+		}
+		d_vals.push_back(diff);
+	}
+	vector<double> dd_vals;
+	for (int i=0; i<d_vals.size(); ++i) {
+		double diff;
+		if (i==0) {
+			diff = d_vals[i] - current_d;
+		} else {
+			diff = d_vals[i] - d_vals[i-1];
+		}
+		dd_vals.push_back(diff);
+	}
+	return {d_vals, dd_vals};
+}
+
 }
 
 #endif
