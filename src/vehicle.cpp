@@ -189,7 +189,7 @@ void Vehicle::NextHybrid()
   if (remain > 0) {
     ref_s = this->end_path_s;
     ref_d = this->end_path_d;
-    ref_speed = this->prev_car_speed + remain * tstep * this->prev_acc;
+    ref_speed = this->prev_car_speed + max_num * tstep * this->prev_acc;
     for (auto px : previous_path_x)
     {
       this->next_x_vals.push_back(px);
