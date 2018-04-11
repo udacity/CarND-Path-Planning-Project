@@ -199,8 +199,11 @@ void Vehicle::NextHybrid()
       this->next_y_vals.push_back(py);
     }
   }
-
   
+  if (ref_speed > Vehicle::target_speed) {
+    ref_speed = Vehicle::target_speed;
+    this->acc = 0;
+  }
 
   vector<double> next_s_vals;
   vector<double> next_d_vals;
