@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "json.hpp"
+#include "roadmap.hpp"
 
 using namespace std;
 using json = nlohmann::json;
@@ -66,11 +67,14 @@ class Vehicle {
   vector<double> next_x_vals;
   vector<double> next_y_vals;
 
+  RoadMap roadmap;
+
   void Init();
   void Update(json msg, double timestamp);
   void Next();
   void NextJMT();
   void NextHybrid();
+  void PrintPath();
   double LaneS() { return 2. + 4. * this->lane; };
 
 };

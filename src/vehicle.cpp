@@ -222,9 +222,21 @@ void Vehicle::NextHybrid()
   for (int i=0; i<num; i++) {
     double s = next_s_vals[i];
     double d = next_d_vals[i];
-    auto xy = helper::getXY(s, d, this->map_waypoints_s, this->map_waypoints_x, this->map_waypoints_y);
+    auto xy = this->roadmap.getXY(s, d);
     this->next_x_vals.push_back(xy[0]);
     this->next_y_vals.push_back(xy[1]);
   }
 
+}
+
+void Vehicle::PrintPath()
+{
+  for (auto x : this->next_x_vals)
+  {
+    cout << "x: " << x << std::endl;
+  }
+  for (auto y : this->next_y_vals)
+  {
+    cout << "y: " << y << std::endl;
+  }
 }

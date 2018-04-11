@@ -9,6 +9,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "vehicle.hpp"
+#include "roadmap.hpp"
 
 using namespace std;
 
@@ -73,6 +74,9 @@ int main() {
   vehicle.map_waypoints_x = map_waypoints_x;
   vehicle.map_waypoints_y = map_waypoints_y;
   vehicle.map_waypoints_s = map_waypoints_s;
+  RoadMap rmap;
+  rmap.Init(map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy);
+  vehicle.roadmap = rmap;
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &vehicle](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -100,6 +104,9 @@ int main() {
           cout << "vehicle.car_s: " << vehicle.car_s << endl;
           cout << "vehicle.car_s_d: " << vehicle.car_s_d << endl;
           cout << "vehicle.car_s_dd: " << vehicle.car_s_dd << endl;
+          cout << "vehicle.car_d: " << vehicle.car_d << endl;
+          cout << "vehicle.car_d_d: " << vehicle.car_d_d << endl;
+          cout << "vehicle.car_d_dd: " << vehicle.car_d_dd << endl;
           cout << "vehicle.acc: " << vehicle.acc << endl;
           cout << "vehicle.car_speed: " << vehicle.car_speed << endl;
           cout << "=============" << endl;
@@ -109,6 +116,7 @@ int main() {
           //   vehicle.NextJMT();
           // }
           vehicle.NextHybrid();
+          // vehicle.PrintPath();
 
           json msgJson;
 
