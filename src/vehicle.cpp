@@ -4,10 +4,10 @@
 void Vehicle::Init()
 {
   this->update_count = 0;
-  this->car_s_d = 0;
-  this->car_s_dd = 0;
-  this->car_d_d = 0;
-  this->car_d_dd = 0;
+  this->car_x_d = 0;
+  this->car_x_dd = 0;
+  this->car_y_d = 0;
+  this->car_y_dd = 0;
   this->lane = 1;
 }
 
@@ -33,36 +33,55 @@ void Vehicle::Update(json msg, double timestamp)
   auto previous_path_y = msg[1]["previous_path_y"].get<vector<double>>();
   // Sensor fusion data.
   auto sensor_fusion = msg[1]["sensor_fusion"].get<vector<vector<double>>>();
-  if (update_count == 1)
-  {
-    this->prev_car_s = this->car_s;
-    this->prev_car_d = this->car_d;
-    this->car_s_d = (car_s - prev_car_s) / (duration / 1000);
-    this->car_d_d = (car_d - prev_car_d) / (duration / 1000);
-  }
-  if (update_count > 1) {
-    this->prev_car_s = this->car_s;
-    this->prev_car_d = this->car_d;
-    this->prev_car_s_d = this->car_s_d;
-    this->prev_car_d_d = this->car_d_d;
-    this->car_s_d = (car_s - prev_car_s) / (duration / 1000);
-    this->car_d_d = (car_d - prev_car_d) / (duration / 1000);
 
-    this->car_s_dd = (car_s_d - prev_car_s_d) / (duration / 1000);
-    this->car_d_dd = (car_d_d - prev_car_d_d) / (duration / 1000);
+  double prev_car_x = 0;
+  double prev_car_y = 0;
+  double prev_car_yaw = 0;
+  double prev_car_speed = 0;
+
+  double prev_car_x_d = 0;
+  double prev_car_y_d = 0;
+
+  double car_x_d = speed * cos(car_yaw);
+  double car_y_d = speed * sin(car_yaw);
+  double car_x_dd = 0;
+  double car_y_dd = 0;
+
+  if (update_count > 0) {
+    prev_car_x = this->car_x;
+    prev_car_y = this->car_y;
+    prev_car_yaw = this->car_yaw;
+    prev_car_speed = this->car_speed;
+    prev_car_x_d = this->car_x_d;
+    prev_car_y_d = this->car_y_d;
+    car_x_dd = (car_x_d - prev_car_x_d) / (duration / 1000);
+    car_y_dd = (car_y_d - prev_car_y_d) / (duration / 1000);
   }
 
   this->car_x = car_x;
   this->car_y = car_y;
+
+  this->car_x_d = car_x_d;
+  this->car_y_d = car_y_d;
+
+  this->prev_car_x_d = prev_car_x_d;
+  this->prev_car_y_d = prev_car_y_d;
+
+  this->car_x_dd = car_x_dd;
+  this->car_y_dd = car_y_dd;
+
   this->car_s = car_s;
   this->car_d = car_d;
+  
   this->car_yaw = yaw;
+  this->prev_car_yaw = prev_car_yaw;
   
   this->prev_car_speed = this->car_speed;
   this->car_speed = speed;
   
   this->end_path_d = end_path_d;
   this->end_path_s = end_path_s;
+
   this->previous_path_x = previous_path_x;
   this->previous_path_y = previous_path_y;
   this->sensor_fusion = sensor_fusion;
@@ -81,9 +100,8 @@ void Vehicle::Next()
 {
   this->next_x_vals.clear();
   this->next_y_vals.clear();
-  int max_num = 20;
-  int num = 20;
-  double s_diff = 0.03;
+  int max_num = 10;
+  double s_diff = 0.05;
   double d_diff = 0;
   vector<double> next_s_vals;
   vector<double> next_d_vals;
@@ -91,7 +109,7 @@ void Vehicle::Next()
   double ref_d = this->car_d;
 
   int remain = previous_path_x.size();
-  num = max_num - remain;
+  double num = max_num - remain;
   for (auto px : previous_path_x)
   {
     this->next_x_vals.push_back(px);
@@ -116,76 +134,23 @@ void Vehicle::Next()
 
   for (int i = 0; i < num; ++i)
   {
-    cout << "next s: " << next_s_vals[i] << endl;
-    cout << "next d: " << next_d_vals[i] << endl;
-
     auto xy = this->roadmap.getXY(next_s_vals[i], next_d_vals[i]);
     this->next_x_vals.push_back(xy[0]);
     this->next_y_vals.push_back(xy[1]);
   }
 }
 
-void Vehicle::NextJMT()
+void Vehicle::NextHybrid2()
 {
-  this->next_x_vals.clear();
-  this->next_y_vals.clear();
-  int max_num = 20;
-  int remain = previous_path_x.size();
-
-  if (remain > 0) {
-    for (auto px : previous_path_x)
-    {
-      this->next_x_vals.push_back(px);
-    }
-    for (auto py : previous_path_y)
-    {
-      this->next_y_vals.push_back(py);
-    }
-    return;
-  }
-
-  vector<double> next_s_vals;
-  vector<double> next_d_vals;
-  double T = 10;
-  double N = 20;
-  double tstep = T/N;
-  double s_diff = 10;
-  vector<double> start;
-  vector<double> end;
-
-  start = {this->car_s, this->car_s_d, this->car_s_dd};
-  end = {this->car_s + s_diff, 0, 0};
-  auto coeffs = helper::JMT(start, end, T);
-  
-  for (int i=0; i<max_num; ++i) {
-    double new_s = 0;
-    double t = tstep * (i+1);
-    for (int j=0; j<coeffs.size(); ++j) {
-      new_s += coeffs[j] * pow(t, j);
-    }
-    cout << "new_s: " << new_s << endl;
-    next_s_vals.push_back(new_s);
-    next_d_vals.push_back(this->car_d);
-  }
-
-  for (int i = 0; i < max_num; ++i)
-  {
-    auto xy = this->roadmap.getXY(next_s_vals[i], next_d_vals[i]);
-    this->next_x_vals.push_back(xy[0]);
-    this->next_y_vals.push_back(xy[1]);
-  }
-}
-
-void Vehicle::NextHybrid()
-{
+  cout << "NextHybrid2()" << endl;
   this->next_x_vals.clear();
   this->next_y_vals.clear();
 
-  int max_num = Vehicle::vals_num;
+  int max_num = 50;
   int remain = previous_path_x.size();
   int num = max_num - remain;
   double ref_s = this->car_s;
-  double ref_d = this->car_d;
+  double ref_d = 6;
   double ref_speed = this->car_speed;
 
   double tstep = 0.02;
@@ -208,28 +173,47 @@ void Vehicle::NextHybrid()
     this->acc = 0;
   }
 
-  vector<double> next_s_vals;
-  vector<double> next_d_vals;
+  double new_s = ref_s + 30;
+  double new_d = 6;
 
   // Assume constant acceleration.
   // Note: acc is calcurated in current frame, but car point is previously calcurated.
-  double speed = ref_speed;
-  for (int i=0; i<max_num; ++i) {
-    speed += tstep * i * this->acc;
-    double new_s = ref_s + speed * tstep + (this->acc * tstep * tstep) / 2;
-    next_s_vals.push_back(new_s);
-    next_d_vals.push_back(ref_d);
-    ref_s = new_s;
-  }
+  // double speed = ref_speed;
 
-  for (int i=0; i<num; i++) {
-    double s = next_s_vals[i];
-    double d = next_d_vals[i];
-    auto xy = this->roadmap.getXY(s, d);
-    this->next_x_vals.push_back(xy[0]);
-    this->next_y_vals.push_back(xy[1]);
-  }
+  // for (int i=0; i<max_num; ++i) {
+  //   speed += tstep * i * this->acc;
+  //   double new_s = new_s + speed * tstep + (this->acc * tstep * tstep) / 2;
+  // }
+  cout << "new_s: " << new_s << endl;
+  cout << "num: " << num << endl;
 
+  vector<double> start_xy = this->roadmap.getXY(ref_s, ref_d);
+  vector<double> target_xy = this->roadmap.getXY(new_s, new_d);
+
+  auto start_x = {start_xy[0], this->car_x_d, this->car_x_dd };
+  auto target_x = {target_xy[0], 0., 0.};
+  auto start_y = {start_xy[1], this->car_y_d, this->car_y_dd };
+  auto target_y = {target_xy[1], 0., 0.};
+
+  auto x_coeffs = helper::JMT( start_x, target_x, tstep * max_num);
+  auto y_coeffs = helper::JMT( start_y, target_y, tstep * max_num);
+
+  double t = 0;
+  for (int i=0; i<num; ++i) {
+    double x = 0;
+    double y = 0;
+    for (int j=0; j<6; ++j) {
+      double cx = x_coeffs[j];
+      x = x + pow(t, j) * cx;
+      double cy = y_coeffs[j];
+      y = y + pow(t, j) * cy;
+    }
+    cout << "x: " << x << endl;
+    cout << "y: " << y << endl;
+    this->next_x_vals.push_back(x);
+    this->next_y_vals.push_back(y);
+    t = t + tstep;
+  }
 }
 
 void Vehicle::PrintPath()

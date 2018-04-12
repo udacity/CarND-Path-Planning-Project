@@ -26,17 +26,18 @@ class Vehicle {
   double car_s;
   double car_d;
 
-  double car_s_d;
-  double car_s_dd;
+  double car_x_d;
+  double car_x_dd;
 
-  double car_d_d;
-  double car_d_dd;
+  double car_y_d;
+  double car_y_dd;
 
-  double prev_car_s;
-  double prev_car_s_d;
+  double prev_car_x;
+  double prev_car_y;
+  double prev_car_yaw;
 
-  double prev_car_d;
-  double prev_car_d_d;
+  double prev_car_x_d;
+  double prev_car_y_d;
 
   double timestamp;
   double prev_timestamp;
@@ -74,6 +75,7 @@ class Vehicle {
   void Next();
   void NextJMT();
   void NextHybrid();
+  void NextHybrid2();
   void PrintPath();
   double LaneS() { return 2. + 4. * this->lane; };
 

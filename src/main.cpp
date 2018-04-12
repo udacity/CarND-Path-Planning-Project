@@ -102,21 +102,29 @@ int main() {
           vehicle.Update(j, timestamp);
           cout << "=============" << endl;
           cout << "vehicle.car_s: " << vehicle.car_s << endl;
-          cout << "vehicle.car_s_d: " << vehicle.car_s_d << endl;
-          cout << "vehicle.car_s_dd: " << vehicle.car_s_dd << endl;
           cout << "vehicle.car_d: " << vehicle.car_d << endl;
-          cout << "vehicle.car_d_d: " << vehicle.car_d_d << endl;
-          cout << "vehicle.car_d_dd: " << vehicle.car_d_dd << endl;
+          cout << "vehicle.car_x: " << vehicle.car_x << endl;
+          cout << "vehicle.car_y: " << vehicle.car_y << endl;
+          cout << "vehicle.car_x_d: " << vehicle.car_x_d << endl;
+          cout << "vehicle.car_y_d: " << vehicle.car_y_d << endl;
+          cout << "vehicle.car_x_dd: " << vehicle.car_x_dd << endl;
+          cout << "vehicle.car_y_dd: " << vehicle.car_y_dd << endl;
           cout << "vehicle.acc: " << vehicle.acc << endl;
           cout << "vehicle.car_speed: " << vehicle.car_speed << endl;
           cout << "=============" << endl;
 
-          vehicle.NextHybrid();
+          if (vehicle.update_count < 2) {
+            vehicle.Next();
+          } else {
+            vehicle.NextHybrid2();
+          }
 
           json msgJson;
 
           vector<double> next_x_vals = vehicle.next_x_vals;
           vector<double> next_y_vals = vehicle.next_y_vals;
+
+          assert ( (next_x_vals.size() == next_y_vals.size()) );
 
           // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           msgJson["next_x"] = next_x_vals;

@@ -24,6 +24,7 @@
     "unordered_set": "cpp",
     "utility": "cpp",
     "__bit_reference": "cpp",
-    "forward_list": "cpp"
+    "forward_list": "cpp",
+    "ostream": "cpp"
   }
 }
