@@ -75,7 +75,8 @@ int main() {
   vehicle.map_waypoints_y = map_waypoints_y;
   vehicle.map_waypoints_s = map_waypoints_s;
   RoadMap rmap;
-  rmap.Init(map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy);
+  rmap.Init(map_waypoints_x, map_waypoints_y);
+  rmap.DumpMap();
   vehicle.roadmap = rmap;
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &vehicle](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -115,7 +116,8 @@ int main() {
           // } else {
           //   vehicle.NextJMT();
           // }
-          vehicle.NextHybrid();
+          // vehicle.NextHybrid();
+          vehicle.Next();
           // vehicle.PrintPath();
 
           json msgJson;

@@ -22,6 +22,8 @@
     "string_view": "cpp",
     "unordered_map": "cpp",
     "unordered_set": "cpp",
-    "utility": "cpp"
+    "utility": "cpp",
+    "__bit_reference": "cpp",
+    "forward_list": "cpp"
   }
 }

@@ -116,7 +116,10 @@ void Vehicle::Next()
 
   for (int i = 0; i < num; ++i)
   {
-    auto xy = helper::getXY(next_s_vals[i], next_d_vals[i], this->map_waypoints_s, this->map_waypoints_x, this->map_waypoints_y);
+    cout << "next s: " << next_s_vals[i] << endl;
+    cout << "next d: " << next_d_vals[i] << endl;
+
+    auto xy = this->roadmap.getXY(next_s_vals[i], next_d_vals[i]);
     this->next_x_vals.push_back(xy[0]);
     this->next_y_vals.push_back(xy[1]);
   }
@@ -167,7 +170,7 @@ void Vehicle::NextJMT()
 
   for (int i = 0; i < max_num; ++i)
   {
-    auto xy = helper::getXY(next_s_vals[i], next_d_vals[i], this->map_waypoints_s, this->map_waypoints_x, this->map_waypoints_y);
+    auto xy = this->roadmap.getXY(next_s_vals[i], next_d_vals[i]);
     this->next_x_vals.push_back(xy[0]);
     this->next_y_vals.push_back(xy[1]);
   }
