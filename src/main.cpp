@@ -75,8 +75,7 @@ int main() {
   vehicle.map_waypoints_y = map_waypoints_y;
   vehicle.map_waypoints_s = map_waypoints_s;
   RoadMap rmap;
-  rmap.Init(map_waypoints_x, map_waypoints_y);
-  rmap.DumpMap();
+  rmap.Init(map_waypoints_x, map_waypoints_y, map_waypoints_s);
   vehicle.roadmap = rmap;
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &vehicle](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -111,14 +110,8 @@ int main() {
           cout << "vehicle.acc: " << vehicle.acc << endl;
           cout << "vehicle.car_speed: " << vehicle.car_speed << endl;
           cout << "=============" << endl;
-          // if (vehicle.update_count < 2) {
-          //   vehicle.Next();
-          // } else {
-          //   vehicle.NextJMT();
-          // }
-          // vehicle.NextHybrid();
-          vehicle.Next();
-          // vehicle.PrintPath();
+
+          vehicle.NextHybrid();
 
           json msgJson;
 
