@@ -113,12 +113,7 @@ int main() {
           cout << "vehicle.car_speed: " << vehicle.car_speed << endl;
           cout << "=============" << endl;
 
-          if (vehicle.update_count < 2) {
-            vehicle.Next();
-          } else {
-            vehicle.NextHybrid2();
-          }
-
+          vehicle.NextHybrid2();
           json msgJson;
 
           vector<double> next_x_vals = vehicle.next_x_vals;

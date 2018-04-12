@@ -230,6 +230,29 @@ inline vector<vector<double>> diffs(vector<double> target, double current, doubl
 	return {d_vals, dd_vals};
 }
 
+inline pair<double, double> convertToVehicleCoordinate(pair<double, double> pointMap, double veh_x, double veh_y, double veh_theta) {
+	double mx = pointMap.first;
+	double my = pointMap.second;
+	double dx = mx - veh_x;
+	double dy = my - veh_y;
+
+	double x = dx * cos(0 - veh_theta) - dy * sin(0 - veh_theta);
+	double y = dx * sin(0 - veh_theta) + dy * cos(0 - veh_theta);
+	return {x, y};
+}
+
+inline pair<double, double> convertToMapCoordinate(pair<double, double> pointVeh, double veh_x, double veh_y, double veh_theta) {
+	double px = pointVeh.first;
+	double py = pointVeh.second;
+	
+	double dx = px * cos(veh_theta) - py * sin(veh_theta);
+	double dy = px * sin(veh_theta) + py * cos(veh_theta);
+
+	double x = px + dx;
+	double y = py + dy;
+	return {x, y};
+}
+
 }
 
 #endif
