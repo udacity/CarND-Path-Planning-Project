@@ -107,7 +107,7 @@ void Vehicle::UpdateNearestVehicles()
     double ov_lane = 0;
     for (int lane=0; lane<3; ++lane) {
       double lane_d = 2. + 4 * lane;
-      if (lane_d -2 <= ov.d && ov.d < lane_d + 2) {
+      if (lane_d - 2 <= ov.d && ov.d < lane_d + 2) {
         ov_lane = lane;
         break;
       }
@@ -224,10 +224,10 @@ void Vehicle::NextHybrid2()
   pts.push_back({ref_x, ref_y});
 
   vector<double> next_s_points = {
-    ref_s + 5,
+    ref_s + 10,
     ref_s + 30,
     ref_s + 60,
-    // ref_s + 90
+    ref_s + 90
   };
 
   for (auto ns : next_s_points) {
@@ -273,7 +273,7 @@ void Vehicle::NextHybrid2()
 
   if (too_close) {
     if (this->car_speed > 20) {
-      ref_speed -= 2;
+      ref_speed -= 3;
     }
   } else {
     if (ref_speed > Vehicle::target_speed) {
