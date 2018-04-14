@@ -248,8 +248,8 @@ inline pair<double, double> convertToMapCoordinate(pair<double, double> pointVeh
 	double dx = px * cos(veh_theta) - py * sin(veh_theta);
 	double dy = px * sin(veh_theta) + py * cos(veh_theta);
 
-	double x = px + dx;
-	double y = py + dy;
+	double x = veh_x + dx;
+	double y = veh_y + dy;
 	return {x, y};
 }
 

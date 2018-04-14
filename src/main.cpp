@@ -114,6 +114,7 @@ int main() {
           cout << "=============" << endl;
 
           vehicle.NextHybrid2();
+          vehicle.PrintPath();
           json msgJson;
 
           vector<double> next_x_vals = vehicle.next_x_vals;

@@ -151,10 +151,12 @@ void Vehicle::NextHybrid2()
 
   double ref_x = this->car_x;
   double ref_y = this->car_y;
+  double ref_x_prev = 0;
+  double ref_y_prev = 0;
   double ref_yaw = this->car_yaw;
   double ref_s = this->car_s;
   double ref_d = 2 + this->lane * 4;
-  double ref_speed = car_speed + 5;
+  double ref_speed = convert_mph_ms(45);
   double t = 0.02;
 
   if (remain > 0) {
@@ -166,8 +168,6 @@ void Vehicle::NextHybrid2()
     ref_d = this->end_path_d;
     ref_x = this->previous_path_x.back();
     ref_y = this->previous_path_y.back();
-    double ref_x_prev = 0;
-    double ref_y_prev = 0;
     if (remain > 1) {
       ref_x_prev = previous_path_x[previous_path_x.size()-2];
       ref_y_prev = previous_path_y[previous_path_y.size()-2];
@@ -180,25 +180,32 @@ void Vehicle::NextHybrid2()
     ref_yaw = atan2(delta_y, delta_x);
   }
 
-  double new_s1 = ref_s + 30;
-  double new_s2 = ref_s + 60;
-  double new_s3 = ref_s + 90;
-
-  auto xy1 = this->roadmap.getXY(new_s1, ref_d);
-  auto xy2 = this->roadmap.getXY(new_s2, ref_d);
-  auto xy3 = this->roadmap.getXY(new_s3, ref_d);
 
   vector<pair<double, double>> pts;
+  if (remain > 0) {
+    pts.push_back({ref_x_prev, ref_y_prev});
+  }
   pts.push_back({ref_x, ref_y});
-  pts.push_back({xy1[0], xy1[1]});
-  pts.push_back({xy2[0], xy2[1]});
-  pts.push_back({xy3[0], xy3[1]});
+
+  vector<double> next_s_points = {
+    this->car_s + 5,
+    this->car_s + 30,
+    this->car_s + 60,
+    this->car_s + 90
+  };
+
+  for (auto ns : next_s_points) {
+    auto xy = this->roadmap.getXY(ns, ref_d);
+    pts.push_back({xy[0], xy[1]});
+  }
 
   vector<pair<double, double>> pts_veh;
   for (auto pt : pts) {
     auto pt_veh = helper::convertToVehicleCoordinate(pt, ref_x, ref_y, ref_yaw);
     pts_veh.push_back(pt_veh);
   }
+
+  sort(pts_veh.begin(), pts_veh.end());
 
   vector<double> ptsx;
   vector<double> ptsy;
@@ -214,14 +221,14 @@ void Vehicle::NextHybrid2()
   double target_dist = sqrt(target_x * target_x + target_y * target_y);
 
   double x_step = 0;
-  for (int i=0; max_num - remain; ++i) {
+  for (int i=0; i < max_num - remain; ++i) {
     double heading = atan2(helper::nonzero(target_y,0.001), helper::nonzero(target_x,0.001));
-    x_step += (target_dist / ref_speed) * 0.02 * cos(heading);
+    x_step += ref_speed * 0.02 * cos(heading);
     double y_step = spl(x_step);
     
     auto xy = helper::convertToMapCoordinate({x_step, y_step}, ref_x, ref_y, ref_yaw);
     this->next_x_vals.push_back(xy.first);
-    this->next_x_vals.push_back(xy.second);
+    this->next_y_vals.push_back(xy.second);
   }
 }
 
