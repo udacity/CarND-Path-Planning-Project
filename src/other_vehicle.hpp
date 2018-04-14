@@ -28,6 +28,17 @@ class OtherVehicle {
     v = sqrt(vx*vx + vy*vy);
   }
 
+  OtherVehicle(const OtherVehicle& rhs) {
+    this->id = rhs.id;
+    this->x = rhs.x;
+    this->y = rhs.y;
+    this->vx = rhs.vx;
+    this->vy = rhs.vy;
+    this->v = rhs.v;
+    this->s = rhs.s;
+    this->d = rhs.d;
+  }
+
 };
 
 #endif
