@@ -100,21 +100,10 @@ int main() {
           double timestamp = chrono::duration_cast<chrono::milliseconds>(epoch).count();
           
           vehicle.Update(j, timestamp);
-          cout << "=============" << endl;
-          cout << "vehicle.car_s: " << vehicle.car_s << endl;
-          cout << "vehicle.car_d: " << vehicle.car_d << endl;
-          cout << "vehicle.car_x: " << vehicle.car_x << endl;
-          cout << "vehicle.car_y: " << vehicle.car_y << endl;
-          cout << "vehicle.car_x_d: " << vehicle.car_x_d << endl;
-          cout << "vehicle.car_y_d: " << vehicle.car_y_d << endl;
-          cout << "vehicle.car_x_dd: " << vehicle.car_x_dd << endl;
-          cout << "vehicle.car_y_dd: " << vehicle.car_y_dd << endl;
-          cout << "vehicle.acc: " << vehicle.acc << endl;
-          cout << "vehicle.car_speed: " << vehicle.car_speed << endl;
-          cout << "=============" << endl;
-
           vehicle.NextHybrid2();
-          vehicle.PrintPath();
+          // vehicle.PrintPath();
+          vehicle.PrintState();
+          vehicle.PrintNearest();
           json msgJson;
 
           vector<double> next_x_vals = vehicle.next_x_vals;

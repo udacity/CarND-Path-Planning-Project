@@ -94,10 +94,10 @@ void Vehicle::Update(json msg, double timestamp)
 
 void Vehicle::UpdateNearestVehicles()
 {
-  for (auto f : nearest_vehicles_front) {
+  for (auto &f : this->nearest_vehicles_front) {
     f.second.clear();
   }
-  for (auto r : nearest_vehicles_rear) {
+  for (auto &r : this->nearest_vehicles_rear) {
     r.second.clear();
   }
 
@@ -312,4 +312,43 @@ void Vehicle::PrintPath()
   {
     cout << "y: " << y << std::endl;
   }
+}
+
+void Vehicle::PrintState()
+{
+  cout << "============" << endl;
+  cout << "car_x: " << car_x << endl;
+  cout << "car_y: " << car_y << endl;
+  cout << "car_yaw: " << car_yaw << endl;
+  cout << "car_s: " << car_s << endl;
+  cout << "car_d: " << car_d << endl;
+  cout << "============" << endl;
+}
+
+void Vehicle::PrintNearest()
+{
+  cout << "============" << endl;
+  for (auto kv : nearest_vehicles_front) {
+    cout << "[Front] lane: " << kv.first;
+    if (kv.second.size() > 0) {
+      cout << " s: " << kv.second[0].s;
+      cout << " d: " << kv.second[0].d;
+      cout << " x: " << kv.second[0].x;
+      cout << " y: " << kv.second[0].y;
+      cout << " dist: " << kv.second[0].s - this->car_s;
+    }
+    cout << endl;
+  }
+  for (auto kv : nearest_vehicles_rear) {
+    cout << "[Rear] lane: " << kv.first;
+    if (kv.second.size() > 0) {
+      cout << " s: " << kv.second[0].s;
+      cout << " d: " << kv.second[0].d;
+      cout << " x: " << kv.second[0].x;
+      cout << " y: " << kv.second[0].y;
+      cout << " dist: " << this->car_s - kv.second[0].s;
+    }
+    cout << endl;
+  }
+  cout << "============" << endl;
 }

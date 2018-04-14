@@ -81,6 +81,8 @@ class Vehicle {
   void NextHybrid();
   void NextHybrid2();
   void PrintPath();
+  void PrintState();
+  void PrintNearest();
   double TargetD() { return 2. + 4. * this->lane; };
 
 };
