@@ -50,7 +50,7 @@ class Vehicle {
   double car_speed;
   double prev_car_speed;
   // meter/s
-  static constexpr double target_speed = convert_mph_ms(50.);
+  static constexpr double target_speed = convert_mph_ms(45.);
   // meter/s^2
   double acc;
   double prev_acc;
@@ -70,8 +70,8 @@ class Vehicle {
   vector<double> next_y_vals;
 
   RoadMap roadmap;
-  map<int, OtherVehicle> nearest_vehicles_front;
-  map<int, OtherVehicle> nearest_vehicles_rear;
+  map<int, vector<OtherVehicle>> nearest_vehicles_front;
+  map<int, vector<OtherVehicle>> nearest_vehicles_rear;
 
   void Init();
   void Update(json msg, double timestamp);

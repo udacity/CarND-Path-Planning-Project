@@ -50,4 +50,12 @@ inline bool operator== (const OtherVehicle& lhs, const OtherVehicle& rhs) {
   return lhs.id == rhs.id;
 }
 
+inline bool sortByS(const OtherVehicle& lhs, const OtherVehicle& rhs) {
+  return lhs.s < rhs.s;
+}
+
+inline bool sortBySDSC(const OtherVehicle& lhs, const OtherVehicle& rhs) {
+  return lhs.s > rhs.s;
+}
+
 #endif

@@ -88,19 +88,19 @@ void Vehicle::Update(json msg, double timestamp)
   ++(this->update_count);
 
   this->prev_acc = this->acc;
-  if (this->car_speed < Vehicle::target_speed) {
-    this->acc = 1;
-  } else {
-    this->acc = 0;
-  }
-
   this->UpdateNearestVehicles();
+
 }
 
 void Vehicle::UpdateNearestVehicles()
 {
-  vector<double> nearest_in_front = {10000, 10000, 10000};
-  vector<double> nearest_in_rear = {10000, 10000, 10000};
+  for (auto f : nearest_vehicles_front) {
+    f.second.clear();
+  }
+  for (auto r : nearest_vehicles_rear) {
+    r.second.clear();
+  }
+
   for (auto sf : this->sensor_fusion) {
     OtherVehicle ov;
     ov.Init(sf);
@@ -111,22 +111,25 @@ void Vehicle::UpdateNearestVehicles()
         ov_lane = lane;
         break;
       }
-      double distance = ov.s - this->car_s;
-      if (distance > 0) {
-        auto min_dist = nearest_in_front[ov_lane];
-        if (distance < min_dist) {
-          nearest_in_front[ov_lane] = distance;
-          this->nearest_vehicles_front[ov_lane] = ov;
-        }
-      } else {
-        distance = fabs(distance);
-        auto min_dist = nearest_in_rear[ov_lane];
-        if (distance < min_dist) {
-          nearest_in_rear[ov_lane] = distance;
-          this->nearest_vehicles_rear[ov_lane] = ov;
-        }
-      }
     }
+    double distance = ov.s - this->car_s;
+    if (distance > 0)
+    {
+      this->nearest_vehicles_front[ov_lane].push_back(ov);
+    }
+    else
+    {
+      this->nearest_vehicles_rear[ov_lane].push_back(ov);
+    }
+  }
+
+  // Sort by S.
+  for (auto &fvs : nearest_vehicles_front) {
+    sort(fvs.second.begin(), fvs.second.end(), sortByS);
+  }
+
+  for (auto &rvs : nearest_vehicles_rear) {
+    sort(rvs.second.begin(), rvs.second.end(), sortBySDSC);
   }
 }
 
@@ -190,7 +193,6 @@ void Vehicle::NextHybrid2()
   double ref_yaw = this->car_yaw;
   double ref_s = this->car_s;
   double ref_d = 2 + this->lane * 4;
-  double ref_speed = convert_mph_ms(45);
   double t = 0.02;
 
   if (remain > 0) {
@@ -222,10 +224,10 @@ void Vehicle::NextHybrid2()
   pts.push_back({ref_x, ref_y});
 
   vector<double> next_s_points = {
-    this->car_s + 5,
-    this->car_s + 30,
-    this->car_s + 60,
-    this->car_s + 90
+    ref_s + 5,
+    ref_s + 30,
+    ref_s + 60,
+    ref_s + 90
   };
 
   for (auto ns : next_s_points) {
@@ -243,21 +245,53 @@ void Vehicle::NextHybrid2()
 
   vector<double> ptsx;
   vector<double> ptsy;
+  double prevx = -10000;
   for (auto pt_veh : pts_veh) {
-    ptsx.push_back(pt_veh.first);
+    double x = pt_veh.first;
+    // Spline rejects if dx = 0;
+    if (pt_veh.first == prevx) {
+      x += 0.001;
+    }
+    prevx = x;
+    ptsx.push_back(x);
     ptsy.push_back(pt_veh.second);
   }
   tk::spline spl;
   spl.set_points(ptsx, ptsy);
 
-  double target_x = 30;
-  double target_y = spl(target_x);
-  double target_dist = sqrt(target_x * target_x + target_y * target_y);
+  bool too_close = false;
+  auto front_veh = this->nearest_vehicles_front[lane];
+  if (front_veh.size() > 0) {
+    double dist = front_veh[0].s - this->car_s;
+    if (dist < 30) {
+      too_close = true;
+    }
+  }
 
-  double x_step = 0;
+  double ref_speed = car_speed;
+
+  if (too_close && this->car_speed > 20) {
+    ref_speed -= 1;
+  } else {
+    if (ref_speed > Vehicle::target_speed) {
+      ref_speed -= 1;
+    } else {
+      ref_speed += 1;
+    }
+  }
+  
+  cout << "too close: " << too_close << endl;
+  cout << "ref_speed: " << ref_speed << endl;
+
+  double s_step = ref_s;
   for (int i=0; i < max_num - remain; ++i) {
-    double heading = atan2(helper::nonzero(target_y,0.001), helper::nonzero(target_x,0.001));
-    x_step += ref_speed * 0.02 * cos(heading);
+    s_step = s_step + ref_speed * 0.02;
+    cout << "s_step: " << s_step << endl;
+    auto xy1 = this->roadmap.getXY(s_step, ref_d);
+    cout << "veh_pred: x " << xy1[0] << " y : " << xy1[1] << endl;
+    auto xy2 = helper::convertToVehicleCoordinate({xy1[0], xy1[1]}, ref_x, ref_y, ref_yaw);
+
+    double x_step = xy2.first;
     double y_step = spl(x_step);
     
     auto xy = helper::convertToMapCoordinate({x_step, y_step}, ref_x, ref_y, ref_yaw);
