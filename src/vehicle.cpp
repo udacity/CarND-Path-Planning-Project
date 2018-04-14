@@ -94,6 +94,40 @@ void Vehicle::Update(json msg, double timestamp)
     this->acc = 0;
   }
 
+  this->UpdateNearestVehicles();
+}
+
+void Vehicle::UpdateNearestVehicles()
+{
+  vector<double> nearest_in_front = {10000, 10000, 10000};
+  vector<double> nearest_in_rear = {10000, 10000, 10000};
+  for (auto sf : this->sensor_fusion) {
+    OtherVehicle ov;
+    ov.Init(sf);
+    double ov_lane = 0;
+    for (int lane=0; lane<3; ++lane) {
+      double lane_d = 2. + 4 * lane;
+      if (lane_d -2 <= ov.d && ov.d < lane_d + 2) {
+        ov_lane = lane;
+        break;
+      }
+      double distance = ov.s - this->car_s;
+      if (distance > 0) {
+        auto min_dist = nearest_in_front[ov_lane];
+        if (distance < min_dist) {
+          nearest_in_front[ov_lane] = distance;
+          this->nearest_vehicles_front[ov_lane] = ov;
+        }
+      } else {
+        distance = fabs(distance);
+        auto min_dist = nearest_in_rear[ov_lane];
+        if (distance < min_dist) {
+          nearest_in_rear[ov_lane] = distance;
+          this->nearest_vehicles_rear[ov_lane] = ov;
+        }
+      }
+    }
+  }
 }
 
 void Vehicle::Next()

@@ -28,6 +28,7 @@ class OtherVehicle {
     v = sqrt(vx*vx + vy*vy);
   }
 
+  OtherVehicle() {}
   OtherVehicle(const OtherVehicle& rhs) {
     this->id = rhs.id;
     this->x = rhs.x;
@@ -40,5 +41,13 @@ class OtherVehicle {
   }
 
 };
+
+inline bool operator< (const OtherVehicle& lhs, const OtherVehicle& rhs) {
+  return lhs.id < rhs.id;
+}
+
+inline bool operator== (const OtherVehicle& lhs, const OtherVehicle& rhs) {
+  return lhs.id == rhs.id;
+}
 
 #endif
