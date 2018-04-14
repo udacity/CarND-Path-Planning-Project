@@ -227,7 +227,7 @@ void Vehicle::NextHybrid2()
     ref_s + 5,
     ref_s + 30,
     ref_s + 60,
-    ref_s + 90
+    // ref_s + 90
   };
 
   for (auto ns : next_s_points) {
@@ -261,6 +261,7 @@ void Vehicle::NextHybrid2()
 
   bool too_close = false;
   auto front_veh = this->nearest_vehicles_front[lane];
+  double dist = 10000;
   if (front_veh.size() > 0) {
     double dist = front_veh[0].s - this->car_s;
     if (dist < 30) {
@@ -270,8 +271,10 @@ void Vehicle::NextHybrid2()
 
   double ref_speed = car_speed;
 
-  if (too_close && this->car_speed > 20) {
-    ref_speed -= 1;
+  if (too_close) {
+    if (this->car_speed > 20) {
+      ref_speed -= 2;
+    }
   } else {
     if (ref_speed > Vehicle::target_speed) {
       ref_speed -= 1;
@@ -283,15 +286,14 @@ void Vehicle::NextHybrid2()
   cout << "too close: " << too_close << endl;
   cout << "ref_speed: " << ref_speed << endl;
 
-  double s_step = ref_s;
+  double target_x = 30;
+  double target_y = spl(target_x);
+  double target_dist = sqrt(target_x * target_x + target_y * target_y);
+  double N = target_dist / (0.02 * ref_speed);
+  double x_diff = target_x / N;
+  double x_step = 0;
   for (int i=0; i < max_num - remain; ++i) {
-    s_step = s_step + ref_speed * 0.02;
-    cout << "s_step: " << s_step << endl;
-    auto xy1 = this->roadmap.getXY(s_step, ref_d);
-    cout << "veh_pred: x " << xy1[0] << " y : " << xy1[1] << endl;
-    auto xy2 = helper::convertToVehicleCoordinate({xy1[0], xy1[1]}, ref_x, ref_y, ref_yaw);
-
-    double x_step = xy2.first;
+    x_step += x_diff;
     double y_step = spl(x_step);
     
     auto xy = helper::convertToMapCoordinate({x_step, y_step}, ref_x, ref_y, ref_yaw);
