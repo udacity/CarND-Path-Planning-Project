@@ -75,7 +75,8 @@ class Vehicle {
   map<int, vector<OtherVehicle>> nearest_vehicles_front;
   map<int, vector<OtherVehicle>> nearest_vehicles_rear;
 
-  PID front_dist_PID;
+  PID front_dist_PID = PID(0.4, 0.05, 0.01);
+  PID center_PID = PID(0.5, 0.1, 0.05);
 
   void Init();
   void Update(json msg, double timestamp);

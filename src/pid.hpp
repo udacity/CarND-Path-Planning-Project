@@ -12,7 +12,7 @@ class PID {
   double cte_sum;
   bool has_prev;
 
-  PID() {
+  PID(double kp, double kd, double ki) {
     this->kp = 0.4;
     this->kd = 0.05;
     this->ki = 0.01;

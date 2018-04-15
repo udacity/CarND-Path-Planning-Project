@@ -222,13 +222,18 @@ void Vehicle::NextHybrid2()
     pts.push_back({ref_x_prev, ref_y_prev});
   }
   pts.push_back({ref_x, ref_y});
-
+  
   vector<double> next_s_points = {
-    ref_s + 10,
+    ref_s + 15,
     ref_s + 30,
     ref_s + 60,
     ref_s + 90
   };
+
+  double center_error = 2. + lane * 4. - this->car_d;
+  double rev_center = this->center_PID.Update(center_error) * 0.1;
+  cout << "rev_center: " << rev_center << endl;
+  ref_d += rev_center;
 
   for (auto ns : next_s_points) {
     auto xy = this->roadmap.getXY(ns, ref_d);
