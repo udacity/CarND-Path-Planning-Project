@@ -94,6 +94,8 @@ void Vehicle::Update(json msg, double timestamp)
     NextKL();
   } else if (this->state == LCL) {
     NextLC();
+  } else if (this->state == LCR) {
+    NextLC();
   }
 }
 
@@ -306,10 +308,18 @@ void Vehicle::NextKL()
 
   cout << "too close: " << too_close << endl;
   cout << "ref_speed: " << _ref_speed << endl;
-  if (too_close && this->LeftOpen()) {
+  if (too_close && this->LaneChangeAvailable(-1)) {
     cout << "LCL start" <<endl;
     this->lane -= 1;
     this->state = LCL;
+    this->NextLC();
+    return;
+  }
+  if (too_close && this->LaneChangeAvailable(1)) {
+    cout << "LCR start" <<endl;
+    this->lane += 1;
+    this->state = LCR;
+    this->NextLC();
     return;
   }
 
@@ -334,7 +344,7 @@ void Vehicle::NextLC() {
   this->next_x_vals.clear();
   this->next_y_vals.clear();
 
-  int max_num = 150;
+  int max_num = 100;
   int remain = this->previous_path_x.size();
 
   double ref_x = this->car_x;
@@ -445,36 +455,52 @@ void Vehicle::NextLC() {
   }
 }
 
-bool Vehicle::LeftOpen() {
-  if (lane == 0) {
+bool Vehicle::LaneChangeAvailable(int lane_diff) {
+  int target_lane = lane + lane_diff;
+  if (target_lane < 0 || 2 < target_lane) {
     return false;
   }
   double mergin = 2;
-  bool rear_open = false;
-  auto ovs_r = this->nearest_vehicles_rear[lane-1];
+
+  bool front_open = false;
+  auto ovs = this->nearest_vehicles_front[lane];
+  if (ovs.size() == 0) {
+    front_open = true;
+  } else {
+    auto ov = ovs[0];
+    double diff_s = ov.s - this->car_s - mergin;
+    double diff_v = this->car_speed - ov.v;
+    double t = diff_s / diff_v;
+    front_open = 0 < t && t < 3;
+  }
+
+
+  bool t_rear_open = false;
+  auto ovs_r = this->nearest_vehicles_rear[target_lane];
   if (ovs_r.size() == 0) {
-    rear_open = true;
+    t_rear_open = true;
   } else {
     auto ov_r = ovs_r[0];
     double diff_s = this->car_s - ov_r.s - mergin;
-    double diff_v = this->car_speed - ov_r.v;
-    rear_open = diff_s / diff_v < 3;
+    double diff_v = ov_r.v - this->car_speed;
+    double t = diff_s / diff_v;
+    t_rear_open = 0 < t && t < 3;
   }
   
-  bool front_open = false;
-  auto ovs_f = this->nearest_vehicles_front[lane-1];
+  bool t_front_open = false;
+  auto ovs_f = this->nearest_vehicles_front[target_lane];
   if (ovs_f.size() == 0) {
-    front_open = true;
+    t_front_open = true;
   } else {
     auto ov_f = ovs_f[0];
     double diff_s = ov_f.s - this->car_s - mergin;
-    double diff_v = ov_f.v - this->car_speed;
-    front_open = diff_s / diff_v < 3;
+    double diff_v = this->car_speed - ov_f.v;
+    double t = diff_s / diff_v;
+    t_front_open = 0 < t && t < 3;
   }
   
-  return rear_open && front_open;
+  return t_rear_open && t_front_open;
 }
-
 void Vehicle::PrintPath()
 {
   for (auto x : this->next_x_vals)

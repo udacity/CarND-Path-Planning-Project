@@ -94,8 +94,7 @@ class Vehicle {
   void NextKL();
   void NextLC();
 
-  bool LeftOpen();
-  bool RightOpen();
+  bool LaneChangeAvailable(int lane);
 
   void PrintPath();
   void PrintState();
