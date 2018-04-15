@@ -269,15 +269,7 @@ void Vehicle::NextHybrid2()
     }
   }
 
-
-  double prev_ref_speed = this->ref_speed;
   double _ref_speed = this->car_speed;
-  if (remain > 0) {
-    _ref_speed = prev_ref_speed;
-    cout << "car_speed: " << this->car_speed << endl;
-    cout << "_ref_speed: " << _ref_speed << endl;
-    cout << "remain: " << remain << endl;
-  }
 
   if (too_close) {
     double pid_ret = this->front_dist_PID.Update(30 - dist);
@@ -299,7 +291,6 @@ void Vehicle::NextHybrid2()
       _ref_speed += 0.5;
     }
   }
-  this->ref_speed = _ref_speed;
 
   cout << "too close: " << too_close << endl;
   cout << "ref_speed: " << _ref_speed << endl;

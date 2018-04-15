@@ -50,7 +50,6 @@ class Vehicle {
   // meter/s
   double car_speed;
   double prev_car_speed;
-  double ref_speed;
 
   // meter/s
   static constexpr double target_speed = convert_mph_ms(45.);
