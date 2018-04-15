@@ -5,6 +5,7 @@
 #include "json.hpp"
 #include "roadmap.hpp"
 #include "other_vehicle.hpp"
+#include "pid.hpp"
 
 using namespace std;
 using json = nlohmann::json;
@@ -49,6 +50,8 @@ class Vehicle {
   // meter/s
   double car_speed;
   double prev_car_speed;
+  double ref_speed;
+
   // meter/s
   static constexpr double target_speed = convert_mph_ms(45.);
   // meter/s^2
@@ -72,6 +75,8 @@ class Vehicle {
   RoadMap roadmap;
   map<int, vector<OtherVehicle>> nearest_vehicles_front;
   map<int, vector<OtherVehicle>> nearest_vehicles_rear;
+
+  PID front_dist_PID;
 
   void Init();
   void Update(json msg, double timestamp);

@@ -183,7 +183,7 @@ void Vehicle::NextHybrid2()
   this->next_x_vals.clear();
   this->next_y_vals.clear();
 
-  int max_num = 50;
+  int max_num = 20;
   int remain = this->previous_path_x.size();
 
   double ref_x = this->car_x;
@@ -263,33 +263,51 @@ void Vehicle::NextHybrid2()
   auto front_veh = this->nearest_vehicles_front[lane];
   double dist = 10000;
   if (front_veh.size() > 0) {
-    double dist = front_veh[0].s - this->car_s;
+    dist = front_veh[0].s - this->car_s;
     if (dist < 30) {
       too_close = true;
     }
   }
 
-  double ref_speed = car_speed;
+
+  double prev_ref_speed = this->ref_speed;
+  double _ref_speed = this->car_speed;
+  if (remain > 0) {
+    _ref_speed = prev_ref_speed;
+    cout << "car_speed: " << this->car_speed << endl;
+    cout << "_ref_speed: " << _ref_speed << endl;
+    cout << "remain: " << remain << endl;
+  }
 
   if (too_close) {
-    if (this->car_speed > 20) {
-      ref_speed -= 3;
+    double pid_ret = this->front_dist_PID.Update(30 - dist);
+    cout << "pid_ret: " << pid_ret << endl;
+    double ds = pid_ret * 0.5 * -1.;
+    if (ds < -0.5) {
+      ds = -0.5;
+    }
+    if (ds > 0.5) {
+      ds = 0.5;
+    }
+    if (_ref_speed + ds > 0) {
+      _ref_speed += ds;
     }
   } else {
-    if (ref_speed > Vehicle::target_speed) {
-      ref_speed -= 1;
+    if (_ref_speed > Vehicle::target_speed) {
+      _ref_speed -= 0.5;
     } else {
-      ref_speed += 1;
+      _ref_speed += 0.5;
     }
   }
-  
+  this->ref_speed = _ref_speed;
+
   cout << "too close: " << too_close << endl;
-  cout << "ref_speed: " << ref_speed << endl;
+  cout << "ref_speed: " << _ref_speed << endl;
 
   double target_x = 30;
   double target_y = spl(target_x);
   double target_dist = sqrt(target_x * target_x + target_y * target_y);
-  double N = target_dist / (0.02 * ref_speed);
+  double N = target_dist / (0.02 * _ref_speed);
   double x_diff = target_x / N;
   double x_step = 0;
   for (int i=0; i < max_num - remain; ++i) {
