@@ -90,6 +90,11 @@ void Vehicle::Update(json msg, double timestamp)
   this->prev_acc = this->acc;
   this->UpdateNearestVehicles();
 
+  if (this->state == KL) {
+    NextKL();
+  } else if (this->state == LCL) {
+    NextLC();
+  }
 }
 
 void Vehicle::UpdateNearestVehicles()
@@ -177,9 +182,8 @@ void Vehicle::Next()
   }
 }
 
-void Vehicle::NextHybrid2()
+void Vehicle::NextKL()
 {
-  cout << "NextHybrid2()" << endl;
   this->next_x_vals.clear();
   this->next_y_vals.clear();
 
@@ -264,19 +268,22 @@ void Vehicle::NextHybrid2()
   tk::spline spl;
   spl.set_points(ptsx, ptsy);
 
-  bool too_close = false;
   auto front_veh = this->nearest_vehicles_front[lane];
   double dist = 10000;
   if (front_veh.size() > 0) {
     dist = front_veh[0].s - this->car_s;
     if (dist < 30) {
-      too_close = true;
+      this->too_close = true;
+    } else {
+      this->too_close = false;
     }
+  } else {
+    this->too_close = false;
   }
 
   double _ref_speed = this->car_speed;
 
-  if (too_close) {
+  if (this->too_close) {
     double pid_ret = this->front_dist_PID.Update(30 - dist);
     cout << "pid_ret: " << pid_ret << endl;
     double ds = pid_ret * 0.5 * -1.;
@@ -299,6 +306,12 @@ void Vehicle::NextHybrid2()
 
   cout << "too close: " << too_close << endl;
   cout << "ref_speed: " << _ref_speed << endl;
+  if (too_close && this->LeftOpen()) {
+    cout << "LCL start" <<endl;
+    this->lane -= 1;
+    this->state = LCL;
+    return;
+  }
 
   double target_x = 30;
   double target_y = spl(target_x);
@@ -314,6 +327,152 @@ void Vehicle::NextHybrid2()
     this->next_x_vals.push_back(xy.first);
     this->next_y_vals.push_back(xy.second);
   }
+
+}
+
+void Vehicle::NextLC() {
+  this->next_x_vals.clear();
+  this->next_y_vals.clear();
+
+  int max_num = 150;
+  int remain = this->previous_path_x.size();
+
+  double ref_x = this->car_x;
+  double ref_y = this->car_y;
+  double ref_x_prev = 0;
+  double ref_y_prev = 0;
+  double ref_yaw = this->car_yaw;
+  double ref_s = this->car_s;
+  double ref_d_old = this->car_s;
+  double ref_d = 2 + lane * 4;
+  double ref_speed = this->car_speed;
+
+  if (fabs(this->car_d - ref_d) < 0.5) {
+    this->state = KL;
+    this->NextKL();
+    return;
+  }
+
+  if (remain > 0) {
+    for (int i=0; i<remain; ++i) {
+      this->next_x_vals.push_back(this->previous_path_x[i]);
+      this->next_y_vals.push_back(this->previous_path_y[i]);
+    }
+    ref_s = this->end_path_s;
+    ref_d_old = this->end_path_d;
+    ref_x = this->previous_path_x.back();
+    ref_y = this->previous_path_y.back();
+    if (remain > 1) {
+      ref_x_prev = previous_path_x[previous_path_x.size()-2];
+      ref_y_prev = previous_path_y[previous_path_y.size()-2];
+    } else {
+      ref_x_prev = this->car_x;
+      ref_y_prev = this->car_y;
+    }
+    double delta_x = helper::nonzero(ref_x - ref_x_prev, 0.001);
+    double delta_y = helper::nonzero(ref_y - ref_y_prev, 0.001);
+    ref_yaw = atan2(delta_y, delta_x);
+  }
+
+  vector<pair<double, double>> pts;
+  if (remain > 0) {
+    pts.push_back({ref_x_prev, ref_y_prev});
+  }
+  pts.push_back({ref_x, ref_y});
+
+  vector<double> next_s_points = {
+    ref_s + ref_speed * 1,
+    ref_s + ref_speed * 2,
+    ref_s + ref_speed * 3,
+  };
+
+  auto coeffs = helper::JMT({ref_d_old, 0, 0}, {ref_d, 0, 0}, 3);
+  vector<double> next_d_points;
+  for (int i=1; i<=3; ++i) {
+    double next_d = 0;
+    for (int j=0; j<coeffs.size(); ++j) {
+      double c = coeffs[j];
+      next_d = next_d + c * pow(i, j);
+    }
+    next_d_points.push_back(next_d);
+  }
+  for (int i=0; i<next_s_points.size(); ++i) {
+    double ns = next_s_points[i];
+    double nd = next_d_points[i];
+    auto xy = this->roadmap.getXY(ns, nd);
+    pts.push_back({xy[0], xy[1]});
+  }
+
+  vector<pair<double, double>> pts_veh;
+  for (auto pt : pts) {
+    auto pt_veh = helper::convertToVehicleCoordinate(pt, ref_x, ref_y, ref_yaw);
+    pts_veh.push_back(pt_veh);
+  }
+
+  sort(pts_veh.begin(), pts_veh.end());
+
+  vector<double> ptsx;
+  vector<double> ptsy;
+  double prevx = -10000;
+  for (auto pt_veh : pts_veh) {
+    double x = pt_veh.first;
+    // Spline rejects if dx = 0;
+    if (pt_veh.first == prevx) {
+      x += 0.001;
+    }
+    prevx = x;
+    ptsx.push_back(x);
+    ptsy.push_back(pt_veh.second);
+  }
+  tk::spline spl;
+  spl.set_points(ptsx, ptsy);
+
+  double _ref_speed = this->car_speed;
+
+  double target_x = 30;
+  double target_y = spl(target_x);
+  double target_dist = sqrt(target_x * target_x + target_y * target_y);
+  double N = target_dist / (0.02 * _ref_speed);
+  double x_diff = target_x / N;
+  double x_step = 0;
+  for (int i=0; i < max_num - remain; ++i) {
+    x_step += x_diff;
+    double y_step = spl(x_step);
+    
+    auto xy = helper::convertToMapCoordinate({x_step, y_step}, ref_x, ref_y, ref_yaw);
+    this->next_x_vals.push_back(xy.first);
+    this->next_y_vals.push_back(xy.second);
+  }
+}
+
+bool Vehicle::LeftOpen() {
+  if (lane == 0) {
+    return false;
+  }
+  double mergin = 2;
+  bool rear_open = false;
+  auto ovs_r = this->nearest_vehicles_rear[lane-1];
+  if (ovs_r.size() == 0) {
+    rear_open = true;
+  } else {
+    auto ov_r = ovs_r[0];
+    double diff_s = this->car_s - ov_r.s - mergin;
+    double diff_v = this->car_speed - ov_r.v;
+    rear_open = diff_s / diff_v < 3;
+  }
+  
+  bool front_open = false;
+  auto ovs_f = this->nearest_vehicles_front[lane-1];
+  if (ovs_f.size() == 0) {
+    front_open = true;
+  } else {
+    auto ov_f = ovs_f[0];
+    double diff_s = ov_f.s - this->car_s - mergin;
+    double diff_v = ov_f.v - this->car_speed;
+    front_open = diff_s / diff_v < 3;
+  }
+  
+  return rear_open && front_open;
 }
 
 void Vehicle::PrintPath()

@@ -100,8 +100,6 @@ int main() {
           double timestamp = chrono::duration_cast<chrono::milliseconds>(epoch).count();
           
           vehicle.Update(j, timestamp);
-          vehicle.NextHybrid2();
-          // vehicle.PrintPath();
           vehicle.PrintState();
           vehicle.PrintNearest();
           json msgJson;

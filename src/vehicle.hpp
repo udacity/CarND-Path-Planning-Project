@@ -20,6 +20,12 @@ constexpr inline double convert_ms_mph(double ms) {
   return (ms / mile_in_meter) * 3600.;
 }
 
+enum State {
+  KL,
+  LCL,
+  LCR
+};
+
 class Vehicle {
   public:
   double car_x;
@@ -78,13 +84,19 @@ class Vehicle {
   PID front_dist_PID = PID(0.4, 0.05, 0.01);
   PID center_PID = PID(0.5, 0.1, 0.05);
 
+  bool too_close = false;
+  State state = State::KL;
+
   void Init();
   void Update(json msg, double timestamp);
   void UpdateNearestVehicles();
   void Next();
-  void NextJMT();
-  void NextHybrid();
-  void NextHybrid2();
+  void NextKL();
+  void NextLC();
+
+  bool LeftOpen();
+  bool RightOpen();
+
   void PrintPath();
   void PrintState();
   void PrintNearest();
