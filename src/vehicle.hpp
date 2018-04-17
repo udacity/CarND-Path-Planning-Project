@@ -86,6 +86,7 @@ class Vehicle {
 
   bool too_close = false;
   State state = State::KL;
+  State prev_state = State::KL;
 
   void Init();
   void Update(json msg, double timestamp);
@@ -93,6 +94,7 @@ class Vehicle {
   void Next();
   void NextKL();
   void NextLC();
+  void SetState(State newState);
 
   bool LaneChangeAvailable(int lane);
 

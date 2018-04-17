@@ -202,17 +202,23 @@ void Vehicle::NextKL()
   double t = 0.02;
 
   if (remain > 0) {
+    // If previous status is LCL or LCR, only use first part of previous path.
+    if (prev_state != KL) {
+      if (remain > 10) {
+        remain = 10;
+      }
+    }
     for (int i=0; i<remain; ++i) {
       this->next_x_vals.push_back(this->previous_path_x[i]);
       this->next_y_vals.push_back(this->previous_path_y[i]);
     }
     ref_s = this->end_path_s;
     ref_d = this->end_path_d;
-    ref_x = this->previous_path_x.back();
-    ref_y = this->previous_path_y.back();
+    ref_x = this->previous_path_x[remain-1];
+    ref_y = this->previous_path_y[remain-1];
     if (remain > 1) {
-      ref_x_prev = previous_path_x[previous_path_x.size()-2];
-      ref_y_prev = previous_path_y[previous_path_y.size()-2];
+      ref_x_prev = previous_path_x[remain-2];
+      ref_y_prev = previous_path_y[remain-2];
     } else {
       ref_x_prev = this->car_x;
       ref_y_prev = this->car_y;
@@ -311,14 +317,14 @@ void Vehicle::NextKL()
   if (too_close && this->LaneChangeAvailable(-1)) {
     cout << "LCL start" <<endl;
     this->lane -= 1;
-    this->state = LCL;
+    this->SetState(LCL);
     this->NextLC();
     return;
   }
   if (too_close && this->LaneChangeAvailable(1)) {
     cout << "LCR start" <<endl;
     this->lane += 1;
-    this->state = LCR;
+    this->SetState(LCR);
     this->NextLC();
     return;
   }
@@ -344,7 +350,7 @@ void Vehicle::NextLC() {
   this->next_x_vals.clear();
   this->next_y_vals.clear();
 
-  int max_num = 100;
+  int max_num = 150;
   int remain = this->previous_path_x.size();
 
   double ref_x = this->car_x;
@@ -358,7 +364,7 @@ void Vehicle::NextLC() {
   double ref_speed = this->car_speed;
 
   if (fabs(this->car_d - ref_d) < 0.5) {
-    this->state = KL;
+    this->SetState(KL);
     this->NextKL();
     return;
   }
@@ -469,9 +475,13 @@ bool Vehicle::LaneChangeAvailable(int lane_diff) {
   } else {
     auto ov = ovs[0];
     double diff_s = ov.s - this->car_s - mergin;
-    double diff_v = this->car_speed - ov.v;
-    double t = diff_s / diff_v;
-    front_open = 0 < t && t < 3;
+    front_open = diff_s > 20;
+    // if (diff_s - mergin > 0) {
+    //   diff_s -= mergin;
+    // }
+    // double diff_v = this->car_speed - ov.v;
+    // double t = diff_s / diff_v;
+    // front_open = 0 < t && t < 3;
   }
 
 
@@ -481,10 +491,15 @@ bool Vehicle::LaneChangeAvailable(int lane_diff) {
     t_rear_open = true;
   } else {
     auto ov_r = ovs_r[0];
-    double diff_s = this->car_s - ov_r.s - mergin;
-    double diff_v = ov_r.v - this->car_speed;
-    double t = diff_s / diff_v;
-    t_rear_open = 0 < t && t < 3;
+    double diff_s = this->car_s - ov_r.s;
+
+    t_rear_open = diff_s > 20;
+    // if (diff_s - mergin > 0) {
+    //   diff_s = diff_s - mergin;
+    // }
+    // double diff_v = ov_r.v - this->car_speed;
+    // double t = diff_s / diff_v;
+    // t_rear_open = 0 < t && t < 3 && diff_s > 10;
   }
   
   bool t_front_open = false;
@@ -493,13 +508,18 @@ bool Vehicle::LaneChangeAvailable(int lane_diff) {
     t_front_open = true;
   } else {
     auto ov_f = ovs_f[0];
-    double diff_s = ov_f.s - this->car_s - mergin;
-    double diff_v = this->car_speed - ov_f.v;
-    double t = diff_s / diff_v;
-    t_front_open = 0 < t && t < 3;
+    double diff_s = ov_f.s - this->car_s;
+
+    t_front_open = diff_s > 30;
+    // if (diff_s - mergin > 0) {
+    //   diff_s -= mergin;
+    // }
+    // double diff_v = this->car_speed - ov_f.v;
+    // double t = diff_s / diff_v;
+    // t_front_open = 0 < t && t < 3 && diff_s > 30;
   }
   
-  return t_rear_open && t_front_open;
+  return front_open && t_rear_open && t_front_open;
 }
 void Vehicle::PrintPath()
 {
@@ -511,6 +531,11 @@ void Vehicle::PrintPath()
   {
     cout << "y: " << y << std::endl;
   }
+}
+
+void Vehicle::SetState(State newState) {
+  this->prev_state = this->state;
+  this->state = newState;
 }
 
 void Vehicle::PrintState()
