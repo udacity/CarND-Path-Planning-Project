@@ -52,7 +52,7 @@ void Vehicle::updateVehicleState(double x, double y, double s, double d, double 
 
 
 /* Trajectory Generation */
-std::vector<std::vector<double>> Vehicle::getTrajectory()
+std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
 {
     // START -- Intermediate Planner
     int prev_size = previousPathX.size();
@@ -230,18 +230,22 @@ std::vector<std::vector<double>> Vehicle::getTrajectory()
     };
 }
 
+std::vector<std::vector<double>> Vehicle::getJerkMinimizedTrajectory()
+{
+    
+}
+
 
 void Vehicle::printVehicleHealth()
 {
     std::cout << "START Vehicle Health: " << std::endl;
-    std::cout << "X: " << ego.getX() << std::endl;
-    std::cout << "Y: " << ego.getY() << std::endl;
-    std::cout << "S: " << ego.getS() << std::endl;
-    std::cout << "D: " << ego.getD() << std::endl;
-    std::cout << "YAW: " << ego.getYaw() << std::endl;
-    std::cout << "SPEED: " << ego.getSpeed() << std::endl;
-    std::cout << "Length of SF: " << ego.getSF().size() << std::endl;
-    std::cout << "Sensor Fusion: " << sensor_fusion << std::endl;
+    std::cout << "X: " << x << std::endl;
+    std::cout << "Y: " << y << std::endl;
+    std::cout << "S: " << s << std::endl;
+    std::cout << "D: " << d << std::endl;
+    std::cout << "YAW: " << yaw << std::endl;
+    std::cout << "SPEED: " << speed << std::endl;
+    std::cout << "Length of SF: " << sensorFusion.size() << std::endl;
     std::cout << "END Vehicle Health" << std::endl;
     std::cout << std::endl;
 }

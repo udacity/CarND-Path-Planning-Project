@@ -126,8 +126,9 @@ int main() {
                     ego.printVehicleHealth();
                     
                     json msgJson;
-                    msgJson["next_x"] = ego.getTrajectory()[0];
-                    msgJson["next_y"] = ego.getTrajectory()[1];
+                    auto trajectory = ego.getSmoothSplineTrajectory();
+                    msgJson["next_x"] = trajectory[0];
+                    msgJson["next_y"] = trajectory[1];
 
                     auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
