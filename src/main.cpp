@@ -123,7 +123,7 @@ int main() {
 
                     /* Update vehicle state */
                     ego.updateVehicleState(car_x, car_y, car_s, car_d, car_yaw, car_speed, previous_path_x, previous_path_y, end_path_s, end_path_d, sensor_fusion);
-                    ego.printVehicleHealth();
+                    // ego.printVehicleHealth();
                     
                     json msgJson;
                     auto trajectory = ego.getSmoothSplineTrajectory();
