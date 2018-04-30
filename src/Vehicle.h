@@ -27,7 +27,7 @@ public:
     std::vector<std::vector<double>> getSmoothSplineTrajectory();
     std::vector<std::vector<double>> getJerkMinimizedTrajectory();
 
-    /* Getters and Setters */
+    /* Setters */
     void setLane(int lane);
     void setX(double x);
     void setY(double y);
@@ -36,6 +36,7 @@ public:
     void setYaw(double yaw);
     void setSpeed(double speed);
 
+    /* Getters */
     int getLane() const;
     double getX() const;
     double getY() const;
@@ -45,9 +46,12 @@ public:
     double getSpeed() const;
     std::vector<std::vector<double>> getSF() const;
 
+    /* Debug */
     void printVehicleHealth();
 
 private: 
+    int getVehicleFromSensorFusion();
+
     // 0 = left
     // 1 = middle
     // 2 = right
@@ -67,13 +71,6 @@ private:
     double endPathS;
     double endPathD;
 
-    // car's unique ID
-    // car's x position in map coordinates
-    // car's y position in map coordinates
-    // car's x velocity in m/s
-    // car's y velocity in m/s
-    // car's s position in frenet coordinates
-    // car's d position in frenet coordinates
     std::vector<std::vector<double>> sensorFusion;
 
     std::vector<double> trajectoryX;

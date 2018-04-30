@@ -10,6 +10,7 @@
 
 const float REACH_GOAL = pow(10, 6);
 const float EFFICIENCY = pow(10, 5);
+const float SAFE_DISTANCE = 30.0;
 
 
 Vehicle::Vehicle(int lane, double refVelocity)
@@ -64,12 +65,11 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
     }
 
     bool too_close = false;
-
     // find a reference value to use
     for (int i = 0; i < sensorFusion.size(); i++) 
     {
         // car is in my lane
-        float d = sensorFusion[i][6];
+        double d = sensorFusion[i][6];
         if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) 
         {
             double vx = sensorFusion[i][3];
@@ -77,22 +77,100 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
             double check_speed = sqrt(vx*vx + vy*vy);
             double check_car_s = sensorFusion[i][5];
 
-            // get the vehicle in front of you
+            // car's unique ID
+            // car's x position in map coordinates
+            // car's y position in map coordinates
+            // car's x velocity in m/s
+            // car's y velocity in m/s
+            // car's s position in frenet coordinates
+            // car's d position in frenet coordinates
 
-            // if using previous points can project s value outward
-            // check s values greater than mine and s gap
+            // predict s' for next vehicle in this lane
             check_car_s += ((double) prev_size * 0.02 * check_speed);
+
             // in front of and within critical zone
-            if ((check_car_s > s) && ((check_car_s - s) < 30)) 
+            if ((check_car_s > s) && ((check_car_s - s) < SAFE_DISTANCE)) 
             {
-                // move to the right/left
+                // vehicle is too close
                 too_close = true;
 
-                // initiate a lane change move
-                if (lane == 1) 
+                // initiate a lane change move 
+                bool maneuver_complete = false;
+
+                // look to the right
+                // lane change can complete if there is no vehicle within the +/- car length
+                if (lane + 1 <= 2)
                 {
-                    lane = 0;
+                    // check to the front within L
+                    // check to the side 
+                    // check to the back within L
+                    for (int j = 0; j < sensorFusion.size(); j++) 
+                    {
+                        double vx_right = sensorFusion[j][3];
+                        double vy_right = sensorFusion[j][4];
+                        double speed_right = sqrt(vx_right*vx_right + vy_right*vy_right);
+                        double s_right = sensorFusion[j][5];
+                        double d_right = sensorFusion[j][6];
+
+                        // d_right is between the next lane
+                        if ( (d_right < 2 + 4 * (lane+1) + 2) && (d_right > 2 + 4 * (lane+1) - 2) && (abs(s_right - s) < 5) )
+                        {
+                            std::cout << "There is a vehicle to the right!" << std::endl;
+                            maneuver_complete = false;
+                            break;
+                        }
+                        else 
+                        {
+                            std::cout << "There is not a vehicle to the right!" << std::endl;
+                            maneuver_complete = true;
+                            lane = lane + 1;
+                            std::cout << "Next lane (move to the right): " << lane << std::endl;
+                            break;
+                        }
+                    }
                 } 
+                // look to the left
+                else if (!maneuver_complete && lane - 1 >= 0)
+                {
+                    // check to the front within L
+                    // check to the side 
+                    // check to the back within L
+
+                    for (int j = 0; j < sensorFusion.size(); j++) 
+                    {
+                        double vx_left = sensorFusion[j][3];
+                        double vy_left = sensorFusion[j][4];
+                        double speed_left = sqrt(vx_left*vx_left + vy_left*vy_left);
+                        double s_left = sensorFusion[j][5];
+                        double d_left = sensorFusion[j][6];
+
+                        // d_right is between the next lane
+                        if ( (d_left < 2 + 4 * (lane-1) + 2) && (d_left > 2 + 4 * (lane-1) - 2) && (abs(s_left - s) < 5) ) 
+                        {
+                            std::cout << "There is a vehicle to the left!" << std::endl;
+                            maneuver_complete = false;
+                            break;
+                        }
+                        else 
+                        {
+                            std::cout << "There is not a vehicle to the left!" << std::endl;
+                            maneuver_complete = true;
+                            lane = lane - 1;
+                            std::cout << "Next lane (move to the left): " << lane << std::endl;
+                            break;
+                        }
+                    }
+                }
+                else if (!maneuver_complete)
+                {
+                    std::cout << "We stay in the same lane: " << lane << std::endl;
+                }
+
+                // // look to the left
+                // if (lane == 1) 
+                // {
+                //     lane = 0;
+                // }
             }
         }
     }
@@ -232,9 +310,17 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
 
 std::vector<std::vector<double>> Vehicle::getJerkMinimizedTrajectory()
 {
-    
+    std::vector<std::vector<double>> jerk;
+
+    return jerk; 
 }
 
+int Vehicle::getVehicleFromSensorFusion() 
+{
+    // get the vehicle from 
+
+    return 0;
+}
 
 void Vehicle::printVehicleHealth()
 {
@@ -249,7 +335,6 @@ void Vehicle::printVehicleHealth()
     std::cout << "END Vehicle Health" << std::endl;
     std::cout << std::endl;
 }
-
 
 void Vehicle::setLane(int lane) { this->lane = lane; }
 void Vehicle::setX(double x) { this->x = x; }
