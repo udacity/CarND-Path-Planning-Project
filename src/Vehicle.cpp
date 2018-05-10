@@ -64,6 +64,15 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
         s = endPathS;
     }
 
+    // for all values in sensorFusion:
+        // if vehicle in front is too close
+            // slow down
+            // check left lane
+                // if safe, update lane to left lane change
+            // otherwise, check right lane
+                // if safe, update lane to right lane change
+            // complete overtake maneuver
+
     bool too_close = false;
     // find a reference value to use
     for (int i = 0; i < sensorFusion.size(); i++) 
@@ -83,16 +92,19 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
             // vehicle in front and violating SAFE_DISTANCE
             if ((check_car_s > s) && ((check_car_s - s) < SAFE_DISTANCE)) 
             {
-
                 std::cout << "Must overtake Vehicle " << i << std::endl;
 
                 // vehicle is too close
                 too_close = true;
 
+                bool free_space_discovered = true;
+                bool maneuver_complete = false;
+
                 // look to the left
                 // lane change can complete if there is no vehicle within the +/- car length
-                if (lane - 1 >= 0)
+                if (!maneuver_complete && lane - 1 >= 0)
                 {
+                    std::cout << "Left lane: " << lane - 1 << std::endl;
                     for (int j = 0; j < sensorFusion.size(); j++) 
                     {
                         double vx_left = sensorFusion[j][3];
@@ -100,21 +112,38 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
                         double speed_left = sqrt(vx_left*vx_left + vy_left*vy_left);
                         double s_left = sensorFusion[j][5];
                         double d_left = sensorFusion[j][6];
+                        double s_left_predicted = s_left + 0.02 * s_left;
 
-                        // Another vehicle is in the way
-                        if ( (d_left < 2 + 4 * (lane-1) + 2) && (d_left > 2 + 4 * (lane-1) - 2) && (abs(s_left - s) < SAFE_DISTANCE) ) 
+                        // Vehicle in next lane
+                        // Vehicle within safe distance threshold
+                        // Vehicle going at least as fast
+                        if ( ((d_left < 2 + 4 * (lane-1) + 2) && (d_left > 2 + 4 * (lane-1) - 2)) && (s_left_predicted > s && s_left_predicted - s < SAFE_DISTANCE) )
                         {
                             std::cout << "Vehicle " << j << " is in the way." << std::endl;
+                            free_space_discovered = false;
+                            break;
                         } 
                         else 
                         {
-                            lane = lane - 1;
-                            break;
+                            free_space_discovered = true;
                         }
                     }
+
+                    if (free_space_discovered)
+                    {
+                        lane = lane - 1;
+                        std::cout << "Left lane overtake complete!" << std::endl;
+                    }
+                    else 
+                    {
+                        std::cout << "Left lane free space not available!" << std::endl;
+                    }
                 }
-                else if (lane + 1 <= 2)
+                
+                // Check right lane
+                if (!free_space_discovered && lane + 1 <= 2)
                 {
+                    std::cout << "Right lane: " << lane + 1 << std::endl;
                     for (int j = 0; j < sensorFusion.size(); j++) 
                     {
                         double vx_right = sensorFusion[j][3];
@@ -122,17 +151,33 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
                         double speed_right = sqrt(vx_right*vx_right + vy_right*vy_right);
                         double s_right = sensorFusion[j][5];
                         double d_right = sensorFusion[j][6];
+                        double s_right_predicted = s_right + 0.02 * s_right;
 
-                        if ( (d_right < 2 + 4 * (lane+1) + 2) && (d_right > 2 + 4 * (lane+1) - 2) && (abs(s_right - s) < SAFE_DISTANCE) )
+                        // Vehicle in next lane
+                        // Vehicle within safe distance threshold
+                        // Vehicle going at least as fast
+                        if ( ((d_right < 2 + 4 * (lane+1) + 2) && (d_right > 2 + 4 * (lane+1) - 2)) && (s_right_predicted > s && s_right_predicted - s < SAFE_DISTANCE) )
                         {
                             std::cout << "Vehicle " << j << " is in the way." << std::endl;
-                        }
-                        else 
-                        {
-                            lane = lane + 1;
+                            free_space_discovered = false;
                             break;
                         }
                     }
+
+                    if (free_space_discovered)
+                    {
+                        lane = lane + 1;
+                        std::cout << "Right lane overtake complete!" << std::endl;
+                    }
+                    else 
+                    {
+                        std::cout << "Right lane free space not available!" << std::endl;
+                    }
+                }
+
+                if (!free_space_discovered)
+                {
+                    std::cout << "Boxed in, cannot overtake. Current lane: " << lane << std::endl;
                 }
             }
         }
