@@ -92,8 +92,6 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
             // vehicle in front and violating SAFE_DISTANCE
             if ((check_car_s > s) && ((check_car_s - s) < SAFE_DISTANCE)) 
             {
-                std::cout << "Must overtake Vehicle " << i << std::endl;
-
                 // vehicle is too close
                 too_close = true;
 
@@ -104,7 +102,6 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
                 // lane change can complete if there is no vehicle within the +/- car length
                 if (!maneuver_complete && lane - 1 >= 0)
                 {
-                    std::cout << "Left lane: " << lane - 1 << std::endl;
                     for (int j = 0; j < sensorFusion.size(); j++) 
                     {
                         double vx_left = sensorFusion[j][3];
@@ -119,7 +116,6 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
                         // Vehicle going at least as fast
                         if ( ((d_left < 2 + 4 * (lane-1) + 2) && (d_left > 2 + 4 * (lane-1) - 2)) && (s_left_predicted > s && s_left_predicted - s < SAFE_DISTANCE) )
                         {
-                            std::cout << "Vehicle " << j << " is in the way." << std::endl;
                             free_space_discovered = false;
                             break;
                         } 
@@ -132,18 +128,12 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
                     if (free_space_discovered)
                     {
                         lane = lane - 1;
-                        std::cout << "Left lane overtake complete!" << std::endl;
-                    }
-                    else 
-                    {
-                        std::cout << "Left lane free space not available!" << std::endl;
                     }
                 }
                 
                 // Check right lane
                 if (!free_space_discovered && lane + 1 <= 2)
                 {
-                    std::cout << "Right lane: " << lane + 1 << std::endl;
                     for (int j = 0; j < sensorFusion.size(); j++) 
                     {
                         double vx_right = sensorFusion[j][3];
@@ -158,7 +148,6 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
                         // Vehicle going at least as fast
                         if ( ((d_right < 2 + 4 * (lane+1) + 2) && (d_right > 2 + 4 * (lane+1) - 2)) && (s_right_predicted > s && s_right_predicted - s < SAFE_DISTANCE) )
                         {
-                            std::cout << "Vehicle " << j << " is in the way." << std::endl;
                             free_space_discovered = false;
                             break;
                         }
@@ -167,11 +156,6 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
                     if (free_space_discovered)
                     {
                         lane = lane + 1;
-                        std::cout << "Right lane overtake complete!" << std::endl;
-                    }
-                    else 
-                    {
-                        std::cout << "Right lane free space not available!" << std::endl;
                     }
                 }
 
