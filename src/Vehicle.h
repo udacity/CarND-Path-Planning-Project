@@ -63,6 +63,8 @@ private:
     double yaw;
     double speed;
 
+    double safeSpeed;
+
     std::vector<double> previousPathX;
     std::vector<double> previousPathY;
 
