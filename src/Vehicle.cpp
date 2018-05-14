@@ -5,13 +5,12 @@
 #include <string>
 #include <iterator>
 #include "vehicle.h"
-#include "spline.h"
 #include "helpers.h"
+#include "spline.h"
 
 const float REACH_GOAL = pow(10, 6);
 const float EFFICIENCY = pow(10, 5);
 const float SAFE_DISTANCE = 30.0;
-
 
 Vehicle::Vehicle(int lane, double refVelocity)
 {
@@ -95,9 +94,64 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
                 // vehicle is too close
                 too_close = true;
 
-                bool free_space_discovered = true;
-                bool maneuver_complete = false;
+                bool move_to_left = false;
+                bool move_to_right = false;
 
+                for (int j = 0; j < sensorFusion.size(); j++)
+                {
+                    if (i != j)
+                    {
+                        double vx_adj = sensorFusion[j][3];
+                        double vy_adj = sensorFusion[j][4];
+                        double speed_adj = sqrt(vx_adj*vx_adj + vy_adj*vy_adj);
+                        double s_adj = sensorFusion[j][5];
+                        double d_adj = sensorFusion[j][6];
+                        double s_adj_predicted = s_adj + 0.02 * s_adj;
+
+                        // look to the left
+                        if (lane - 1 >= 0)
+                        {
+                            if ( ((d_adj < 2 + 4 * (lane-1) + 2) && (d_adj > 2 + 4 * (lane-1) - 2)) 
+                                && (s_adj_predicted > s && s_adj_predicted - s < SAFE_DISTANCE) )
+                            {
+                                move_to_left = false;
+                                break;
+                            } 
+                            else 
+                            {
+                                move_to_left = true;
+                                break;
+                            }
+                        }
+
+                        // if the left is blocked, look to the right
+                        if (!move_to_left && lane + 1 <= 2)
+                        {
+                            if ( ((d_adj < 2 + 4 * (lane+1) + 2) && (d_adj > 2 + 4 * (lane+1) - 2)) 
+                                && (s_adj_predicted > s && s_adj_predicted - s < SAFE_DISTANCE) )
+                            {
+                                move_to_right = false;
+                                break;
+                            }
+                            else 
+                            {
+                                move_to_right = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (move_to_left)
+                {
+                    lane = lane - 1;
+                } 
+                else if (move_to_right)
+                {
+                    lane = lane + 1;
+                }
+
+                /*
                 // look to the left
                 // lane change can complete if there is no vehicle within the +/- car length
                 if (!maneuver_complete && lane - 1 >= 0)
@@ -163,6 +217,7 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
                 {
                     std::cout << "Boxed in, cannot overtake. Current lane: " << lane << std::endl;
                 }
+                */
             }
         }
     }
