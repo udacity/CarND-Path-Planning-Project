@@ -48,8 +48,6 @@ public:
     void printVehicleHealth();
 
 private: 
-    int getVehicleFromSensorFusion();
-
     // 0 = left
     // 1 = middle
     // 2 = right
@@ -62,18 +60,6 @@ private:
     double d;
     double yaw;
     double speed;
-
-    bool vehicleFront;
-    bool vehicleRight;
-    bool vehicleLeft;
-
-    /* 
-        int vehicleFront;
-        int vehicleRight;
-        int vehicleLeft
-     */
-
-    double safeSpeed;
 
     std::vector<double> previousPathX;
     std::vector<double> previousPathY;

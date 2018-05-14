@@ -10,8 +10,10 @@
 
 const float REACH_GOAL = pow(10, 6);
 const float EFFICIENCY = pow(10, 5);
+const float SPEED_LIMIT = 49.5;
+const float ACCEL = 0.224;
 const float SAFE_DISTANCE = 30.0;
-const int NUM_POINTS = 100;
+const int NUM_POINTS = 75;
 
 Vehicle::Vehicle(int lane, double refVelocity)
 {
@@ -44,7 +46,6 @@ void Vehicle::updateVehicleState(double x, double y, double s, double d, double 
     this->d = d;
     this->yaw = yaw;
     this->speed = speed;
-    this->safeSpeed = speed;
     this->previousPathX = previousPathX;
     this->previousPathY = previousPathY;
     this->endPathS = endPathS;
@@ -65,167 +66,205 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
         s = endPathS;
     }
 
-    bool too_close = false;
-
-    int vehicleFrontIndex = -1;
-    int vehicleLeftIndex = -1;
-    int vehicleRightIndex = -1;
-    int vehicleBackIndex = -1;
-
     bool vehicleFront = false;
     bool vehicleLeft = false;
     bool vehicleRight = false;
-    bool vehicleBack = false;
+
+    float minDistanceToVehicleInRightLane = 9999.0;
+    float minDistanceToVehicleInLeftLane = 9999.0;
+
+    int indexOfVehicleInRightLaneWithMinDistance = -1;
+    int indexOfVehicleInLeftLaneWithMinDistance = -1;
 
     for (int i = 0; i < sensorFusion.size(); i++) 
     {
-        // car is in my lane
-        double d = sensorFusion[i][6];
-        double vx = sensorFusion[i][3];
-        double vy = sensorFusion[i][4];
-        double check_speed = sqrt(vx*vx + vy*vy);
-        double check_car_s = sensorFusion[i][5];
-        // predict s' for next vehicle in this lane
-        check_car_s += ((double) prev_size * 0.02 * check_speed);
+        double vehicle_vx = sensorFusion[i][3];
+        double vehicle_vy = sensorFusion[i][4];
+        double vehicle_speed = sqrt(vehicle_vx*vehicle_vx + vehicle_vy*vehicle_vy);
+        double vehicle_s = sensorFusion[i][5];
+        double vehicle_d = sensorFusion[i][6];
 
-        if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) 
+        int vehicle_lane = -1;
+        // predict s' for next vehicle in this lane
+        vehicle_s += ((double) prev_size * 0.02 * vehicle_speed);
+
+        // figure out what lane vehicle is lane
+        if (vehicle_d < (2 + 4 * lane + 2) && vehicle_d > (2 + 4 * lane - 2))
         {
-            // vehicle in front and violating SAFE_DISTANCE
-            if ((check_car_s > this->s) && ((check_car_s - this->s) < SAFE_DISTANCE)) 
+            vehicle_lane = lane;
+        }
+        else if ( (vehicle_d < (2 + 4 * (lane - 1) + 2)) && (vehicle_d > (2 + 4 * (lane - 1) - 2)) )
+        {
+            vehicle_lane = lane - 1;
+        }
+        else if ( (vehicle_d < (2 + 4 * (lane + 1) + 2)) && (vehicle_d > (2 + 4 * (lane + 1) - 2)) )
+        {
+            vehicle_lane = lane + 1;
+        } 
+
+        // is the vehicle within a SAFE_DISTANCE 
+        if (vehicle_lane == lane)
+        {
+            if ( (vehicle_s > this->s) && (vehicle_s - this->s < SAFE_DISTANCE) )
             {
-                // vehicle is too close
-                // std::cout << "Vehicle " << i << " is too close." << std::endl;
                 vehicleFront = true;
-                vehicleFrontIndex = i;
-            }
-            else if ((check_car_s > this->s) && ((check_car_s - this->s) < SAFE_DISTANCE/2))
-            {
-                vehicleBackIndex = i;
-                vehicleBack = true;
             }
         }
-        else if ( (d < (2 + 4 * (lane - 1) + 2)) && (d > (2 + 4 * (lane - 1) - 2)) )
+        else if (vehicle_lane - lane == -1)
         {
-            // Vehicle to the left 
-            if ((check_car_s > this->s) && ((check_car_s - this->s) < SAFE_DISTANCE))
+            // original
+            // if ( (this->s - vehicle_s < SAFE_DISTANCE) && (vehicle_s - this->s < SAFE_DISTANCE) )
+            // {
+            //     vehicleLeft = true;
+            // }
+
+            // float distance = vehicle_s - this->s;
+            // if (distance > 0 && distance < minDistanceToVehicleInLeftLane)
+            // {
+            //     minDistanceToVehicleInLeftLane = distance;
+            //     // if ( (this->s - vehicle_s < SAFE_DISTANCE) && (distance < SAFE_DISTANCE) )
+            //     if (this->s - SAFE_DISTANCE < vehicle_s && this->s + SAFE_DISTANCE > vehicle_s)
+            //     {
+            //         std::cout << "Vehicle on the left is too close." << std::endl;
+            //         vehicleLeft = true;
+            //     }
+            // }
+
+            if (vehicle_s - this->s > 0 && vehicle_s - this->s < minDistanceToVehicleInLeftLane)
             {
-                // std::cout << "Vehicle " << i << " is in lane " << (lane - 1) << " and it is too close to complete lane change maneuver." << std::endl;
-                vehicleLeftIndex = i;
+                minDistanceToVehicleInLeftLane = vehicle_s - this->s;
+            }
+
+            if (this->s - SAFE_DISTANCE < vehicle_s && this->s + SAFE_DISTANCE > vehicle_s)
+            {
                 vehicleLeft = true;
             }
+
         }
-        else if ( (d < (2 + 4 * (lane + 1) + 2)) && (d > (2 + 4 * (lane + 1) - 2)) )
+        else if (vehicle_lane - lane == 1)
         {
-            // Vehicle to the right 
-            if ((check_car_s > this->s) && ((check_car_s - this->s) < SAFE_DISTANCE))
+            // original
+            // if ( (this->s - vehicle_s < SAFE_DISTANCE) && (vehicle_s - this->s < SAFE_DISTANCE) )
+            // {
+            //     vehicleRight = true;
+            // }
+
+            // float distance = vehicle_s - this->s;
+            // if (distance > 0 && distance < minDistanceToVehicleInRightLane)
+            // {
+            //     minDistanceToVehicleInRightLane = distance;
+            //     // if ( (this->s - vehicle_s < SAFE_DISTANCE) && (distance < SAFE_DISTANCE) )
+            //     if (this->s - SAFE_DISTANCE < vehicle_s && this->s + SAFE_DISTANCE > vehicle_s)                
+            //     {
+            //         // std::cout << "Vehicle on the right is too close." << std::endl;
+            //         vehicleRight = true;
+            //     }
+            // }
+
+            if (vehicle_s - this->s > 0 && vehicle_s - this->s < minDistanceToVehicleInRightLane)
             {
-                // std::cout << "Vehicle " << i << " is in lane " << (lane + 1) << " and it is too close to complete lane change maneuver." << std::endl;
-                vehicleRightIndex = i;
+                minDistanceToVehicleInRightLane = vehicle_s - this->s;
+            }
+
+            if (this->s - SAFE_DISTANCE < vehicle_s && this->s + SAFE_DISTANCE > vehicle_s)
+            {
                 vehicleRight = true;
             }
         }
+    }
 
-        // std::cout << "Front Index: " << vehicleFrontIndex << std::endl;
-        // std::cout << "Back Index: " << vehicleBackIndex << std::endl;
-        // std::cout << "Left Index: " << vehicleLeftIndex << std::endl;
-        // std::cout << "Right Index: " << vehicleRightIndex << std::endl;
-        // std::cout << std::endl;
 
-        if (vehicleFront)
+    // move to the lane with the most free space ahead of it
+    // if minDistanceToVehicleInRightLane > minDistanceToVehicleInLeftLane:
+    //      go to the right lane
+    // otherwise
+    //      go to the left lane
+
+    // if (vehicleFront)
+    // {
+    //     // left is free and possible to move to left
+    //     if (!vehicleLeft && lane > 0)
+    //     {
+    //         std::cout << "Moving to the left." << std::endl;
+    //         lane = lane - 1;
+    //     }   
+    //     // right is free and possible to move to right
+    //     else if (!vehicleRight && lane < 2)
+    //     {
+    //         std::cout << "Moving to the right." << std::endl;
+    //         lane = lane + 1;
+    //     }
+    //     refVelocity -= ACCEL;
+    // }
+    if (vehicleFront)
+    {
+        if (!vehicleLeft && lane > 0 && minDistanceToVehicleInLeftLane > minDistanceToVehicleInRightLane)
         {
-            // left is free and possible to move to left
-            if (!vehicleLeft && (lane - 1) >= 0)
-            {
-                std::cout << "Moving to the left." << std::endl;
-                lane = lane - 1;
-            }   
-            // right is free and possible to move to right
-            else if (!vehicleRight && (lane + 1) <= 2)
-            {
-                std::cout << "Moving to the right." << std::endl;
-                lane = lane + 1;
-            }
-            // not possible to move either way
-            else 
-            {
-                std::cout << "Stay put." << std::endl;
-            }
-            break;
+            lane = lane - 1;
+            std::cout << "lane change left" << std::endl;
+        } 
+        else if (!vehicleRight && lane < 2 && minDistanceToVehicleInRightLane > minDistanceToVehicleInLeftLane) 
+        {
+            lane = lane + 1;
+            std::cout << "lane change right" << std::endl;
+        }
+        else {
+            refVelocity -= ACCEL/2.0;
+        }
+    }
+    else 
+    {
+        // original
+        // have a tendency to move to the middle lane if you can
+        if ( (!vehicleLeft && lane == 2) || (!vehicleRight && lane == 0) )
+        {
+            lane = 1;
+        }
+
+        if (refVelocity < SPEED_LIMIT)
+        {
+            refVelocity += ACCEL;
         }
     }
 
+        // if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) 
+        // {
+        //     // vehicle in front and violating SAFE_DISTANCE
+        //     if ((check_vehicle_s > this->s) && ((check_vehicle_s - this->s) < SAFE_DISTANCE)) 
+        //     {
+        //         // vehicle is too close
+        //         // std::cout << "Vehicle " << i << " is too close." << std::endl;
+        //         vehicleFront = true;
+        //     }
+        // }
+        // else if ( (d < (2 + 4 * (lane - 1) + 2)) && (d > (2 + 4 * (lane - 1) - 2)) )
+        // {
+        //     // Vehicle to the left 
+        //     if ((check_vehicle_s > this->s) && ((check_vehicle_s - this->s) < SAFE_DISTANCE))
+        //     {
+        //         // std::cout << "Vehicle " << i << " is in lane " << (lane - 1) << " and it is too close to complete lane change maneuver." << std::endl;
+        //         vehicleLeft = true;
+        //     }
+        // }
+        // else if ( (d < (2 + 4 * (lane + 1) + 2)) && (d > (2 + 4 * (lane + 1) - 2)) )
+        // {
+        //     // Vehicle to the right 
+        //     if ((check_vehicle_s > this->s) && ((check_vehicle_s - this->s) < SAFE_DISTANCE))
+        //     {
+        //         // std::cout << "Vehicle " << i << " is in lane " << (lane + 1) << " and it is too close to complete lane change maneuver." << std::endl;
+        //         vehicleRight = true;
+        //     }
+        // }
+
     // accel. with +/- 5 m/s^2
-    if (vehicleFront) 
-    {
-        refVelocity -= 0.224;
-    }
-    else if (refVelocity < 49.5)
-    {
-        refVelocity += 0.224;
-    }
-                // bool move_to_left = false;
-                // bool move_to_right = false;
-
-                // for (int j = 0; j < sensorFusion.size(); j++)
-                // {
-                //     if (i != j)
-                //     {
-                //         double vx_adj = sensorFusion[j][3];
-                //         double vy_adj = sensorFusion[j][4];
-                //         double speed_adj = sqrt(vx_adj*vx_adj + vy_adj*vy_adj);
-                //         double s_adj = sensorFusion[j][5];
-                //         double d_adj = sensorFusion[j][6];
-                //         double s_adj_predicted = s_adj + 0.02 * s_adj;
-
-                //         // look to the left
-                //         if (lane - 1 >= 0)
-                //         {
-                //             if ( ((d_adj < 2 + 4 * (lane-1) + 2) && (d_adj > 2 + 4 * (lane-1) - 2)) 
-                //                 && (s_adj_predicted > s && s_adj_predicted - s < SAFE_DISTANCE) )
-                //             {
-                //                 std::cout << "D_Adj: " << d_adj << " is in between " << (2 + 4 * (lane - 1) + 2) << " and " << (2 + 4 * (lane - 1) - 2) << std::endl;
-                //                 move_to_left = false;
-                //             } 
-                //             else 
-                //             {
-                //                 move_to_left = true;
-                //                 break;
-                //             }
-                //         }
-
-                //         // if the left is blocked, look to the right
-                //         if (!move_to_left && lane + 1 <= 2)
-                //         {
-                //             if ( ((d_adj < 2 + 4 * (lane+1) + 2) && (d_adj > 2 + 4 * (lane+1) - 2)) 
-                //                 && (s_adj_predicted > s && s_adj_predicted - s < SAFE_DISTANCE) )
-                //             {
-                //                 std::cout << "D_Adj: " << d_adj << " is in between " << (2 + 4 * (lane + 1) + 2) << " and " << (2 + 4 * (lane + 1) - 2) << std::endl;
-                //                 move_to_right = false;
-                //                 break;
-                //             }
-                //             else 
-                //             {
-                //                 move_to_right = true;
-                //                 break;
-                //             }
-                //         }
-                //     }
-                // }
-
-                // if (move_to_left)
-                // {
-                //     lane = lane - 1;
-                // } 
-                // else if (move_to_right)
-                // {
-                //     lane = lane + 1;
-                // }
-                // else 
-                // {
-                //     std::cout << "Stay in the current lane." << std::endl;
-                // }
-
-
+    // if (vehicleFront) 
+    // {
+    //     refVelocity -= 0.224;
+    // }
+    // else if (refVelocity < 49.5)
+    // {
+    //     refVelocity += 0.224;
+    // }
 
     // widely, evenly spaced coordinates
     // interpolated with a spline
@@ -356,13 +395,6 @@ std::vector<std::vector<double>> Vehicle::getJerkMinimizedTrajectory()
     std::vector<std::vector<double>> jerk;
 
     return jerk; 
-}
-
-int Vehicle::getVehicleFromSensorFusion() 
-{
-    // get the vehicle from 
-
-    return 0;
 }
 
 void Vehicle::printVehicleHealth()
