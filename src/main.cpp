@@ -81,7 +81,9 @@ int main() {
     Vehicle ego(lane, ref_vel);
     ego.updateGlobalMap(map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy);
 
-    h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel, &ego](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+    int t = 0;
+
+    h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel, &ego, &t](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) 
     {
     // "42" at the start of the message means there's a websocket message event.
@@ -126,7 +128,7 @@ int main() {
                     // ego.printVehicleHealth();
                     
                     json msgJson;
-                    auto trajectory = ego.getSmoothSplineTrajectory();
+                    auto trajectory = ego.getSmoothSplineTrajectory(t);
                     msgJson["next_x"] = trajectory[0];
                     msgJson["next_y"] = trajectory[1];
 
@@ -134,6 +136,7 @@ int main() {
 
                     //this_thread::sleep_for(chrono::milliseconds(1000));
                     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+                    t++;
                 }
             } 
             else 

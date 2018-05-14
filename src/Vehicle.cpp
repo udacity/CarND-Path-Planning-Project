@@ -394,5 +394,3 @@ double Vehicle::getY() const { return y; }
 double Vehicle::getYaw() const { return yaw; }
 double Vehicle::getSpeed() const { return speed; }
 std::vector<std::vector<double>> Vehicle::getSF() const { return sensorFusion; }
-
-

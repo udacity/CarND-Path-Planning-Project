@@ -22,7 +22,7 @@ public:
     void updateVehicleState(double x, double y, double s, double d, double yaw, double speed, std::vector<double> previousPathX, std::vector<double> previousPathY, double endPathS, double endPathD, std::vector<std::vector<double>> sensorFusion);
 
     /* Trajectory Generation */
-    std::vector<std::vector<double>> getSmoothSplineTrajectory();
+    std::vector<std::vector<double>> getSmoothSplineTrajectory(int t);
     std::vector<std::vector<double>> getJerkMinimizedTrajectory();
 
     /* Setters */
@@ -62,6 +62,16 @@ private:
     double d;
     double yaw;
     double speed;
+
+    bool vehicleFront;
+    bool vehicleRight;
+    bool vehicleLeft;
+
+    /* 
+        int vehicleFront;
+        int vehicleRight;
+        int vehicleLeft
+     */
 
     double safeSpeed;
 
