@@ -71,6 +71,11 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
     int vehicleRightIndex = -1;
     int vehicleBackIndex = -1;
 
+    bool vehicleFront = false;
+    bool vehicleLeft = false;
+    bool vehicleRight = false;
+    bool vehicleBack = false;
+
     for (int i = 0; i < sensorFusion.size(); i++) 
     {
         // car is in my lane
@@ -89,12 +94,13 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
             {
                 // vehicle is too close
                 // std::cout << "Vehicle " << i << " is too close." << std::endl;
-                too_close = true;
+                vehicleFront = true;
                 vehicleFrontIndex = i;
             }
             else if ((check_car_s > this->s) && ((check_car_s - this->s) < SAFE_DISTANCE/2))
             {
                 vehicleBackIndex = i;
+                vehicleBack = true;
             }
         }
         else if ( (d < (2 + 4 * (lane - 1) + 2)) && (d > (2 + 4 * (lane - 1) - 2)) )
@@ -104,6 +110,7 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
             {
                 // std::cout << "Vehicle " << i << " is in lane " << (lane - 1) << " and it is too close to complete lane change maneuver." << std::endl;
                 vehicleLeftIndex = i;
+                vehicleLeft = true;
             }
         }
         else if ( (d < (2 + 4 * (lane + 1) + 2)) && (d > (2 + 4 * (lane + 1) - 2)) )
@@ -113,17 +120,47 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
             {
                 // std::cout << "Vehicle " << i << " is in lane " << (lane + 1) << " and it is too close to complete lane change maneuver." << std::endl;
                 vehicleRightIndex = i;
+                vehicleRight = true;
             }
         }
 
-        std::cout << "Front Index: " << vehicleFrontIndex << std::endl;
-        std::cout << "Back Index: " << vehicleBackIndex << std::endl;
-        std::cout << "Left Index: " << vehicleLeftIndex << std::endl;
-        std::cout << "Right Index: " << vehicleRightIndex << std::endl;
-        std::cout << std::endl;
+        // std::cout << "Front Index: " << vehicleFrontIndex << std::endl;
+        // std::cout << "Back Index: " << vehicleBackIndex << std::endl;
+        // std::cout << "Left Index: " << vehicleLeftIndex << std::endl;
+        // std::cout << "Right Index: " << vehicleRightIndex << std::endl;
+        // std::cout << std::endl;
 
-        if (too_close) break;
+        if (vehicleFront)
+        {
+            // left is free and possible to move to left
+            if (!vehicleLeft && (lane - 1) >= 0)
+            {
+                std::cout << "Moving to the left." << std::endl;
+                lane = lane - 1;
+            }   
+            // right is free and possible to move to right
+            else if (!vehicleRight && (lane + 1) <= 2)
+            {
+                std::cout << "Moving to the right." << std::endl;
+                lane = lane + 1;
+            }
+            // not possible to move either way
+            else 
+            {
+                std::cout << "Stay put." << std::endl;
+            }
+            break;
+        }
+    }
 
+    // accel. with +/- 5 m/s^2
+    if (vehicleFront) 
+    {
+        refVelocity -= 0.224;
+    }
+    else if (refVelocity < 49.5)
+    {
+        refVelocity += 0.224;
     }
                 // bool move_to_left = false;
                 // bool move_to_right = false;
@@ -187,15 +224,7 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
                 //     std::cout << "Stay in the current lane." << std::endl;
                 // }
 
-    // accel. with +/- 5 m/s^2
-    if (too_close) 
-    {
-        refVelocity -= 0.224;
-    }
-    else if (refVelocity < 49.5)
-    {
-        refVelocity += 0.224;
-    }
+
 
     // widely, evenly spaced coordinates
     // interpolated with a spline
