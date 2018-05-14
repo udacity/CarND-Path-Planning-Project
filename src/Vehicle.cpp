@@ -11,6 +11,7 @@
 const float REACH_GOAL = pow(10, 6);
 const float EFFICIENCY = pow(10, 5);
 const float SAFE_DISTANCE = 30.0;
+const int NUM_POINTS = 100;
 
 Vehicle::Vehicle(int lane, double refVelocity)
 {
@@ -271,9 +272,9 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
     }
 
     // In Frenet add evenly 30m spaced points ahead of the starting reference
-    std::vector<double> next_wp0 = getXY(s + 30, (2 + 4*lane), mapWaypointsS, mapWaypointsX, mapWaypointsY);
-    std::vector<double> next_wp1 = getXY(s + 60, (2 + 4*lane), mapWaypointsS, mapWaypointsX, mapWaypointsY);
-    std::vector<double> next_wp2 = getXY(s + 90, (2 + 4*lane), mapWaypointsS, mapWaypointsX, mapWaypointsY);
+    std::vector<double> next_wp0 = getXY(s + SAFE_DISTANCE, (2 + 4*lane), mapWaypointsS, mapWaypointsX, mapWaypointsY);
+    std::vector<double> next_wp1 = getXY(s + SAFE_DISTANCE*2, (2 + 4*lane), mapWaypointsS, mapWaypointsX, mapWaypointsY);
+    std::vector<double> next_wp2 = getXY(s + SAFE_DISTANCE*3, (2 + 4*lane), mapWaypointsS, mapWaypointsX, mapWaypointsY);
 
     ptsx.push_back(next_wp0[0]);
     ptsx.push_back(next_wp1[0]);
@@ -315,12 +316,13 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
 
     // calculate how to break up spline points so that we 
     // travel at our desired reference velociy
-    double target_x = 30.0; // horizon x
+    // double target_x = 30.0; // horizon x
+    double target_x = (double)SAFE_DISTANCE;
     double target_y = s(target_x); // horizon y
     double target_dist = sqrt((target_x)*(target_x) + (target_y)*(target_y));
     double x_add_on = 0;
 
-    for (int i = 1; i <= 50 - previousPathY.size(); i++) 
+    for (int i = 1; i <= NUM_POINTS - previousPathY.size(); i++) 
     {
         // convert to m/s
         double N = (target_dist / (0.02 * refVelocity / 2.24));
