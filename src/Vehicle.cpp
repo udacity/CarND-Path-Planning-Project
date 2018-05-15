@@ -112,24 +112,6 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
         }
         else if (vehicle_lane - lane == -1)
         {
-            // original
-            // if ( (this->s - vehicle_s < SAFE_DISTANCE) && (vehicle_s - this->s < SAFE_DISTANCE) )
-            // {
-            //     vehicleLeft = true;
-            // }
-
-            // float distance = vehicle_s - this->s;
-            // if (distance > 0 && distance < minDistanceToVehicleInLeftLane)
-            // {
-            //     minDistanceToVehicleInLeftLane = distance;
-            //     // if ( (this->s - vehicle_s < SAFE_DISTANCE) && (distance < SAFE_DISTANCE) )
-            //     if (this->s - SAFE_DISTANCE < vehicle_s && this->s + SAFE_DISTANCE > vehicle_s)
-            //     {
-            //         std::cout << "Vehicle on the left is too close." << std::endl;
-            //         vehicleLeft = true;
-            //     }
-            // }
-
             if (vehicle_s - this->s > 0 && vehicle_s - this->s < minDistanceToVehicleInLeftLane)
             {
                 minDistanceToVehicleInLeftLane = vehicle_s - this->s;
@@ -143,24 +125,6 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
         }
         else if (vehicle_lane - lane == 1)
         {
-            // original
-            // if ( (this->s - vehicle_s < SAFE_DISTANCE) && (vehicle_s - this->s < SAFE_DISTANCE) )
-            // {
-            //     vehicleRight = true;
-            // }
-
-            // float distance = vehicle_s - this->s;
-            // if (distance > 0 && distance < minDistanceToVehicleInRightLane)
-            // {
-            //     minDistanceToVehicleInRightLane = distance;
-            //     // if ( (this->s - vehicle_s < SAFE_DISTANCE) && (distance < SAFE_DISTANCE) )
-            //     if (this->s - SAFE_DISTANCE < vehicle_s && this->s + SAFE_DISTANCE > vehicle_s)                
-            //     {
-            //         // std::cout << "Vehicle on the right is too close." << std::endl;
-            //         vehicleRight = true;
-            //     }
-            // }
-
             if (vehicle_s - this->s > 0 && vehicle_s - this->s < minDistanceToVehicleInRightLane)
             {
                 minDistanceToVehicleInRightLane = vehicle_s - this->s;
@@ -173,29 +137,6 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
         }
     }
 
-
-    // move to the lane with the most free space ahead of it
-    // if minDistanceToVehicleInRightLane > minDistanceToVehicleInLeftLane:
-    //      go to the right lane
-    // otherwise
-    //      go to the left lane
-
-    // if (vehicleFront)
-    // {
-    //     // left is free and possible to move to left
-    //     if (!vehicleLeft && lane > 0)
-    //     {
-    //         std::cout << "Moving to the left." << std::endl;
-    //         lane = lane - 1;
-    //     }   
-    //     // right is free and possible to move to right
-    //     else if (!vehicleRight && lane < 2)
-    //     {
-    //         std::cout << "Moving to the right." << std::endl;
-    //         lane = lane + 1;
-    //     }
-    //     refVelocity -= ACCEL;
-    // }
     if (vehicleFront)
     {
         if (!vehicleLeft && lane > 0 && minDistanceToVehicleInLeftLane > minDistanceToVehicleInRightLane)
@@ -226,45 +167,6 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
             refVelocity += ACCEL;
         }
     }
-
-        // if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) 
-        // {
-        //     // vehicle in front and violating SAFE_DISTANCE
-        //     if ((check_vehicle_s > this->s) && ((check_vehicle_s - this->s) < SAFE_DISTANCE)) 
-        //     {
-        //         // vehicle is too close
-        //         // std::cout << "Vehicle " << i << " is too close." << std::endl;
-        //         vehicleFront = true;
-        //     }
-        // }
-        // else if ( (d < (2 + 4 * (lane - 1) + 2)) && (d > (2 + 4 * (lane - 1) - 2)) )
-        // {
-        //     // Vehicle to the left 
-        //     if ((check_vehicle_s > this->s) && ((check_vehicle_s - this->s) < SAFE_DISTANCE))
-        //     {
-        //         // std::cout << "Vehicle " << i << " is in lane " << (lane - 1) << " and it is too close to complete lane change maneuver." << std::endl;
-        //         vehicleLeft = true;
-        //     }
-        // }
-        // else if ( (d < (2 + 4 * (lane + 1) + 2)) && (d > (2 + 4 * (lane + 1) - 2)) )
-        // {
-        //     // Vehicle to the right 
-        //     if ((check_vehicle_s > this->s) && ((check_vehicle_s - this->s) < SAFE_DISTANCE))
-        //     {
-        //         // std::cout << "Vehicle " << i << " is in lane " << (lane + 1) << " and it is too close to complete lane change maneuver." << std::endl;
-        //         vehicleRight = true;
-        //     }
-        // }
-
-    // accel. with +/- 5 m/s^2
-    // if (vehicleFront) 
-    // {
-    //     refVelocity -= 0.224;
-    // }
-    // else if (refVelocity < 49.5)
-    // {
-    //     refVelocity += 0.224;
-    // }
 
     // widely, evenly spaced coordinates
     // interpolated with a spline
@@ -389,13 +291,6 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
         next_y_vals
     };
 }
-
-// std::vector<std::vector<double>> Vehicle::getJerkMinimizedTrajectory()
-// {
-//     std::vector<std::vector<double>> jerk;
-
-//     return jerk; 
-// }
 
 // Debug
 void Vehicle::printVehicleHealth()

@@ -23,7 +23,6 @@ public:
 
     /* Trajectory Generation */
     std::vector<std::vector<double>> getSmoothSplineTrajectory();
-    // std::vector<std::vector<double>> getJerkMinimizedTrajectory();
 
     /* Setters */
     void setLane(int lane);
@@ -48,9 +47,6 @@ public:
     void printVehicleHealth();
 
 private: 
-    // 0 = left
-    // 1 = middle
-    // 2 = right
     int lane;
     double refVelocity;
 
