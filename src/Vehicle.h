@@ -23,7 +23,7 @@ public:
 
     /* Trajectory Generation */
     std::vector<std::vector<double>> getSmoothSplineTrajectory();
-    std::vector<std::vector<double>> getJerkMinimizedTrajectory();
+    // std::vector<std::vector<double>> getJerkMinimizedTrajectory();
 
     /* Setters */
     void setLane(int lane);

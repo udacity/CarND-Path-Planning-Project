@@ -390,13 +390,14 @@ std::vector<std::vector<double>> Vehicle::getSmoothSplineTrajectory()
     };
 }
 
-std::vector<std::vector<double>> Vehicle::getJerkMinimizedTrajectory()
-{
-    std::vector<std::vector<double>> jerk;
+// std::vector<std::vector<double>> Vehicle::getJerkMinimizedTrajectory()
+// {
+//     std::vector<std::vector<double>> jerk;
 
-    return jerk; 
-}
+//     return jerk; 
+// }
 
+// Debug
 void Vehicle::printVehicleHealth()
 {
     std::cout << "START Vehicle Health: " << std::endl;
