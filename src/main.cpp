@@ -15,6 +15,8 @@ using namespace std;
 // for convenience
 using json = nlohmann::json;
 
+const double TARGET_SPEED = 49.5;
+
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
@@ -206,10 +208,10 @@ int main()
 	// start in lane 1;
 	int lane = 1;
 	// reference velocity
-	double ref_vel = 49.5; //mph
+	double ref_vel = 0; //mph
 
 	h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s, &map_waypoints_dx, &map_waypoints_dy, &lane, &ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-																																																														uWS::OpCode opCode) {
+																															  uWS::OpCode opCode) {
 		// "42" at the start of the message means there's a websocket message event.
 		// The 4 signifies a websocket message
 		// The 2 signifies a websocket event
@@ -249,6 +251,48 @@ int main()
 					auto sensor_fusion = j[1]["sensor_fusion"];
 
 					size_t prev_size = previous_path_x.size();
+
+					if (prev_size > 0)
+					{
+						car_s = end_path_s;
+					}
+
+					bool too_close = false;
+
+					//find ref_v to use
+					for (int i = 0; i < sensor_fusion.size(); ++i)
+					{
+						// car is in my lane
+						float d = sensor_fusion[i][6];
+						if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2))
+						{
+							double vx = sensor_fusion[i][3];
+							double vy = sensor_fusion[i][4];
+							double check_speed = sqrt(vx * vx + vy * vy);
+							double check_car_s = sensor_fusion[i][5];
+
+							// dt = 0.02, 50 Hz
+							check_car_s += (double)prev_size * 0.02 * check_speed;
+
+							if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
+							{
+								too_close = true;
+							}
+
+						}
+					}
+
+					if (too_close)
+					{
+						ref_vel -= 0.224;
+					}
+					else
+					{
+						if (ref_vel < TARGET_SPEED)
+						{
+							ref_vel += 0.224;
+						}
+					}
 
 					// a list of waypoints, evenly spaced at 30m
 					// then interpolate with a spline and fill more points
@@ -310,8 +354,6 @@ int main()
 
 					tk::spline s;
 					s.set_points(ptsx, ptsy);
-
-					
 
 					vector<double> next_x_vals;
 					vector<double> next_y_vals;
@@ -377,7 +419,7 @@ int main()
 	// program
 	// doesn't compile :-(
 	h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data,
-										 size_t, size_t) {
+					   size_t, size_t) {
 		const std::string s = "<h1>Hello world!</h1>";
 		if (req.getUrl().valueLength == 1)
 		{
@@ -395,7 +437,7 @@ int main()
 	});
 
 	h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,
-												 char *message, size_t length) {
+						   char *message, size_t length) {
 		ws.close();
 		std::cout << "Disconnected" << std::endl;
 	});
