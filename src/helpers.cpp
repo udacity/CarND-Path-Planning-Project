@@ -1,11 +1,44 @@
-#include "jmt.h"
+#include "helpers.h"
 
 #include "Dense"
+#include <random>
 
 using namespace std;
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+
+static std::random_device rd{};
+static std::mt19937 gen{rd()};
+static const vector<float> SIGMA_SD{
+    10.,
+    4.,
+    2.,
+    1.,
+    1.,
+    1.,
+};
+
+void PTG(vector<float> start_s, vector<float> start_d, int target_vehicle,
+         vector<float> delta, float T, vector<Vehicle> predictions)
+{
+    Vehicle target = predictions[target_vehicle];
+    vector<vector<float>> all_goals;
+    float timestep = 0.5;
+    float t = T - 4 * timestep;
+    while (t <= (T + 4 * timestep))
+    {
+        vector<float> target_state = VecAdd(target.state, delta);
+        vector<float> goals = target_state;
+        goals.push_back(t);
+        for (int i = 0; i < 10; ++i)
+        {
+            vector<float> perturbed = perturb_goal(target_state);
+            goals.push_back(perturbed);
+            goals.push_back(t);
+        }
+    }
+}
 
 vector<double> JMT(vector<double> start, vector<double> end, double T)
 {
@@ -56,4 +89,29 @@ vector<double> JMT(vector<double> start, vector<double> end, double T)
         coeffs[3 + i] = x[i];
     }
     return coeffs;
+}
+
+vector<float> VecAdd(const vector<float> &v1, const vector<float> &v2)
+{
+    vector<float> r;
+    for (size_t i = 0; i < v1.size(); ++i)
+    {
+        r.push_back(v1[i] + v2[i]);
+    }
+    return r;
+}
+
+double logistic(double x)
+{
+    return 2.0 / (1. + exp(-x)) - 1.;
+}
+
+vector<float> perturb_goal(const vector<float> &sd)
+{
+    vector<float> r;
+    for (size_t i = 0; i < sd.size(); ++i)
+    {
+        std::normal_distribution<> d{sd[i], SIGMA_SD[i]};
+        r.push_back(d(gen));
+    }
 }

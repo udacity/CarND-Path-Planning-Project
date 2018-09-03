@@ -7,7 +7,8 @@ add_definitions(-std=c++11 -O3)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
-set(sources src/main.cpp)
+set(sources src/main.cpp src/helpers.cpp)
+include_directories(src/Eigen-3.3/Eigen)
 
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 

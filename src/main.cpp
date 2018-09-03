@@ -5,10 +5,13 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <map>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "spline.h"
+
+#include "helpers.h"
 
 using namespace std;
 
@@ -16,6 +19,7 @@ using namespace std;
 using json = nlohmann::json;
 
 const double TARGET_SPEED = 49.5;
+const double DT = 0.02;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -209,9 +213,11 @@ int main()
 	int lane = 1;
 	// reference velocity
 	double ref_vel = 0; //mph
+	Vehicle ego;
+	bool initialized = false;
 
-	h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s, &map_waypoints_dx, &map_waypoints_dy, &lane, &ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-																															  uWS::OpCode opCode) {
+	h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s, &map_waypoints_dx, &map_waypoints_dy, &lane, &ref_vel, &ego, &initialized](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+																																				  uWS::OpCode opCode) {
 		// "42" at the start of the message means there's a websocket message event.
 		// The 4 signifies a websocket message
 		// The 2 signifies a websocket event
@@ -250,6 +256,12 @@ int main()
 					// Sensor Fusion Data, a list of all other cars on the same side of the road.
 					auto sensor_fusion = j[1]["sensor_fusion"];
 
+					if (!initialized)
+					{
+					
+					}
+
+					
 					size_t prev_size = previous_path_x.size();
 
 					if (prev_size > 0)
@@ -278,7 +290,6 @@ int main()
 							{
 								too_close = true;
 							}
-
 						}
 					}
 
