@@ -258,9 +258,10 @@ vector<double> perturb_goal(const vector<double> &sd)
     vector<double> r;
     for (size_t i = 0; i < sd.size(); ++i)
     {
-        std::normal_distribution<> d{sd[i], SIGMA_SD[i]};
+        std::normal_distribution<> d(sd[i], SIGMA_SD[i]);
         r.push_back(d(gen));
     }
+    return r;
 }
 
 double polyval(const vector<double> &coeffs, double x)
