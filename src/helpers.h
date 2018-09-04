@@ -24,10 +24,15 @@ using namespace std;
 const vector<float> WEIGHTS = {1, 20, 20, 1, 1, 1, 20, 1, 1, 1};
 const vector<float> SIGMA_SD = {10., 4., 2., 1., 1., 1.};
 const float VEHICLE_RADIUS = 1.5;
+const double HORIZON = 4.;
+const double MAX_SPEED = 50*0.44704;
+const double MAX_ACC = 10.0;
+const double MAX_JERK = 10.0;
+
 
 struct Vehicle
 {
-    static map<string, int> lane_direction = {{"LCL", 1}, {"LCR", -1}};
+    map<string, int> lane_direction = {{"LCL", 1}, {"LCR", -1}};
 
     // state: s, s_dot, s_ddot, d, d_dot, d_ddot
     vector<double> state;
@@ -36,7 +41,7 @@ struct Vehicle
     // current lane
     int lane;
     // total available lanes
-    static int lanes_available;
+    int lanes_available;
 
     Vehicle()
     {
@@ -82,8 +87,8 @@ struct Vehicle
     vector<double> choose_next_state(vector<Vehicle> predictions);
     vector<string> successor_states();
     vector<double> generate_trajectory(string state, const vector<Vehicle> &predictions);
-    vector<Vehicle> keep_lane_trajectory(const vector<Vehicle> &predictions);
-    vector<Vehicle> lane_change_trajectory(string state, const vector<Vehicle> &predictions);
+    vector<double> keep_lane_trajectory(const vector<Vehicle> &predictions);
+    vector<double> lane_change_trajectory(string state, const vector<Vehicle> &predictions);
 
     bool get_vehicle_ahead(const vector<Vehicle> &predictions, int idx);
 };
@@ -93,8 +98,13 @@ std::vector<double> JMT(std::vector<double> start, std::vector<double> end,
 
 double logistic(double x);
 
+/**
+ * Path trajectory generation
+ * 
+ * return: s_coeffs(6), d_coeffs(6), cost(1)
+*/
 vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d, const int &target_vehicle,
-                   const vector<double> &delta, double &T, const vector<Vehicle> &predictions);
+                   const vector<double> &delta, const double &T, const vector<Vehicle> &predictions);
 
 vector<double> VecAdd(const vector<double> &v1, const vector<double> &v2);
 
