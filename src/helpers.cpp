@@ -100,9 +100,9 @@ EXAMPLE
     return coeffs;
 }
 
-vector<float> VecAdd(const vector<float> &v1, const vector<float> &v2)
+vector<double> VecAdd(const vector<double> &v1, const vector<double> &v2)
 {
-    vector<float> r;
+    vector<double> r;
     for (size_t i = 0; i < v1.size(); ++i)
     {
         r.push_back(v1[i] + v2[i]);
@@ -112,9 +112,9 @@ vector<float> VecAdd(const vector<float> &v1, const vector<float> &v2)
 
 double logistic(double x) { return 2.0 / (1. + exp(-x)) - 1.; }
 
-vector<float> perturb_goal(const vector<float> &sd)
+vector<double> perturb_goal(const vector<double> &sd)
 {
-    vector<float> r;
+    vector<double> r;
     for (size_t i = 0; i < sd.size(); ++i)
     {
         std::normal_distribution<> d{sd[i], SIGMA_SD[i]};
