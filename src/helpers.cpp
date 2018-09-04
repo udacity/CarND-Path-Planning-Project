@@ -44,8 +44,8 @@ void PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
         double t = all_goals[i][6];
         vector<double> s_coeffs = JMT(start_s, s_goal, t);
         vector<double> d_coeffs = JMT(start_d, d_goal, t);
-        copy(s_coeffs.begin(), s_coeffs.end(), traj.begin.end());
-        copy(d_coeffs.begin(), d_coeffs.end(), traj.begin.end() + 6);
+        copy(s_coeffs.begin(), s_coeffs.end(), traj.begin());
+        copy(d_coeffs.begin(), d_coeffs.end(), traj.begin() + 6);
         traj[12] = t;
         trajectories.push_back(traj);
     }
