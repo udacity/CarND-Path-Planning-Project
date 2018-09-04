@@ -1,9 +1,9 @@
 #ifndef _HELPERS_H_
 #define _HELPERS_H_
 
-#include <vector>
 #include <iostream>
 #include <math.h>
+#include <vector>
 
 using namespace std;
 
@@ -19,7 +19,8 @@ using namespace std;
     (max_accel_cost,    1),
     (total_accel_cost,  1),
 */
-const vector<double> WEIGHTS = {1, 20, 20, 1, 1, 1, 20, 1, 1, 1};
+const vector<float> WEIGHTS = {1, 20, 20, 1, 1, 1, 20, 1, 1, 1};
+const vector<float> SIGMA_SD = {10., 4., 2., 1., 1., 1.};
 
 struct Vehicle
 {
@@ -48,7 +49,8 @@ struct Vehicle
     }
 };
 
-std::vector<double> JMT(std::vector<double> start, std::vector<double> end, double T);
+std::vector<double> JMT(std::vector<double> start, std::vector<double> end,
+                        double T);
 
 double logistic(double x);
 
@@ -58,4 +60,9 @@ void PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
 vector<double> VecAdd(const vector<double> &v1, const vector<double> &v2);
 
 vector<double> perturb_goal(const vector<double> &sd);
-#endif //HELPERS_H_
+
+double polyval(const vector<double> &coeffs, double x);
+
+vector<double> differntiate(const vector<double> &coeffs);
+
+#endif // HELPERS_H_
