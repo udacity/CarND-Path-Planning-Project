@@ -27,20 +27,37 @@ const float VEHICLE_RADIUS = 1.5;
 
 struct Vehicle
 {
-    map<string, int> lane_direction = {{"LCL", 1}, {"LCR", -1}};
+    static map<string, int> lane_direction = {{"LCL", 1}, {"LCR", -1}};
 
+    // state: s, s_dot, s_ddot, d, d_dot, d_ddot
     vector<double> state;
+    // lane state: LK, LKL, LKR
     string lstate;
+    // current lane
     int lane;
-    int lanes_available;
+    // total available lanes
+    static int lanes_available;
 
     Vehicle()
     {
         state.resize(6);
         lane = 1;
         lanes_available = 3;
+        lstate = "LK";
     }
     Vehicle(const vector<double> &s)
+    {
+        if (s.size() == 6)
+        {
+            state = s;
+        }
+        else
+        {
+            cerr << "Invalid input vector.\n";
+        }
+    }
+
+    Vehicle(const vector<double> &s, const string &st) : lstate(st)
     {
         if (s.size() == 6)
         {
@@ -62,8 +79,13 @@ struct Vehicle
                 state[5]};
     }
 
+    vector<double> choose_next_state(vector<Vehicle> predictions);
     vector<string> successor_states();
     vector<double> generate_trajectory(string state, const vector<Vehicle> &predictions);
+    vector<Vehicle> keep_lane_trajectory(const vector<Vehicle> &predictions);
+    vector<Vehicle> lane_change_trajectory(string state, const vector<Vehicle> &predictions);
+
+    bool get_vehicle_ahead(const vector<Vehicle> &predictions, int idx);
 };
 
 std::vector<double> JMT(std::vector<double> start, std::vector<double> end,
@@ -71,8 +93,8 @@ std::vector<double> JMT(std::vector<double> start, std::vector<double> end,
 
 double logistic(double x);
 
-vector<double> PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
-         vector<double> delta, double T, vector<Vehicle> predictions);
+vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d, const int &target_vehicle,
+                   const vector<double> &delta, double &T, const vector<Vehicle> &predictions);
 
 vector<double> VecAdd(const vector<double> &v1, const vector<double> &v2);
 

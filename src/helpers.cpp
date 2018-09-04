@@ -13,6 +13,20 @@ static const int N_SAMPLES = 10;
 static std::random_device rd{};
 static std::mt19937 gen{rd()};
 
+vector<double> Vehicle::choose_next_state(vector<Vehicle> predictions)
+{
+    vector<string> possible_successor_states = successor_states();
+    vector<double> costs;
+    for (size_t i = 0; i < possible_successor_states.size(); ++i)
+    {
+        vector<double> traj_states = generate_trajectory(possible_successor_states[i], predictions);
+        costs.push_back(calculate_cost());
+    }
+    int idx = distance(costs.begin(), min_element(costs.begin(), costs.end()));
+
+    lstate = possible_successor_states[idx];
+}
+
 vector<string> Vehicle::successor_states()
 {
     /*
@@ -46,15 +60,54 @@ vector<string> Vehicle::successor_states()
     return states;
 }
 
-vector<double> generate_trajectory(string state, const vector<Vehicle> &predictions)
+vector<double> Vehicle::generate_trajectory(string state, const vector<Vehicle> &predictions)
 {
-    vector<double> traj;
-
+    vector<double> traj(13);
+    int idx;
+    if (state.compare("KL") == 0)
+    {
+        if (get_vehicle_ahead(predictions, idx))
+    }
+    else if (state.compare("LCL") == 0)
+    {
+        if (lane != lanes_available - 1)
+        {
+        }
+    }
+    else if (state.compare("LCR") == 0)
+    {
+        if (lane != 0)
+        {
+        }
+    }
     return traj;
 }
 
-vector<double> PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
-                   vector<double> delta, double T, vector<Vehicle> predictions)
+bool Vehicle::get_vehicle_ahead(const vector<Vehicle> &predictions, int idx)
+{
+    bool found = false;
+    double d = 1e9;
+
+    for (size_t i = 0; i < predictions.size(); ++i)
+    {
+        if (getLane(predictions[i].state[3]) == lane)
+        {
+            if (this->state[0] < predictions[i].state[0])
+            {
+                if (predictions[i].state[0] < d)
+                {
+                    idx = i;
+                    d = predictions[i].state[0];
+                }
+                found = true;
+            }
+        }
+    }
+    return found;
+}
+
+vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d, const int &target_vehicle,
+                   const vector<double> &delta, double &T, const vector<Vehicle> &predictions)
 {
     Vehicle target = predictions[target_vehicle];
     vector<vector<double>> all_goals; // s,d,t
