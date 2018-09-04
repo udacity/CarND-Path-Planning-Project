@@ -17,14 +17,17 @@ vector<double> Vehicle::choose_next_state(vector<Vehicle> predictions)
 {
     vector<string> possible_successor_states = successor_states();
     vector<double> costs;
+    vector<vector<double>> trajectories;
     for (size_t i = 0; i < possible_successor_states.size(); ++i)
     {
         vector<double> traj_states = generate_trajectory(possible_successor_states[i], predictions);
-        costs.push_back(calculate_cost());
+        costs.push_back(traj_states[12]);
+        trajectories.push_back(traj_states);
     }
     int idx = distance(costs.begin(), min_element(costs.begin(), costs.end()));
 
     lstate = possible_successor_states[idx];
+    return trajectories[idx];
 }
 
 vector<string> Vehicle::successor_states()
@@ -60,27 +63,59 @@ vector<string> Vehicle::successor_states()
     return states;
 }
 
-vector<double> Vehicle::generate_trajectory(string state, const vector<Vehicle> &predictions)
+vector<double> Vehicle::generate_trajectory(string state_, const vector<Vehicle> &predictions)
 {
-    vector<double> traj(13);
+    if (state_.compare("KL") == 0)
+    {
+        return keep_lane_trajectory(predictions);
+    }
+    else
+    {
+        return lane_change_trajectory(state_, predictions);
+    }
+}
+
+vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
+{
     int idx;
-    if (state.compare("KL") == 0)
+    if (get_vehicle_ahead(predictions, idx))
     {
-        if (get_vehicle_ahead(predictions, idx))
+        vector<double> start_s(state.begin(), state.begin() + 3);
+        vector<double> start_d(state.begin() + 3, state.begin() + 6);
+        vector<double> delta = {-30, 0, 0, 0, 0, 0};
+
+        return PTG(start_s, start_d, idx, delta, HORIZON, predictions);
     }
-    else if (state.compare("LCL") == 0)
+    else
     {
-        if (lane != lanes_available - 1)
-        {
-        }
+        vector<double> start_s(state.begin(), state.begin() + 3);
+        vector<double> start_d(state.begin() + 3, state.begin() + 6);
+        vector<double> delta = {30, MAX_SPEED / 3, 0, 0, 0, 0};
+
+        vector<Vehicle> tmp;
+        tmp.push_back(*this);
+        return PTG(start_s, start_d, 0, delta, HORIZON, tmp);
     }
-    else if (state.compare("LCR") == 0)
+}
+
+vector<double> Vehicle::lane_change_trajectory(string state, const vector<Vehicle> &predictions)
+{
+    int idx = 0;
+    int new_lane = lane + lane_direction[state];
+    if (get_vehicle_ahead(predictions, idx))
     {
-        if (lane != 0)
-        {
-        }
+        vector<double> start_s(state.begin(), state.begin() + 3);
+        vector<double> start_d(state.begin() + 3, state.begin() + 6);
+        vector<double> delta = {-30, 0, 0, 4.0 * lane_direction[state], 0, 0};
+
+        return PTG(start_s, start_d, idx, delta, HORIZON, predictions);
     }
-    return traj;
+    else
+    {
+        vector<double> rst(13, 0);
+        rst[12] = 1e9;
+        return rst;
+    }
 }
 
 bool Vehicle::get_vehicle_ahead(const vector<Vehicle> &predictions, int idx)
@@ -107,7 +142,7 @@ bool Vehicle::get_vehicle_ahead(const vector<Vehicle> &predictions, int idx)
 }
 
 vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d, const int &target_vehicle,
-                   const vector<double> &delta, double &T, const vector<Vehicle> &predictions)
+                   const vector<double> &delta, const double &T, const vector<Vehicle> &predictions)
 {
     Vehicle target = predictions[target_vehicle];
     vector<vector<double>> all_goals; // s,d,t
@@ -150,7 +185,11 @@ vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d,
     }
     int idx = distance(costs.begin(), min_element(costs.begin(), costs.end()));
 
-    return trajectories[idx];
+    vector<double> rst;
+    rst = trajectories[idx];
+    rst.push_back(costs[idx]);
+
+    return rst;
 }
 
 vector<double> JMT(vector<double> start, vector<double> end, double T)
