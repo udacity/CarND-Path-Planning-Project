@@ -22,7 +22,7 @@ void PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
     float t = T - 4 * timestep;
     while (t <= (T + 4 * timestep))
     {
-        vector<double> target_state = VecAdd(target.state, delta);
+        vector<double> target_state = VecAdd(target.state_in(t), delta);
         vector<double> goals = target_state;
         goals.push_back(t);
         all_goals.push_back(goals);
