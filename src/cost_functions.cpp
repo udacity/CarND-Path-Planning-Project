@@ -1,6 +1,22 @@
 #include "cost_functions.h"
 
-double time_diff_cost(const vector<double> &traj, const Vehicle &target_vehicle,
+double calculate_cost(const vector<double> &traj, const int &target_vehicle,
+                      const vector<double> &delta, const double T,
+                      const vector<Vehicle> &predictions, bool verbose)
+{
+    double cost = 0.;
+    vector<CostFun> cf_list = {time_diff_cost, s_diff_cost, d_diff_cost, collision_cost, buffer_cost};
+    vector<double> weights = {1, 6, 6, 10, 1};
+
+    for (size_t i = 0; i < cf_list.size(); ++i)
+    {
+        cost += weights[i] * cf_list[i](traj, target_vehicle, delta, T, predictions);
+    }
+    
+    return cost;
+}
+
+double time_diff_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<double> &delta, const double T,
                       const vector<Vehicle> &predictions)
 {
@@ -8,7 +24,7 @@ double time_diff_cost(const vector<double> &traj, const Vehicle &target_vehicle,
     return logistic((t - T) / T);
 }
 
-double s_diff_cost(const vector<double> &traj, const int target_vehicle,
+double s_diff_cost(const vector<double> &traj, const int &target_vehicle,
                    const vector<double> &delta, const double T,
                    const vector<Vehicle> &predictions)
 {
