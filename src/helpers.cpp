@@ -31,14 +31,14 @@ vector<string> Vehicle::successor_states()
     else if (state.compare("LCL") == 0)
     {
         if (lane != lanes_available - 1)
-        {            
+        {
             states.push_back("LCL");
         }
     }
     else if (state.compare("LCR") == 0)
     {
         if (lane != 0)
-        {            
+        {
             states.push_back("LCR");
         }
     }
@@ -46,8 +46,15 @@ vector<string> Vehicle::successor_states()
     return states;
 }
 
-void PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
-         vector<double> delta, double T, vector<Vehicle> predictions)
+vector<double> generate_trajectory(string state, const vector<Vehicle> &predictions)
+{
+    vector<double> traj;
+
+    return traj;
+}
+
+vector<double> PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
+                   vector<double> delta, double T, vector<Vehicle> predictions)
 {
     Vehicle target = predictions[target_vehicle];
     vector<vector<double>> all_goals; // s,d,t
@@ -82,6 +89,15 @@ void PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
         traj[12] = t;
         trajectories.push_back(traj);
     }
+
+    vector<double> costs;
+    for (size_t i = 0; i < trajectories.size(); ++i)
+    {
+        costs.push_back(calculate_cost(trajectories[i], target_vehicle, delta, T, predictions));
+    }
+    int idx = distance(costs.begin(), min_element(costs.begin(), costs.end()));
+
+    return trajectories[idx];
 }
 
 vector<double> JMT(vector<double> start, vector<double> end, double T)

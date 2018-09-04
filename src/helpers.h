@@ -5,6 +5,7 @@
 #include <math.h>
 #include <vector>
 #include <map>
+#include "cost_functions.h"
 
 using namespace std;
 
@@ -26,7 +27,7 @@ const float VEHICLE_RADIUS = 1.5;
 
 struct Vehicle
 {
-    map<string, int> lane_direction = { {"LCL", 1}, {"LCR", -1}};
+    map<string, int> lane_direction = {{"LCL", 1}, {"LCR", -1}};
 
     vector<double> state;
     string lstate;
@@ -62,6 +63,7 @@ struct Vehicle
     }
 
     vector<string> successor_states();
+    vector<double> generate_trajectory(string state, const vector<Vehicle> &predictions);
 };
 
 std::vector<double> JMT(std::vector<double> start, std::vector<double> end,
@@ -69,7 +71,7 @@ std::vector<double> JMT(std::vector<double> start, std::vector<double> end,
 
 double logistic(double x);
 
-void PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
+vector<double> PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
          vector<double> delta, double T, vector<Vehicle> predictions);
 
 vector<double> VecAdd(const vector<double> &v1, const vector<double> &v2);
