@@ -90,7 +90,7 @@ struct Vehicle
     vector<double> keep_lane_trajectory(const vector<Vehicle> &predictions);
     vector<double> lane_change_trajectory(string state, const vector<Vehicle> &predictions);
 
-    bool get_vehicle_ahead(const vector<Vehicle> &predictions, int idx);
+    bool get_vehicle_ahead(const vector<Vehicle> &predictions, int &idx);
 };
 
 std::vector<double> JMT(std::vector<double> start, std::vector<double> end,

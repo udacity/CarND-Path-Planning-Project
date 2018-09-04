@@ -78,7 +78,7 @@ vector<double> Vehicle::generate_trajectory(string state_, const vector<Vehicle>
 
 vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
 {
-    int idx;
+    int idx=0;
     if (get_vehicle_ahead(predictions, idx))
     {
         cout<<"front\n";
@@ -122,7 +122,7 @@ vector<double> Vehicle::lane_change_trajectory(string state, const vector<Vehicl
     }
 }
 
-bool Vehicle::get_vehicle_ahead(const vector<Vehicle> &predictions, int idx)
+bool Vehicle::get_vehicle_ahead(const vector<Vehicle> &predictions, int &idx)
 {
     bool found = false;
     double d = 1e9;
@@ -148,7 +148,7 @@ bool Vehicle::get_vehicle_ahead(const vector<Vehicle> &predictions, int idx)
 vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d, const int &target_vehicle,
                    const vector<double> &delta, const double &T, const vector<Vehicle> &predictions)
 {
-    cout<<"\nhere  ..\n";
+    cout<<"\nhere  .. target_vehicle = "<<target_vehicle<<"\n";
     Vehicle target = predictions[target_vehicle];
     vector<vector<double>> all_goals; // s,d,t
     float timestep = 0.5;
