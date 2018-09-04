@@ -21,6 +21,7 @@ using namespace std;
 */
 const vector<float> WEIGHTS = {1, 20, 20, 1, 1, 1, 20, 1, 1, 1};
 const vector<float> SIGMA_SD = {10., 4., 2., 1., 1., 1.};
+const float VEHICLE_RADIUS = 1.5;
 
 struct Vehicle
 {
@@ -38,7 +39,7 @@ struct Vehicle
         }
     }
 
-    vector<double> state_in(double t)
+    vector<double> state_in(double t) const
     {
         return {state[0] + state[1] * t + state[2] * t * t / 2.,
                 state[1] + state[2] * t,
@@ -64,5 +65,9 @@ vector<double> perturb_goal(const vector<double> &sd);
 double polyval(const vector<double> &coeffs, double x);
 
 vector<double> differntiate(const vector<double> &coeffs);
+
+double nearest_approach_to_any_vehicle(const vector<double> &traj, const vector<Vehicle> & vehicles);
+
+double nearest_approach(const vector<double> &traj, const Vehicle & vehicle);
 
 #endif // HELPERS_H_

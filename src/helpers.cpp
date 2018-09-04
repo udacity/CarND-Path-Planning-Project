@@ -54,29 +54,29 @@ void PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
 vector<double> JMT(vector<double> start, vector<double> end, double T)
 {
     /*
-  Calculate the Jerk Minimizing Trajectory that connects the initial state
-  to the final state in time T.
+Calculate the Jerk Minimizing Trajectory that connects the initial state
+to the final state in time T.
 
-  INPUTS
+INPUTS
 
-  start - the vehicles start location given as a length three array
-      corresponding to initial values of [s, s_dot, s_double_dot]
+start - the vehicles start location given as a length three array
+    corresponding to initial values of [s, s_dot, s_double_dot]
 
-  end   - the desired end state for vehicle. Like "start" this is a
-      length three array.
+end   - the desired end state for vehicle. Like "start" this is a
+    length three array.
 
-  T     - The duration, in seconds, over which this maneuver should occur.
+T     - The duration, in seconds, over which this maneuver should occur.
 
-  OUTPUT
-  an array of length 6, each value corresponding to a coefficent in the
-  polynomial s(t) = a_0 + a_1 * t + a_2 * t**2 + a_3 * t**3 + a_4 * t**4 + a_5 *
-  t**5
+OUTPUT
+an array of length 6, each value corresponding to a coefficent in the
+polynomial s(t) = a_0 + a_1 * t + a_2 * t**2 + a_3 * t**3 + a_4 * t**4 + a_5 *
+t**5
 
-  EXAMPLE
+EXAMPLE
 
-  > JMT( [0, 10, 0], [10, 10, 0], 1)
-  [0.0, 10.0, 0.0, 0.0, 0.0, 0.0]
-  */
+> JMT( [0, 10, 0], [10, 10, 0], 1)
+[0.0, 10.0, 0.0, 0.0, 0.0, 0.0]
+*/
     vector<double> coeffs(6);
     coeffs[0] = start[0];
     coeffs[1] = start[1];
@@ -140,11 +140,52 @@ vector<double> differntiate(const vector<double> &coeffs)
         vector<double> r;
         for (size_t i = 1; i < coeffs.size(); ++i)
         {
-            r.push_back(coeffs[i]*i);
+            r.push_back(coeffs[i] * i);
         }
     }
     else
     {
         cerr << "Coeffs(vector) must have at least one element.\n";
     }
+}
+
+double nearest_approach_to_any_vehicle(const vector<double> &traj,
+                                       const vector<Vehicle> &vehicles)
+{
+    double closest = 1e9, d;
+    for (size_t i = 0; i < vehicles.size(); ++i)
+    {
+        d = nearest_approach(traj, vehicles[i]);
+        if (d < closest)
+        {
+            closest = d;
+        }
+    }
+    return closest;
+}
+
+double nearest_approach(const vector<double> &traj, const Vehicle &vehicle)
+{
+    double closest = 1e9;
+    vector<double> s(traj.begin(), traj.begin() + 3);
+    vector<double> d(traj.begin() + 3, traj.begin() + 6);
+    double T = traj[12];
+    double t, cur_s, cur_d, target_s, target_d, dist;
+    vector<double> state;
+    for (int i = 0; i < 100; + i)
+    {
+        t = float(i) / 100 * T;
+        cur_s = polyval(s, t);
+        cur_d = polyval(d, t);
+        state = vehicle.state_in(t);
+        target_s = state[0];
+        target_d = state[3];
+
+        dist = pow(cur_s - target_s, 2) + pow(cur_d - target_d, 2);
+        if (dist < closest * closest)
+        {
+            closest = sqrt(dist);
+        }
+    }
+    return closest;
 }
