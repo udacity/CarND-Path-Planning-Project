@@ -12,6 +12,7 @@
 #include "spline.h"
 
 #include "helpers.h"
+#include "cost_functions.h"
 
 using namespace std;
 
@@ -256,18 +257,32 @@ int main()
 					// Sensor Fusion Data, a list of all other cars on the same side of the road.
 					auto sensor_fusion = j[1]["sensor_fusion"];
 
-					if (!initialized)
-					{
-					
-					}
-
-					
 					size_t prev_size = previous_path_x.size();
 
 					if (prev_size > 0)
 					{
 						car_s = end_path_s;
 					}
+
+					ego.lane = getLane(car_d);
+					ego.state = {car_s, car_speed * 0.44704, 0, car_d, 0, 0};
+					if (!initialized)
+					{
+						ego.lstate = "KL";
+						ego.lanes_available = 3;
+					}
+
+					vector<Vehicle> predictions;
+					for (size_t i = 0; i < sensor_fusion.size(); ++i)
+					{
+						vector<double> veh = {sensor_fusion[i][5], sensor_fusion[i][3], 0, sensor_fusion[i][6], 0, 0};
+						predictions.push_back(Vehicle(veh));
+					}
+
+					cout<<"predictions.size() = "<< predictions.size()<<"\n";
+
+					vector<double> ego_rst = ego.choose_next_state(predictions);
+					cout<<"\nHello 3 ______________\n";
 
 					bool too_close = false;
 

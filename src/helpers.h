@@ -48,7 +48,7 @@ struct Vehicle
         state.resize(6);
         lane = 1;
         lanes_available = 3;
-        lstate = "LK";
+        lstate = "KL";
     }
     Vehicle(const vector<double> &s)
     {
@@ -84,7 +84,7 @@ struct Vehicle
                 state[5]};
     }
 
-    vector<double> choose_next_state(vector<Vehicle> predictions);
+    vector<double> choose_next_state(const vector<Vehicle> &predictions);
     vector<string> successor_states();
     vector<double> generate_trajectory(string state, const vector<Vehicle> &predictions);
     vector<double> keep_lane_trajectory(const vector<Vehicle> &predictions);

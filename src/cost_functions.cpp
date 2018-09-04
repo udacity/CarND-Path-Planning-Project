@@ -5,11 +5,13 @@ double calculate_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<Vehicle> &predictions, bool verbose)
 {
     double cost = 0.;
+    cout << "a1 ..";
     vector<CostFun> cf_list = {time_diff_cost, s_diff_cost, d_diff_cost, collision_cost, buffer_cost, efficiency_cost};
     vector<double> weights = {1, 6, 6, 10, 1, 2};
-
+    cout << "a2 ..";
     for (size_t i = 0; i < cf_list.size(); ++i)
     {
+        cout << " c " << i;
         cost += weights[i] * cf_list[i](traj, target_vehicle, delta, T, predictions);
     }
 
