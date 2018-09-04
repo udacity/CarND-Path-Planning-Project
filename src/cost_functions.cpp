@@ -5,14 +5,14 @@ double calculate_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<Vehicle> &predictions, bool verbose)
 {
     double cost = 0.;
-    vector<CostFun> cf_list = {time_diff_cost, s_diff_cost, d_diff_cost, collision_cost, buffer_cost};
-    vector<double> weights = {1, 6, 6, 10, 1};
+    vector<CostFun> cf_list = {time_diff_cost, s_diff_cost, d_diff_cost, collision_cost, buffer_cost, efficiency_cost};
+    vector<double> weights = {1, 6, 6, 10, 1, 2};
 
     for (size_t i = 0; i < cf_list.size(); ++i)
     {
         cost += weights[i] * cf_list[i](traj, target_vehicle, delta, T, predictions);
     }
-    
+
     return cost;
 }
 
@@ -98,4 +98,20 @@ double buffer_cost(const vector<double> &traj,
 {
     double d = nearest_approach_to_any_vehicle(traj, predictions);
     return logistic(2 * VEHICLE_RADIUS / d);
+}
+
+/**
+ * Reward high average speed
+*/
+double efficiency_cost(const vector<double> &traj,
+                       const int &target_vehicle,
+                       const vector<double> &delta, const double T,
+                       const vector<Vehicle> &predictions)
+{
+    vector<double> s(traj.begin(), traj.begin() + 3);
+    double avg_v = polyval(s, T) / T;
+    auto tmp = predictions[target_vehicle].state_in(T);
+    double targ_v = tmp[0] / T;
+
+    return logistic(2 * (targ_v - avg_v) / avg_v);
 }
