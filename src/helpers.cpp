@@ -2,12 +2,14 @@
 
 #include "Dense"
 #include <random>
+#include <algorithm>    // std::copy
 
 using namespace std;
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
+static const int N_SAMPLES = 10;
 static std::random_device rd{};
 static std::mt19937 gen{rd()};
 static const vector<float> SIGMA_SD{
@@ -19,24 +21,41 @@ static const vector<float> SIGMA_SD{
     1.,
 };
 
-void PTG(vector<float> start_s, vector<float> start_d, int target_vehicle,
-         vector<float> delta, float T, vector<Vehicle> predictions)
+void PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
+         vector<double> delta, double T, vector<Vehicle> predictions)
 {
     Vehicle target = predictions[target_vehicle];
-    vector<vector<float>> all_goals;
+    vector<vector<double>> all_goals; // s,d,t
     float timestep = 0.5;
     float t = T - 4 * timestep;
     while (t <= (T + 4 * timestep))
     {
-        vector<float> target_state = VecAdd(target.state, delta);
-        vector<float> goals = target_state;
+        vector<double> target_state = VecAdd(target.state, delta);
+        vector<double> goals = target_state;
         goals.push_back(t);
-        for (int i = 0; i < 10; ++i)
+        all_goals.push_back(goals);
+        for (int i = 0; i < N_SAMPLES; ++i)
         {
-            vector<float> perturbed = perturb_goal(target_state);
-            goals.push_back(perturbed);
+            goals = perturb_goal(target_state);
             goals.push_back(t);
+            all_goals.push_back(goals);
         }
+        t += timestep;
+    }
+
+    vector<vector<double>> trajectories;
+    vector<double> traj(13);
+    for (size_t i = 0; i < all_goals.size(); ++i)
+    {
+        vector<double> s_goal(all_goals[i].begin(), all_goals[i].begin() + 3);
+        vector<double> d_goal(all_goals[i].begin() + 3, all_goals[i].begin() + 6);
+        double t = all_goals[i][6];
+        vector<double> s_coeffs = JMT(start_s, s_goal, t);
+        vector<double> d_coeffs = JMT(start_d, d_goal, t);
+        copy(s_coeffs.begin(),s_coeffs.end(), traj.begin.end());
+        copy(d_coeffs.begin(),d_coeffs.end(), traj.begin.end()+6);
+        traj[12] = t;
+        trajectories.push_back(traj);
     }
 }
 

@@ -19,13 +19,13 @@ using namespace std;
     (max_accel_cost,    1),
     (total_accel_cost,  1),
 */
-const vector<float> WEIGHTS = {1, 20, 20, 1, 1, 1, 20, 1, 1, 1};
+const vector<double> WEIGHTS = {1, 20, 20, 1, 1, 1, 20, 1, 1, 1};
 
 struct Vehicle
 {
-    vector<float> state;
+    vector<double> state;
     Vehicle() { state.resize(6); }
-    Vehicle(const vector<float> &s)
+    Vehicle(const vector<double> &s)
     {
         if (s.size() == 6)
         {
@@ -37,7 +37,7 @@ struct Vehicle
         }
     }
 
-    vector<float> state_in(float t)
+    vector<double> state_in(double t)
     {
         return {state[0] + state[1] * t + state[2] * t * t / 2.,
                 state[1] + state[2] * t,
@@ -52,10 +52,10 @@ std::vector<double> JMT(std::vector<double> start, std::vector<double> end, doub
 
 double logistic(double x);
 
-void PTG(vector<float> start_s, vector<float> start_d, int target_vehicle,
-         vector<float> delta, float T, vector<Vehicle> predictions);
+void PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
+         vector<double> delta, double T, vector<Vehicle> predictions);
 
-vector<float> VecAdd(const vector<float> &v1, const vector<float> &v2);
+vector<double> VecAdd(const vector<double> &v1, const vector<double> &v2);
 
-vector<float> perturb_goal(const vector<float> &sd);
+vector<double> perturb_goal(const vector<double> &sd);
 #endif //HELPERS_H_
