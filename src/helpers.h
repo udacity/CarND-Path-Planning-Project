@@ -4,6 +4,7 @@
 #include <iostream>
 #include <math.h>
 #include <vector>
+#include <map>
 
 using namespace std;
 
@@ -25,8 +26,19 @@ const float VEHICLE_RADIUS = 1.5;
 
 struct Vehicle
 {
+    map<string, int> lane_direction = { {"LCL", 1}, {"LCR", -1}};
+
     vector<double> state;
-    Vehicle() { state.resize(6); }
+    string lstate;
+    int lane;
+    int lanes_available;
+
+    Vehicle()
+    {
+        state.resize(6);
+        lane = 1;
+        lanes_available = 3;
+    }
     Vehicle(const vector<double> &s)
     {
         if (s.size() == 6)
@@ -48,6 +60,8 @@ struct Vehicle
                 state[4] + state[5] * t,
                 state[5]};
     }
+
+    vector<string> successor_states();
 };
 
 std::vector<double> JMT(std::vector<double> start, std::vector<double> end,
@@ -66,8 +80,9 @@ double polyval(const vector<double> &coeffs, double x);
 
 vector<double> differntiate(const vector<double> &coeffs);
 
-double nearest_approach_to_any_vehicle(const vector<double> &traj, const vector<Vehicle> & vehicles);
+double nearest_approach_to_any_vehicle(const vector<double> &traj, const vector<Vehicle> &vehicles);
 
-double nearest_approach(const vector<double> &traj, const Vehicle & vehicle);
+double nearest_approach(const vector<double> &traj, const Vehicle &vehicle);
 
+int getLane(double d);
 #endif // HELPERS_H_

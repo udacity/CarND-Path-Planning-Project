@@ -13,6 +13,39 @@ static const int N_SAMPLES = 10;
 static std::random_device rd{};
 static std::mt19937 gen{rd()};
 
+vector<string> Vehicle::successor_states()
+{
+    /*
+    Provides the possible next states given the current state for the FSM 
+    discussed in the course, with the exception that lane changes happen 
+    instantaneously, so LCL and LCR can only transition back to KL.
+    */
+    vector<string> states;
+    states.push_back("KL");
+    string state = this->lstate;
+    if (state.compare("KL") == 0)
+    {
+        states.push_back("LCL");
+        states.push_back("LCR");
+    }
+    else if (state.compare("LCL") == 0)
+    {
+        if (lane != lanes_available - 1)
+        {            
+            states.push_back("LCL");
+        }
+    }
+    else if (state.compare("LCR") == 0)
+    {
+        if (lane != 0)
+        {            
+            states.push_back("LCR");
+        }
+    }
+    //If state is "LCL" or "LCR", then just return "KL"
+    return states;
+}
+
 void PTG(vector<double> start_s, vector<double> start_d, int target_vehicle,
          vector<double> delta, double T, vector<Vehicle> predictions)
 {
@@ -188,4 +221,9 @@ double nearest_approach(const vector<double> &traj, const Vehicle &vehicle)
         }
     }
     return closest;
+}
+
+int getLane(double d)
+{
+    return d / 4;
 }
