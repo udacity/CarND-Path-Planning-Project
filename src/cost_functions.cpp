@@ -31,8 +31,9 @@ double s_diff_cost(const vector<double> &traj, const int &target_vehicle,
                    const vector<Vehicle> &predictions)
 {
     vector<double> s(traj.begin(), traj.begin() + 3);
+    double t = traj[12];
     Vehicle target = predictions[target_vehicle];
-    vector<double> target_state = VecAdd(target.state, delta);
+    vector<double> target_state = VecAdd(target.state_in(t), delta);
 
     vector<double> s_targ(target_state.begin(), target_state.begin() + 3);
     vector<double> S(3);
