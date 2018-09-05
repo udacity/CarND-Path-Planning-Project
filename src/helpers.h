@@ -42,12 +42,15 @@ struct Vehicle
     // total available lanes
     int lanes_available;
 
+    double speed;
+
     Vehicle()
     {
         state.resize(6);
         lane = 1;
         lanes_available = 3;
         lstate = "KL";
+        speed = 0.;
     }
     Vehicle(const vector<double> &s)
     {
@@ -88,7 +91,7 @@ struct Vehicle
     vector<double> generate_trajectory(string state, const vector<Vehicle> &predictions);
     vector<double> keep_lane_trajectory(const vector<Vehicle> &predictions);
     vector<double> lane_change_trajectory(string state, const vector<Vehicle> &predictions);
-
+    vector<double> free_lane_trajectory();
     bool get_vehicle_ahead(const vector<Vehicle> &predictions, int &idx);
 };
 
@@ -105,11 +108,19 @@ double logistic(double x);
 vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d, const int &target_vehicle,
                    const vector<double> &delta, const double &T, const vector<Vehicle> &predictions);
 
+vector<double> PTG_free(const vector<double> &start, const vector<double> &target, const double &T);
+
 vector<double> VecAdd(const vector<double> &v1, const vector<double> &v2);
+
+vector<double> VecSub(const vector<double> &v1, const vector<double> &v2);
 
 vector<double> perturb_goal(const vector<double> &sd);
 
 double polyval(const vector<double> &coeffs, double x);
+
+vector<double> polyval(const vector<double> &coeffs, const vector<double> &x);
+
+vector<double> evalState(const vector<double> &coeffs, const double t);
 
 vector<double> differntiate(const vector<double> &coeffs);
 
@@ -118,4 +129,6 @@ double nearest_approach_to_any_vehicle(const vector<double> &traj, const vector<
 double nearest_approach(const vector<double> &traj, const Vehicle &vehicle);
 
 int getLane(double d);
+
+void printState(const vector<double> &x);
 #endif // HELPERS_H_
