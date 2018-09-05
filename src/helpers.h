@@ -25,10 +25,9 @@ const vector<float> WEIGHTS = {1, 20, 20, 1, 1, 1, 20, 1, 1, 1};
 const vector<float> SIGMA_SD = {10., 4., 2., 1., 1., 1.};
 const float VEHICLE_RADIUS = 1.5;
 const double HORIZON = 4.;
-const double MAX_SPEED = 50*0.44704;
+const double MAX_SPEED = 50 * 0.44704;
 const double MAX_ACC = 10.0;
 const double MAX_JERK = 10.0;
-
 
 struct Vehicle
 {

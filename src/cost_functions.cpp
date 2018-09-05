@@ -4,14 +4,13 @@ double calculate_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<double> &delta, const double T,
                       const vector<Vehicle> &predictions, bool verbose)
 {
-    double cost = 0.;
-    cout << "a1 ..";
+    double cost = 0.;    
+    //cout << predictions.size();
     vector<CostFun> cf_list = {time_diff_cost, s_diff_cost, d_diff_cost, collision_cost, buffer_cost, efficiency_cost};
     vector<double> weights = {1, 6, 6, 10, 1, 2};
-    cout << "a2 ..";
+    
     for (size_t i = 0; i < cf_list.size(); ++i)
-    {
-        cout << " c " << i;
+    {    
         cost += weights[i] * cf_list[i](traj, target_vehicle, delta, T, predictions);
     }
 
@@ -58,8 +57,9 @@ double d_diff_cost(const vector<double> &traj, const int &target_vehicle,
                    const vector<Vehicle> &predictions)
 {
     vector<double> d(traj.begin() + 3, traj.begin() + 6);
+    double t = traj[12];
     Vehicle target = predictions[target_vehicle];
-    vector<double> target_state = VecAdd(target.state, delta);
+    vector<double> target_state = VecAdd(target.state_in(t), delta);
 
     vector<double> d_targ(target_state.begin() + 3, target_state.begin() + 6);
     vector<double> D(3);

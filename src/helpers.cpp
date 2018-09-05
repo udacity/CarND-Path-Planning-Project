@@ -14,13 +14,13 @@ static std::mt19937 gen{rd()};
 vector<double> Vehicle::choose_next_state(const vector<Vehicle> &predictions)
 {
     vector<string> possible_successor_states = successor_states();
-    cout << "Hello 2 .. tr\n";
+    //cout << "Hello 2 .. tr\n";
     vector<double> costs;
     vector<vector<double>> trajectories;
     for (size_t i = 0; i < possible_successor_states.size(); ++i)
     {
         vector<double> traj_states = generate_trajectory(possible_successor_states[i], predictions);
-        cout << "Hello 2 .. traj_states.size() = " << traj_states.size();
+        //cout << "Hello 2 .. traj_states.size() = " << traj_states.size();
         costs.push_back(traj_states[13]);
         trajectories.push_back(traj_states);
     }
@@ -65,7 +65,7 @@ vector<string> Vehicle::successor_states()
 
 vector<double> Vehicle::generate_trajectory(string state_, const vector<Vehicle> &predictions)
 {
-    cout << "state " << state_ << "\n";
+    //cout << "state " << state_ << "\n";
     if (state_.compare("KL") == 0)
     {
         return keep_lane_trajectory(predictions);
@@ -78,9 +78,9 @@ vector<double> Vehicle::generate_trajectory(string state_, const vector<Vehicle>
 
 vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
 {
-    int idx=0;
+    int idx = 0;
     if (get_vehicle_ahead(predictions, idx))
-    {        
+    {
         vector<double> start_s(state.begin(), state.begin() + 3);
         vector<double> start_d(state.begin() + 3, state.begin() + 6);
         vector<double> delta = {-30, 0, 0, 0, 0, 0};
@@ -89,13 +89,13 @@ vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
     }
     else
     {
-        
+
         vector<double> start_s(state.begin(), state.begin() + 3);
         vector<double> start_d(state.begin() + 3, state.begin() + 6);
         vector<double> delta = {30, MAX_SPEED / 3, 0, 0, 0, 0};
 
         vector<Vehicle> tmp;
-        tmp.push_back(*this);        
+        tmp.push_back(*this);
         return PTG(start_s, start_d, 0, delta, HORIZON, tmp);
     }
 }
@@ -145,11 +145,11 @@ bool Vehicle::get_vehicle_ahead(const vector<Vehicle> &predictions, int &idx)
 
 vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d, const int &target_vehicle,
                    const vector<double> &delta, const double &T, const vector<Vehicle> &predictions)
-{    
+{
     Vehicle target = predictions[target_vehicle];
     vector<vector<double>> all_goals; // s,d,t
     float timestep = 0.5;
-    float t = T - 4 * timestep;    
+    float t = T - 4 * timestep;
     while (t <= (T + 4 * timestep))
     {
         vector<double> target_state = VecAdd(target.state_in(t), delta);
@@ -157,13 +157,16 @@ vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d,
         goals.push_back(t);
         all_goals.push_back(goals);
         for (int i = 0; i < N_SAMPLES; ++i)
-        {            
+        {
+            //cout << " " << goals.size();
             goals = perturb_goal(target_state);
             goals.push_back(t);
             all_goals.push_back(goals);
         }
+        //cout << " \n";
         t += timestep;
-    }    
+    }
+    // cout << "perturb ..." << all_goals.size() << "\n";
     vector<vector<double>> trajectories;
     vector<double> traj(13);
     for (size_t i = 0; i < all_goals.size(); ++i)
@@ -172,22 +175,20 @@ vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d,
         vector<double> d_goal(all_goals[i].begin() + 3, all_goals[i].begin() + 6);
         double t = all_goals[i][6];
         vector<double> s_coeffs = JMT(start_s, s_goal, t);
-        vector<double> d_coeffs = JMT(start_d, d_goal, t);        
+        vector<double> d_coeffs = JMT(start_d, d_goal, t);
         copy(s_coeffs.begin(), s_coeffs.end(), traj.begin());
         copy(d_coeffs.begin(), d_coeffs.end(), traj.begin() + 6);
         traj[12] = t;
         trajectories.push_back(traj);
+        //cout << "perturb ..." << i;
     }
-    //cout<<"trajectories = "<<trajectories.size();
-    vector<double> costs;    
-    cout<<"trajectories = "<<trajectories.size();
+    vector<double> costs;
     for (size_t i = 0; i < trajectories.size(); ++i)
     {
-        //cout<<"i = "<<i;
         costs.push_back(calculate_cost(trajectories[i], target_vehicle, delta, T, predictions));
-        costs.push_back(i);
+        //costs.push_back(i);
     }
-    int idx = 0;//distance(costs.begin(), min_element(costs.begin(), costs.end()));
+    int idx = distance(costs.begin(), min_element(costs.begin(), costs.end()));
 
     vector<double> rst;
     rst = trajectories[idx];
@@ -247,6 +248,10 @@ EXAMPLE
 
 vector<double> VecAdd(const vector<double> &v1, const vector<double> &v2)
 {
+    if (v1.size() != v2.size())
+    {
+        cerr << "Invalid input\n";
+    }
     vector<double> r;
     for (size_t i = 0; i < v1.size(); ++i)
     {
