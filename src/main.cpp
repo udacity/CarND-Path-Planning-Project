@@ -223,7 +223,7 @@ int main()
 		// The 4 signifies a websocket message
 		// The 2 signifies a websocket event
 		//auto sdata = string(data).substr(0, length);
-		//cout << sdata << endl;
+		cout << sdata << endl;
 		if (length && length > 2 && data[0] == '4' && data[1] == '2')
 		{
 
@@ -278,8 +278,6 @@ int main()
 						vector<double> veh = {sensor_fusion[i][5], sensor_fusion[i][3], 0, sensor_fusion[i][6], 0, 0};
 						predictions.push_back(Vehicle(veh));
 					}
-
-					cout<<"predictions.size() = "<< predictions.size()<<"\n";
 
 					vector<double> ego_rst = ego.choose_next_state(predictions);
 					cout<<"\nHello 3 ______________\n";

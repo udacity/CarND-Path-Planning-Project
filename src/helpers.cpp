@@ -80,8 +80,7 @@ vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
 {
     int idx=0;
     if (get_vehicle_ahead(predictions, idx))
-    {
-        cout<<"front\n";
+    {        
         vector<double> start_s(state.begin(), state.begin() + 3);
         vector<double> start_d(state.begin() + 3, state.begin() + 6);
         vector<double> delta = {-30, 0, 0, 0, 0, 0};
@@ -96,8 +95,7 @@ vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
         vector<double> delta = {30, MAX_SPEED / 3, 0, 0, 0, 0};
 
         vector<Vehicle> tmp;
-        tmp.push_back(*this);
-        cout<<"no front\n";
+        tmp.push_back(*this);        
         return PTG(start_s, start_d, 0, delta, HORIZON, tmp);
     }
 }
@@ -147,13 +145,11 @@ bool Vehicle::get_vehicle_ahead(const vector<Vehicle> &predictions, int &idx)
 
 vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d, const int &target_vehicle,
                    const vector<double> &delta, const double &T, const vector<Vehicle> &predictions)
-{
-    cout<<"\nhere  .. target_vehicle = "<<target_vehicle<<"\n";
+{    
     Vehicle target = predictions[target_vehicle];
     vector<vector<double>> all_goals; // s,d,t
     float timestep = 0.5;
-    float t = T - 4 * timestep;
-    cout<<"here 1 ..\n";
+    float t = T - 4 * timestep;    
     while (t <= (T + 4 * timestep))
     {
         vector<double> target_state = VecAdd(target.state_in(t), delta);
@@ -167,8 +163,7 @@ vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d,
             all_goals.push_back(goals);
         }
         t += timestep;
-    }
-    cout<<"here 1 ..\n";
+    }    
     vector<vector<double>> trajectories;
     vector<double> traj(13);
     for (size_t i = 0; i < all_goals.size(); ++i)
@@ -183,14 +178,13 @@ vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d,
         traj[12] = t;
         trajectories.push_back(traj);
     }
-    cout<<"trajectories = "<<trajectories.size();
-    vector<double> costs;
-    cout<<"here 3 ..\n";
+    //cout<<"trajectories = "<<trajectories.size();
+    vector<double> costs;    
     cout<<"trajectories = "<<trajectories.size();
     for (size_t i = 0; i < trajectories.size(); ++i)
     {
-        cout<<"i = "<<i;
-        //costs.push_back(calculate_cost(trajectories[i], target_vehicle, delta, T, predictions));
+        //cout<<"i = "<<i;
+        costs.push_back(calculate_cost(trajectories[i], target_vehicle, delta, T, predictions));
         costs.push_back(i);
     }
     int idx = 0;//distance(costs.begin(), min_element(costs.begin(), costs.end()));
