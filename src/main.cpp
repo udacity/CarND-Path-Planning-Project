@@ -222,8 +222,8 @@ int main()
 		// "42" at the start of the message means there's a websocket message event.
 		// The 4 signifies a websocket message
 		// The 2 signifies a websocket event
-		auto sdata = string(data).substr(0, length);
-		cout << sdata << endl;
+		// auto sdata = string(data).substr(0, length);
+		// cout << sdata << endl;
 		if (length && length > 2 && data[0] == '4' && data[1] == '2')
 		{
 
@@ -264,8 +264,10 @@ int main()
 						car_s = end_path_s;
 					}
 
-					ego.lane = getLane(car_d);
-					ego.state = {car_s, car_speed * 0.44704, 0, car_d, 0, 0};
+					ego.lane = getLane(car_d);				
+					// update acc
+					double acc = (car_speed	-ego.speed)/(0.02 * (50-prev_size+1));
+					ego.state = {car_s, car_speed * 0.44704, acc, car_d, 0, 0};
 					if (!initialized)
 					{
 						ego.lstate = "KL";
@@ -280,8 +282,32 @@ int main()
 					}
 
 					vector<double> ego_rst = ego.choose_next_state(predictions);
-					cout<<"\nHello 3 ______________\n";
+					vector<double> s_coeffs(ego_rst.begin(), ego_rst.begin() + 6);
+					vector<double> d_coeffs(ego_rst.begin() + 6, ego_rst.begin() + 12);
+					double dur = ego_rst[12];
+					cout << "cost = " << ego_rst[13] << "\n";
+					cout << "lane = " << ego.lane << "\n";
+					cout << "state = " << ego.lstate << "\n";
+					cout << "car_s = " << car_s << ", car_d = " << car_d << "\n";
 
+					printState(ego.state);
+
+					vector<double> t_vec;
+					for (int i = 0; i <= 50 - previous_path_x.size(); ++i)
+					{
+						t_vec.push_back(0.02 * (i + 1));
+					}
+					auto traj_s = polyval(s_coeffs, t_vec);
+					auto traj_d = polyval(d_coeffs, t_vec);
+					cout << "traj_s[0] = " << traj_s[0] - car_s << ", traj_s[1] = " << traj_s[1] - car_s << ", traj_s[3] = " << traj_s[3] - car_s << "\n";
+					vector<double> traj_x, traj_y;
+
+					for (size_t i = 0; i < traj_s.size(); ++i)
+					{
+						auto tmp = getXY(traj_s[i], traj_d[i], map_waypoints_s, map_waypoints_x, map_waypoints_y);
+						traj_x.push_back(tmp[0]);
+						traj_y.push_back(tmp[1]);
+					}
 					bool too_close = false;
 
 					//find ref_v to use
@@ -356,9 +382,9 @@ int main()
 
 					// add three further points
 					vector<vector<double>> next_wps(3);
-					next_wps[0] = getXY(car_s + 30, 2 + 4 * lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-					next_wps[1] = getXY(car_s + 60, 2 + 4 * lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-					next_wps[2] = getXY(car_s + 90, 2 + 4 * lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+					next_wps[0] = getXY(car_s + 30, 2 + 4 * ego.lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+					next_wps[1] = getXY(car_s + 60, 2 + 4 * ego.lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+					next_wps[2] = getXY(car_s + 90, 2 + 4 * ego.lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
 					for (size_t i = 0; i < next_wps.size(); ++i)
 					{
@@ -376,6 +402,15 @@ int main()
 						ptsy[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
 					}
 
+					for (size_t i = 0; i < traj_x.size(); ++i)
+					{
+						double shift_x = traj_x[i] - ref_x;
+						double shift_y = traj_y[i] - ref_y;
+
+						traj_x[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
+						traj_y[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
+					}
+
 					tk::spline s;
 					s.set_points(ptsx, ptsy);
 
@@ -384,7 +419,7 @@ int main()
 
 					// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 					// start with previous left points
-					for (size_t i = 0; i < previous_path_x.size(); ++i)
+					for (size_t i = 0; i < (previous_path_x.size() /*> 10 ? 10 : previous_path_x.size()*/); ++i)
 					{
 						next_x_vals.push_back(previous_path_x[i]);
 						next_y_vals.push_back(previous_path_y[i]);
@@ -396,13 +431,16 @@ int main()
 					double target_dist = sqrt(target_x * target_x + target_y * target_y);
 
 					double x_add_on = 0;
-
+					cout << "pts = ";
 					for (int i = 0; i <= 50 - previous_path_x.size(); ++i)
 					{
 						// 2.24 -> mph to m/s
 						double N = target_dist / (0.02 * ref_vel / 2.24);
-						double x_point = x_add_on + target_x / N;
-						double y_point = s(x_point);
+						//double x_point = x_add_on + target_x / N;
+						//double y_point = s(x_point);
+						double x_point = traj_x[i];  //polyval(s_coeffs, 0.02 * (i + 1));
+						double y_point = s(x_point); // + polyval(d_coeffs, 0.02 * (i + 1));
+						cout << "(" << x_point << "," << y_point << "), ";
 
 						x_add_on = x_point;
 
@@ -419,6 +457,7 @@ int main()
 						next_x_vals.push_back(x_point);
 						next_y_vals.push_back(y_point);
 					}
+					cout << "\n";
 					// END
 					json msgJson;
 					msgJson["next_x"] = next_x_vals;
