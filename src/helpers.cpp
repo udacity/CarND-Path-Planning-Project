@@ -288,6 +288,7 @@ vector<double> differntiate(const vector<double> &coeffs)
         {
             r.push_back(coeffs[i] * i);
         }
+        return r;
     }
     else
     {
@@ -317,15 +318,15 @@ double nearest_approach(const vector<double> &traj, const Vehicle &vehicle)
     vector<double> d(traj.begin() + 3, traj.begin() + 6);
     double T = traj[12];
     double t, cur_s, cur_d, target_s, target_d, dist;
-    vector<double> state;
-    for (int i = 0; i < 100; + i)
+    vector<double> states;
+    for (int i = 0; i < 100; ++i)
     {
         t = float(i) / 100 * T;
         cur_s = polyval(s, t);
         cur_d = polyval(d, t);
-        state = vehicle.state_in(t);
-        target_s = state[0];
-        target_d = state[3];
+        states = vehicle.state_in(t);
+        target_s = states[0];
+        target_d = states[3];
 
         dist = pow(cur_s - target_s, 2) + pow(cur_d - target_d, 2);
         if (dist < closest * closest)
