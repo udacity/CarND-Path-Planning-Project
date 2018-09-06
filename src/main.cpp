@@ -264,9 +264,9 @@ int main()
 						car_s = end_path_s;
 					}
 
-					ego.lane = getLane(car_d);				
+					ego.lane = getLane(car_d);
 					// update acc
-					double acc = (car_speed	-ego.speed)/(0.02 * (50-prev_size+1));
+					double acc = (car_speed - ego.speed) / (0.02 * (50 - prev_size + 1));
 					ego.state = {car_s, car_speed * 0.44704, acc, car_d, 0, 0};
 					if (!initialized)
 					{
@@ -293,12 +293,19 @@ int main()
 					printState(ego.state);
 
 					vector<double> t_vec;
+					double dt = 0.5;
+					for (int i = 0; i <= HORIZON; i += dt)
+					{
+						t_vec.push_back(0.02 * (i + 1));
+					}
+					vector<double> t_vec2;
 					for (int i = 0; i <= 50 - previous_path_x.size(); ++i)
 					{
 						t_vec.push_back(0.02 * (i + 1));
 					}
 					auto traj_s = polyval(s_coeffs, t_vec);
 					auto traj_d = polyval(d_coeffs, t_vec);
+					auto traj_l = polyval(s_coeffs, t_vec2);
 					cout << "traj_s[0] = " << traj_s[0] - car_s << ", traj_s[1] = " << traj_s[1] - car_s << ", traj_s[3] = " << traj_s[3] - car_s << "\n";
 					vector<double> traj_x, traj_y;
 
@@ -412,7 +419,8 @@ int main()
 					}
 
 					tk::spline s;
-					s.set_points(ptsx, ptsy);
+					//s.set_points(ptsx, ptsy);
+					s.set_points(traj_x, traj_y);
 
 					vector<double> next_x_vals;
 					vector<double> next_y_vals;
@@ -426,7 +434,7 @@ int main()
 					}
 
 					// break up spline
-					double target_x = 30.;
+					double target_x = *traj_l.rbegin(); //30.;
 					double target_y = s(target_x);
 					double target_dist = sqrt(target_x * target_x + target_y * target_y);
 
@@ -438,8 +446,8 @@ int main()
 						double N = target_dist / (0.02 * ref_vel / 2.24);
 						//double x_point = x_add_on + target_x / N;
 						//double y_point = s(x_point);
-						double x_point = traj_x[i];  //polyval(s_coeffs, 0.02 * (i + 1));
-						double y_point = s(x_point); // + polyval(d_coeffs, 0.02 * (i + 1));
+						double x_point = traj_l[i] - car_s; //traj_x[i];  //polyval(s_coeffs, 0.02 * (i + 1));
+						double y_point = s(x_point);		// + polyval(d_coeffs, 0.02 * (i + 1));
 						cout << "(" << x_point << "," << y_point << "), ";
 
 						x_add_on = x_point;
