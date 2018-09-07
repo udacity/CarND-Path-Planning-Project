@@ -264,14 +264,18 @@ int main()
 						car_s = end_path_s;
 					}
 
-					ego.lane = getLane(car_d);
+					
 					// update acc
-					double acc = (car_speed - ego.speed) / (0.02 * (50 - prev_size + 1));
-					ego.state = {car_s, car_speed * 0.44704, acc, car_d, 0, 0};
+					double acc = (car_speed * 0.44704 - ego.speed) / (0.02 * (50 - prev_size + 1));
+					
+					ego.speed = car_speed * 0.44704;
+
 					if (!initialized)
 					{
+						ego.lane = getLane(car_d);
 						ego.lstate = "KL";
 						ego.lanes_available = 3;
+						ego.state = {car_s, 0, 0, car_d, 0, 0};
 					}
 
 					vector<Vehicle> predictions;
@@ -289,24 +293,31 @@ int main()
 					cout << "lane = " << ego.lane << "\n";
 					cout << "state = " << ego.lstate << "\n";
 					cout << "car_s = " << car_s << ", car_d = " << car_d << "\n";
+					printVec(s_coeffs);
 
 					printState(ego.state);
 
 					vector<double> t_vec;
-					double dt = 0.5;
-					for (int i = 0; i <= HORIZON; i += dt)
+					double dt = 0.5 * 2;
+					for (double i = 0; i <= HORIZON * 2; i += dt)
 					{
-						t_vec.push_back(0.02 * (i + 1));
+						t_vec.push_back((i));
 					}
 					vector<double> t_vec2;
-					for (int i = 0; i <= 50 - previous_path_x.size(); ++i)
+					for (int i = 0; i <= 50 /*- previous_path_x.size()*/; ++i)
 					{
-						t_vec.push_back(0.02 * (i + 1));
+						t_vec2.push_back(0.02 * (i + 1));
 					}
+					printVec(t_vec2);
 					auto traj_s = polyval(s_coeffs, t_vec);
 					auto traj_d = polyval(d_coeffs, t_vec);
 					auto traj_l = polyval(s_coeffs, t_vec2);
-					cout << "traj_s[0] = " << traj_s[0] - car_s << ", traj_s[1] = " << traj_s[1] - car_s << ", traj_s[3] = " << traj_s[3] - car_s << "\n";
+					cout << "traj_s = ";
+					for (size_t i = 0; i < traj_l.size(); ++i)
+					{
+						cout << traj_l[i] - car_s << ",";
+					}
+					cout << "\n";
 					vector<double> traj_x, traj_y;
 
 					for (size_t i = 0; i < traj_s.size(); ++i)
@@ -409,6 +420,7 @@ int main()
 						ptsy[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
 					}
 
+					/*
 					for (size_t i = 0; i < traj_x.size(); ++i)
 					{
 						double shift_x = traj_x[i] - ref_x;
@@ -416,11 +428,14 @@ int main()
 
 						traj_x[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
 						traj_y[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
-					}
+
+						ptsx.push_back(traj_x[i]);
+						ptsy.push_back(traj_y[i]);
+					}*/
 
 					tk::spline s;
-					//s.set_points(ptsx, ptsy);
-					s.set_points(traj_x, traj_y);
+					s.set_points(ptsx, ptsy);
+					//s.set_points(traj_x, traj_y);
 
 					vector<double> next_x_vals;
 					vector<double> next_y_vals;
@@ -434,7 +449,7 @@ int main()
 					}
 
 					// break up spline
-					double target_x = *traj_l.rbegin(); //30.;
+					double target_x = 30; //*traj_l.rbegin(); //30.;
 					double target_y = s(target_x);
 					double target_dist = sqrt(target_x * target_x + target_y * target_y);
 
@@ -444,10 +459,10 @@ int main()
 					{
 						// 2.24 -> mph to m/s
 						double N = target_dist / (0.02 * ref_vel / 2.24);
-						//double x_point = x_add_on + target_x / N;
-						//double y_point = s(x_point);
-						double x_point = traj_l[i] - car_s; //traj_x[i];  //polyval(s_coeffs, 0.02 * (i + 1));
-						double y_point = s(x_point);		// + polyval(d_coeffs, 0.02 * (i + 1));
+						double x_point = x_add_on + target_x / N;
+						double y_point = s(x_point);
+						//double x_point = (traj_l[i] - car_s) * target_x / target_dist; //traj_x[i];  //polyval(s_coeffs, 0.02 * (i + 1));
+						//double y_point = s(x_point);								   // + polyval(d_coeffs, 0.02 * (i + 1));
 						cout << "(" << x_point << "," << y_point << "), ";
 
 						x_add_on = x_point;

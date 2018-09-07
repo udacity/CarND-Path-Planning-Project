@@ -6,6 +6,8 @@
 #include <map>
 #include <string>
 
+#include "cost_functions.h"
+
 using namespace std;
 
 class Vehicle {

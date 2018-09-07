@@ -131,4 +131,6 @@ double nearest_approach(const vector<double> &traj, const Vehicle &vehicle);
 int getLane(double d);
 
 void printState(const vector<double> &x);
+
+void printVec(const vector<double> &x);
 #endif // HELPERS_H_

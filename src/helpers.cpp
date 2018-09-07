@@ -143,14 +143,13 @@ vector<double> Vehicle::free_lane_trajectory()
     max_avail_speed = max_avail_speed > target_speed ? target_speed : max_avail_speed;
     double delta_speed = max_avail_speed - state[1];
     double a = delta_speed / HORIZON;
-    double s0 = state[0] * HORIZON + 0.5 * a * a;
+    double s0 = state[0] + state[1] * HORIZON + HORIZON * 0.5 * delta_speed;
 
     vector<double> target_state = {s0, max_avail_speed, a, 2. + 4. * lane, 0, 0};
-    auto delta = VecSub(target_state, state);
+    
+    printState(state);
+    printState(target_state);
 
-    auto rst = JMT(state, target_state, HORIZON);
-    vector<Vehicle> tmp;
-    tmp.push_back(*this);
     return PTG_free(state, target_state, HORIZON);
 }
 
@@ -452,6 +451,15 @@ int getLane(double d)
 void printState(const vector<double> &x)
 {
     cout << "state: ";
+    for (int i = 0; i < 6; ++i)
+    {
+        cout << x[i] << ", ";
+    }
+    cout << "\n";
+}
+
+void printVec(const vector<double> &x)
+{
     for (int i = 0; i < 6; ++i)
     {
         cout << x[i] << ", ";
