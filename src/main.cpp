@@ -3,6 +3,7 @@
 #include <uWS/uWS.h>
 #include <chrono>
 #include <iostream>
+#include <algorithm>
 #include <thread>
 #include <vector>
 #include <map>
@@ -21,7 +22,7 @@ using json = nlohmann::json;
 
 const double TARGET_SPEED = 49.5;
 const double DT = 0.02;
-
+const double d2r = M_PI / 180.;
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
@@ -237,6 +238,7 @@ int main()
 
 				if (event == "telemetry")
 				{
+					std::chrono::steady_clock::time_point t_start = std::chrono::steady_clock::now();
 					// j[1] is the data JSON object
 
 					// Main car's localization Data
@@ -264,15 +266,24 @@ int main()
 						car_s = end_path_s;
 					}
 
-					
+					vector<double> prev_d, prev_s;
+					for (size_t i = 0; i < previous_path_x.size(); ++i)
+					{
+						auto tmp = getFrenet(previous_path_x[i], previous_path_y[i], car_yaw * d2r, map_waypoints_x, map_waypoints_y);
+						prev_s.push_back(tmp[0]);
+						prev_d.push_back(tmp[1]);
+					}
+					//cout << "previous s = ";
+					//printVec(prev_s);
 					// update acc
 					double acc = (car_speed * 0.44704 - ego.speed) / (0.02 * (50 - prev_size + 1));
-					
-					ego.speed = car_speed * 0.44704;
 
+					ego.speed = car_speed * 0.44704 > 2 ? car_speed * 0.44704 : 2;
+					cout << "car_speed = " << ego.speed << "m/s\n";
+					ego.state = {car_s, ego.speed, 0, car_d, 0, 0};
+					ego.lane = getLane(car_d);
 					if (!initialized)
-					{
-						ego.lane = getLane(car_d);
+					{						
 						ego.lstate = "KL";
 						ego.lanes_available = 3;
 						ego.state = {car_s, 0, 0, car_d, 0, 0};
@@ -286,6 +297,7 @@ int main()
 					}
 
 					vector<double> ego_rst = ego.choose_next_state(predictions);
+					//vector<double> ego_rst = ego.free_lane_trajectory();
 					vector<double> s_coeffs(ego_rst.begin(), ego_rst.begin() + 6);
 					vector<double> d_coeffs(ego_rst.begin() + 6, ego_rst.begin() + 12);
 					double dur = ego_rst[12];
@@ -293,7 +305,7 @@ int main()
 					cout << "lane = " << ego.lane << "\n";
 					cout << "state = " << ego.lstate << "\n";
 					cout << "car_s = " << car_s << ", car_d = " << car_d << "\n";
-					printVec(s_coeffs);
+					//printVec(s_coeffs);
 
 					printState(ego.state);
 
@@ -308,16 +320,16 @@ int main()
 					{
 						t_vec2.push_back(0.02 * (i + 1));
 					}
-					printVec(t_vec2);
+					//printVec(t_vec2);
 					auto traj_s = polyval(s_coeffs, t_vec);
 					auto traj_d = polyval(d_coeffs, t_vec);
 					auto traj_l = polyval(s_coeffs, t_vec2);
-					cout << "traj_s = ";
-					for (size_t i = 0; i < traj_l.size(); ++i)
-					{
-						cout << traj_l[i] - car_s << ",";
-					}
-					cout << "\n";
+					//cout << "traj_s = ";
+					//for (size_t i = 0; i < traj_l.size(); ++i)
+					//{
+						//cout << traj_l[i] - car_s << ",";
+					//}
+					//cout << "\n";
 					vector<double> traj_x, traj_y;
 
 					for (size_t i = 0; i < traj_s.size(); ++i)
@@ -333,7 +345,7 @@ int main()
 					{
 						// car is in my lane
 						float d = sensor_fusion[i][6];
-						if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2))
+						if (d < (2 + 4 * ego.lane + 2) && d > (2 + 4 * ego.lane - 2))
 						{
 							double vx = sensor_fusion[i][3];
 							double vy = sensor_fusion[i][4];
@@ -358,7 +370,7 @@ int main()
 					{
 						if (ref_vel < TARGET_SPEED)
 						{
-							ref_vel += 0.224;
+							ref_vel += MAX_ACC * 0.02 * 0.9*2.24; //0.224;
 						}
 					}
 
@@ -388,13 +400,17 @@ int main()
 					{
 						ref_x = previous_path_x[prev_size - 1];
 						ref_y = previous_path_y[prev_size - 1];
+						//ref_x = previous_path_x[1];
+						//ref_y = previous_path_y[1];
 
 						double ref_x_prev = previous_path_x[prev_size - 2];
 						double ref_y_prev = previous_path_y[prev_size - 2];
+						//double ref_x_prev = previous_path_x[0]; //previous_path_x[prev_size - 2];
+						//double ref_y_prev = previous_path_y[0]; //previous_path_y[prev_size - 2];
 
-						ptsx.push_back(ref_x_prev);
+						//ptsx.push_back(ref_x_prev);
 						ptsx.push_back(ref_x);
-						ptsy.push_back(ref_y_prev);
+						//ptsy.push_back(ref_y_prev);
 						ptsy.push_back(ref_y);
 					}
 
@@ -434,6 +450,7 @@ int main()
 					}*/
 
 					tk::spline s;
+
 					s.set_points(ptsx, ptsy);
 					//s.set_points(traj_x, traj_y);
 
@@ -442,11 +459,11 @@ int main()
 
 					// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 					// start with previous left points
-					for (size_t i = 0; i < (previous_path_x.size() /*> 10 ? 10 : previous_path_x.size()*/); ++i)
-					{
-						next_x_vals.push_back(previous_path_x[i]);
-						next_y_vals.push_back(previous_path_y[i]);
-					}
+					//for (size_t i = 0; i < (previous_path_x.size() /*> 10 ? 10 : previous_path_x.size()*/); ++i)
+					//{
+					//	next_x_vals.push_back(previous_path_x[i]);
+					//	next_y_vals.push_back(previous_path_y[i]);
+					//}
 
 					// break up spline
 					double target_x = 30; //*traj_l.rbegin(); //30.;
@@ -454,16 +471,16 @@ int main()
 					double target_dist = sqrt(target_x * target_x + target_y * target_y);
 
 					double x_add_on = 0;
-					cout << "pts = ";
-					for (int i = 0; i <= 50 - previous_path_x.size(); ++i)
+					//cout << "pts = ";
+					for (int i = 0; i <= 50 - next_x_vals.size(); ++i)
 					{
 						// 2.24 -> mph to m/s
 						double N = target_dist / (0.02 * ref_vel / 2.24);
 						double x_point = x_add_on + target_x / N;
 						double y_point = s(x_point);
-						//double x_point = (traj_l[i] - car_s) * target_x / target_dist; //traj_x[i];  //polyval(s_coeffs, 0.02 * (i + 1));
-						//double y_point = s(x_point);								   // + polyval(d_coeffs, 0.02 * (i + 1));
-						cout << "(" << x_point << "," << y_point << "), ";
+						//double x_point = (traj_l[i] - car_s); // * target_x / target_dist; //traj_x[i];  //polyval(s_coeffs, 0.02 * (i + 1));
+						//double y_point = s(x_point);		  // + polyval(d_coeffs, 0.02 * (i + 1));
+						//cout << "(" << x_point << "," << y_point << "), ";
 
 						x_add_on = x_point;
 
@@ -481,6 +498,8 @@ int main()
 						next_y_vals.push_back(y_point);
 					}
 					cout << "\n";
+					std::chrono::steady_clock::time_point t_end = std::chrono::steady_clock::now();
+					std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() << std::endl;
 					// END
 					json msgJson;
 					msgJson["next_x"] = next_x_vals;
