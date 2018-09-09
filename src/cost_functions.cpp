@@ -7,7 +7,7 @@ double calculate_cost(const vector<double> &traj, const int &target_vehicle,
     double cost = 0.;    
     //cout << predictions.size();
     vector<CostFun> cf_list = {time_diff_cost, s_diff_cost, d_diff_cost, collision_cost, buffer_cost, efficiency_cost};
-    vector<double> weights = {1, 6, 6, 10, 1, 2};
+    vector<double> weights = {1, 1, 1, 20, 1, 20};
     
     for (size_t i = 0; i < cf_list.size(); ++i)
     {    

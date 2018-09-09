@@ -21,7 +21,7 @@ using namespace std;
     (max_accel_cost,    1),
     (total_accel_cost,  1),
 */
-const vector<float> WEIGHTS = {1, 20, 20, 1, 1, 1, 20, 1, 1, 1};
+const vector<float> WEIGHTS = {1, 1, 1, 20, 1, 1, 20, 1, 1, 1};
 const vector<float> SIGMA_SD = {0.1,0.1,0.1,0.1,0.1,0.1};//{10., 4., 2., 1., 1., 1.};
 const float VEHICLE_RADIUS = 1.5;
 const double HORIZON = 5.;

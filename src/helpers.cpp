@@ -7,7 +7,7 @@
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
-static const int N_SAMPLES = 10;
+static const int N_SAMPLES = 4;
 static std::random_device rd{};
 static std::mt19937 gen{rd()};
 
@@ -27,7 +27,7 @@ vector<double> Vehicle::choose_next_state(const vector<Vehicle> &predictions)
     int idx = distance(costs.begin(), min_element(costs.begin(), costs.end()));
 
     lstate = possible_successor_states[idx];
-    state = evalState(trajectories[idx], trajectories[idx][12]);
+    //state = evalState(trajectories[idx], 0.02*50/*trajectories[idx][12]*/);
     lane += lane_direction[lstate];
     return trajectories[idx];
 }
@@ -136,16 +136,14 @@ vector<double> Vehicle::lane_change_trajectory(string states, const vector<Vehic
 vector<double> Vehicle::free_lane_trajectory()
 {
     cout << "free lane ...\n";
-    vector<double> start_s(state.begin(), state.begin() + 3);
-    vector<double> start_d(state.begin() + 3, state.begin() + 6);
     double max_avail_speed = (state[1] + MAX_ACC * HORIZON);
-    double target_speed = MAX_SPEED - 0.2;
+    double target_speed = MAX_SPEED * 0.9;
 
     max_avail_speed = max_avail_speed > target_speed ? target_speed : max_avail_speed;
     double delta_speed = max_avail_speed - state[1];
-    double a = MAX_ACC; //delta_speed / HORIZON;
-    double ta = (target_speed - state[1]) / MAX_ACC;
-    double s0 = state[0] + state[1] * HORIZON + ta * ta * 0.5 * a;
+    double a = MAX_ACC * 0.8; //delta_speed / HORIZON;
+    double ta = (target_speed - state[1]) / a;
+    double s0 = state[0] + target_speed * HORIZON - 0.5 * a * ta * ta;
 
     vector<double> target_state = {s0, target_speed, 0, 2. + 4. * lane, 0, 0};
 
