@@ -4,6 +4,7 @@
 #include <functional>
 #include <iterator>
 #include <vector>
+#include <algorithm>
 #include "helpers.h"
 
 using namespace std;
@@ -59,6 +60,11 @@ double buffer_cost(const vector<double> &traj,
                    const vector<Vehicle> &predictions);
 
 double efficiency_cost(const vector<double> &traj,
+                       const int &target_vehicle,
+                       const vector<double> &delta, const double T,
+                       const vector<Vehicle> &predictions);
+
+double max_accel_cost(const vector<double> &traj,
                        const int &target_vehicle,
                        const vector<double> &delta, const double T,
                        const vector<Vehicle> &predictions);

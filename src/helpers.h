@@ -22,7 +22,7 @@ using namespace std;
     (total_accel_cost,  1),
 */
 const vector<float> WEIGHTS = {1, 1, 1, 20, 1, 1, 20, 1, 1, 1};
-const vector<float> SIGMA_SD = {0.1,0.1,0.1,0.1,0.1,0.1};//{10., 4., 2., 1., 1., 1.};
+const vector<float> SIGMA_SD = {0.1, 0.1, 0.1, 0.1, 0.1, 0.1}; //{10., 4., 2., 1., 1., 1.};
 const float VEHICLE_RADIUS = 1.5;
 const double HORIZON = 5.;
 const double MAX_SPEED = 50 * 0.44704;
@@ -43,6 +43,9 @@ struct Vehicle
     int lanes_available;
 
     double speed;
+    double target_speed;
+
+    bool follow_front;
 
     Vehicle()
     {
@@ -51,6 +54,8 @@ struct Vehicle
         lanes_available = 3;
         lstate = "KL";
         speed = 0.;
+        target_speed = MAX_SPEED * 0.98;
+        follow_front = false;
     }
     Vehicle(const vector<double> &s)
     {
@@ -133,4 +138,8 @@ int getLane(double d);
 void printState(const vector<double> &x);
 
 void printVec(const vector<double> &x);
+
+void toVehicleFrame(vector<double> &x_v, vector<double> &y_v, const vector<double> &x_w, const vector<double> &y_w, double x_ref, double y_ref, double yaw_ref);
+
+void toWorldFrame(vector<double> &x_w, vector<double> &y_w, const vector<double> &x_v, const vector<double> &y_v, double x_ref, double y_ref, double yaw_ref);
 #endif // HELPERS_H_

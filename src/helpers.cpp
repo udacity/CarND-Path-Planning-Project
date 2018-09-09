@@ -13,6 +13,7 @@ static std::mt19937 gen{rd()};
 
 vector<double> Vehicle::choose_next_state(const vector<Vehicle> &predictions)
 {
+    follow_front = false;
     vector<string> possible_successor_states = successor_states();
     //cout << "Hello 2 .. tr\n";
     vector<double> costs;
@@ -29,6 +30,15 @@ vector<double> Vehicle::choose_next_state(const vector<Vehicle> &predictions)
     lstate = possible_successor_states[idx];
     //state = evalState(trajectories[idx], 0.02*50/*trajectories[idx][12]*/);
     lane += lane_direction[lstate];
+
+    if (lstate.compare("KL") == 0 && follow_front)
+    {
+        this->target_speed = this->speed;
+    }
+    else
+    {
+        this->target_speed = MAX_SPEED * 0.98;
+    }
     return trajectories[idx];
 }
 
@@ -84,14 +94,17 @@ vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
     int idx = 0;
     if (get_vehicle_ahead(predictions, idx))
     {
-        if (predictions[idx].state[0] - state[0] > 60)
+        if (predictions[idx].state[0] - state[0] > 100)
         {
             return free_lane_trajectory();
         }
         vector<double> start_s(state.begin(), state.begin() + 3);
         vector<double> start_d(state.begin() + 3, state.begin() + 6);
         vector<double> delta = {-30, 0, 0, 0, 0, 0};
-
+        // follow front vehicle
+        follow_front = true;
+        this->speed = predictions[idx].state[1];
+        cout<<"There is a vehicle in front ___\n";
         return PTG(start_s, start_d, idx, delta, HORIZON, predictions);
     }
     else
@@ -121,7 +134,7 @@ vector<double> Vehicle::lane_change_trajectory(string states, const vector<Vehic
     {
         vector<double> start_s(state.begin(), state.begin() + 3);
         vector<double> start_d(state.begin() + 3, state.begin() + 6);
-        vector<double> delta = {-30, 0, 0, 4.0 * lane_direction[states], 0, 0};
+        vector<double> delta = {0, 0, 0, 4.0 * lane_direction[states], 0, 0};
 
         return PTG(start_s, start_d, idx, delta, HORIZON, predictions);
     }
@@ -137,7 +150,7 @@ vector<double> Vehicle::free_lane_trajectory()
 {
     cout << "free lane ...\n";
     double max_avail_speed = (state[1] + MAX_ACC * HORIZON);
-    double target_speed = MAX_SPEED * 0.9;
+    double target_speed = MAX_SPEED * 0.95;
 
     max_avail_speed = max_avail_speed > target_speed ? target_speed : max_avail_speed;
     double delta_speed = max_avail_speed - state[1];
@@ -245,6 +258,10 @@ vector<double> PTG_free(const vector<double> &start, const vector<double> &targe
     rst.insert(rst.end(), d_coeffs.begin(), d_coeffs.end());
     rst.push_back(T);
     rst.push_back(0.);
+
+    vector<double> delta;
+    vector<Vehicle> preds;
+    cout << "acc cost = " << max_accel_cost(rst, 0, delta, 0, preds) << endl;
 
     return rst;
 }
@@ -465,4 +482,33 @@ void printVec(const vector<double> &x)
         cout << x[i] << ", ";
     }
     cout << "\n";
+}
+
+void toVehicleFrame(vector<double> &x_v, vector<double> &y_v, const vector<double> &x_w, const vector<double> &y_w, double x_ref, double y_ref, double yaw_ref)
+{
+    size_t L = x_w.size();
+    x_v.resize(L);
+    y_v.resize(L);
+
+    double tx, ty;
+    for (size_t i = 0; i < L; ++i)
+    {
+        tx = x_w[i] - x_ref;
+        ty = y_w[i] - y_ref;
+        x_v[i] = cos(yaw_ref) * tx + sin(yaw_ref) * ty;
+        y_v[i] = -sin(yaw_ref) * tx + cos(yaw_ref) * ty;
+    }
+}
+
+void toWorldFrame(vector<double> &x_w, vector<double> &y_w, const vector<double> &x_v, const vector<double> &y_v, double x_ref, double y_ref, double yaw_ref)
+{
+    size_t L = x_v.size();
+    x_w.resize(L);
+    y_w.resize(L);
+
+    for (size_t i = 0; i < L; ++i)
+    {
+        x_w[i] = cos(yaw_ref) * x_v[i] - sin(yaw_ref) * y_v[i] + x_ref;
+        y_w[i] = sin(yaw_ref) * x_v[i] + cos(yaw_ref) * y_v[i] + y_ref;
+    }
 }

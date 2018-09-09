@@ -250,8 +250,8 @@ int main()
 					double car_speed = j[1]["speed"];
 
 					// Previous path data given to the Planner
-					auto previous_path_x = j[1]["previous_path_x"];
-					auto previous_path_y = j[1]["previous_path_y"];
+					auto prev_path_x = j[1]["previous_path_x"];
+					auto prev_path_y = j[1]["previous_path_y"];
 					// Previous path's end s and d values
 					double end_path_s = j[1]["end_path_s"];
 					double end_path_d = j[1]["end_path_d"];
@@ -259,10 +259,22 @@ int main()
 					// Sensor Fusion Data, a list of all other cars on the same side of the road.
 					auto sensor_fusion = j[1]["sensor_fusion"];
 
-					size_t prev_size = previous_path_x.size();
-
-					if (prev_size > 0)
+					size_t prev_size = prev_path_x.size();
+					cout << "prev size = " << prev_size << endl;
+					
+					vector<double> previous_path_x;
+					vector<double> previous_path_y;
+					if (prev_size > 10)
 					{
+						prev_size = 10;
+						
+						previous_path_x.resize(prev_size);
+						previous_path_y.resize(prev_size);
+						for(size_t i=0;i<prev_size;++i)
+						{
+							previous_path_x[i] =prev_path_x[i];
+							previous_path_y[i] =prev_path_y[i];
+						}
 						car_s = end_path_s;
 					}
 
@@ -275,18 +287,16 @@ int main()
 					}
 					//cout << "previous s = ";
 					//printVec(prev_s);
-					// update acc
-					double acc = (car_speed * 0.44704 - ego.speed) / (0.02 * (50 - prev_size + 1));
 
-					ego.speed = car_speed * 0.44704 > 2 ? car_speed * 0.44704 : 2;
-					cout << "car_speed = " << ego.speed << "m/s\n";
-					ego.state = {car_s, ego.speed, 0, car_d, 0, 0};
+					cout << "car: speed = " << car_speed << "m/s, (x,y) = (" << car_x << ", " << car_y << "), (s, d) = (" << car_s << ", " << car_d << ")\n";
+					//ego.state = {car_s, ego.speed, 0, car_d, 0, 0};
 					ego.lane = getLane(car_d);
 					if (!initialized)
-					{						
+					{
 						ego.lstate = "KL";
 						ego.lanes_available = 3;
 						ego.state = {car_s, 0, 0, car_d, 0, 0};
+						initialized = true;
 					}
 
 					vector<Vehicle> predictions;
@@ -295,42 +305,30 @@ int main()
 						vector<double> veh = {sensor_fusion[i][5], sensor_fusion[i][3], 0, sensor_fusion[i][6], 0, 0};
 						predictions.push_back(Vehicle(veh));
 					}
-
+					double dt = 0.02;
+					int N = 30;
 					vector<double> ego_rst = ego.choose_next_state(predictions);
 					//vector<double> ego_rst = ego.free_lane_trajectory();
+					ego.state = evalState(ego_rst, dt * (N - prev_size));
 					vector<double> s_coeffs(ego_rst.begin(), ego_rst.begin() + 6);
 					vector<double> d_coeffs(ego_rst.begin() + 6, ego_rst.begin() + 12);
 					double dur = ego_rst[12];
-					cout << "cost = " << ego_rst[13] << "\n";
-					cout << "lane = " << ego.lane << "\n";
-					cout << "state = " << ego.lstate << "\n";
-					cout << "car_s = " << car_s << ", car_d = " << car_d << "\n";
-					//printVec(s_coeffs);
+					cout << "cost = " << ego_rst[13] << ", lane = " << ego.lane << ", state = " << ego.lstate << "\n";
 
 					printState(ego.state);
 
 					vector<double> t_vec;
-					double dt = 0.5 * 2;
-					for (double i = 0; i <= HORIZON * 2; i += dt)
+					for (int i = 0; i < (N - prev_size); i++)
 					{
-						t_vec.push_back((i));
+						t_vec.push_back(dt * (1 + i));
 					}
-					vector<double> t_vec2;
-					for (int i = 0; i <= 50 /*- previous_path_x.size()*/; ++i)
-					{
-						t_vec2.push_back(0.02 * (i + 1));
-					}
-					//printVec(t_vec2);
+					vector<double> t_fit = {0.5, 1, 1.5};
 					auto traj_s = polyval(s_coeffs, t_vec);
 					auto traj_d = polyval(d_coeffs, t_vec);
-					auto traj_l = polyval(s_coeffs, t_vec2);
-					//cout << "traj_s = ";
-					//for (size_t i = 0; i < traj_l.size(); ++i)
-					//{
-						//cout << traj_l[i] - car_s << ",";
-					//}
-					//cout << "\n";
-					vector<double> traj_x, traj_y;
+					auto fit_s = polyval(s_coeffs, t_fit);
+					auto fit_d = polyval(d_coeffs, t_fit);
+
+					vector<double> traj_x, traj_y, fit_x, fit_y;
 
 					for (size_t i = 0; i < traj_s.size(); ++i)
 					{
@@ -338,61 +336,28 @@ int main()
 						traj_x.push_back(tmp[0]);
 						traj_y.push_back(tmp[1]);
 					}
-					bool too_close = false;
-
-					//find ref_v to use
-					for (int i = 0; i < sensor_fusion.size(); ++i)
+					for (size_t i = 0; i < t_fit.size(); ++i)
 					{
-						// car is in my lane
-						float d = sensor_fusion[i][6];
-						if (d < (2 + 4 * ego.lane + 2) && d > (2 + 4 * ego.lane - 2))
-						{
-							double vx = sensor_fusion[i][3];
-							double vy = sensor_fusion[i][4];
-							double check_speed = sqrt(vx * vx + vy * vy);
-							double check_car_s = sensor_fusion[i][5];
-
-							// dt = 0.02, 50 Hz
-							check_car_s += (double)prev_size * 0.02 * check_speed;
-
-							if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
-							{
-								too_close = true;
-							}
-						}
-					}
-
-					if (too_close)
-					{
-						ref_vel -= 0.224;
-					}
-					else
-					{
-						if (ref_vel < TARGET_SPEED)
-						{
-							ref_vel += MAX_ACC * 0.02 * 0.9*2.24; //0.224;
-						}
+						auto tmp = getXY(fit_s[i], fit_d[i], map_waypoints_s, map_waypoints_x, map_waypoints_y);
+						fit_x.push_back(tmp[0]);
+						fit_y.push_back(tmp[1]);
 					}
 
 					// a list of waypoints, evenly spaced at 30m
 					// then interpolate with a spline and fill more points
 					vector<double> ptsx, ptsy;
-
 					// vehicle frame
 					double ref_x = car_x;
 					double ref_y = car_y;
 					double ref_yaw = deg2rad(car_yaw);
-
 					// add 'previous' points to smooth the waypoints
 					if (prev_size < 2)
 					{
 						// add tangents to smooth the path
 						double prev_car_x = car_x - cos(ref_yaw);
 						double prev_car_y = car_y - sin(ref_yaw);
-
 						ptsx.push_back(prev_car_x);
 						ptsx.push_back(car_x);
-
 						ptsy.push_back(prev_car_y);
 						ptsy.push_back(car_y);
 					}
@@ -400,110 +365,57 @@ int main()
 					{
 						ref_x = previous_path_x[prev_size - 1];
 						ref_y = previous_path_y[prev_size - 1];
-						//ref_x = previous_path_x[1];
-						//ref_y = previous_path_y[1];
 
-						double ref_x_prev = previous_path_x[prev_size - 2];
-						double ref_y_prev = previous_path_y[prev_size - 2];
-						//double ref_x_prev = previous_path_x[0]; //previous_path_x[prev_size - 2];
-						//double ref_y_prev = previous_path_y[0]; //previous_path_y[prev_size - 2];
+						double ref_x_prev = previous_path_x[prev_size - 5];
+						double ref_y_prev = previous_path_y[prev_size - 5];
 
-						//ptsx.push_back(ref_x_prev);
+						ptsx.push_back(ref_x_prev);
 						ptsx.push_back(ref_x);
-						//ptsy.push_back(ref_y_prev);
+						ptsy.push_back(ref_y_prev);
 						ptsy.push_back(ref_y);
 					}
+					ptsx.insert(ptsx.end(), fit_x.begin(), fit_x.end());
+					ptsy.insert(ptsy.end(), fit_y.begin(), fit_y.end());
 
-					// add three further points
-					vector<vector<double>> next_wps(3);
-					next_wps[0] = getXY(car_s + 30, 2 + 4 * ego.lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-					next_wps[1] = getXY(car_s + 60, 2 + 4 * ego.lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-					next_wps[2] = getXY(car_s + 90, 2 + 4 * ego.lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-
-					for (size_t i = 0; i < next_wps.size(); ++i)
-					{
-						ptsx.push_back(next_wps[i][0]);
-						ptsy.push_back(next_wps[i][1]);
-					}
-
-					// transform world to vehicle frame
-					for (size_t i = 0; i < ptsx.size(); ++i)
-					{
-						double shift_x = ptsx[i] - ref_x;
-						double shift_y = ptsy[i] - ref_y;
-
-						ptsx[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
-						ptsy[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
-					}
-
-					/*
-					for (size_t i = 0; i < traj_x.size(); ++i)
-					{
-						double shift_x = traj_x[i] - ref_x;
-						double shift_y = traj_y[i] - ref_y;
-
-						traj_x[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
-						traj_y[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
-
-						ptsx.push_back(traj_x[i]);
-						ptsy.push_back(traj_y[i]);
-					}*/
+					vector<double> fx_v, fy_v, tmpx, tmpy;
+					toVehicleFrame(fx_v, fy_v, ptsx, ptsy, ref_x, ref_y, ref_yaw);
+					toVehicleFrame(tmpx, tmpy, traj_x, traj_y, ref_x, ref_y, ref_yaw);
+					traj_x = tmpx;
+					traj_y = tmpy;
 
 					tk::spline s;
+					s.set_points(fx_v, fy_v);
+					double dist_x = 30;
+					double dist_y = s(dist_x);
+					double slope = dist_x / sqrt(dist_x * dist_x + dist_y * dist_y);
 
-					s.set_points(ptsx, ptsy);
-					//s.set_points(traj_x, traj_y);
-
-					vector<double> next_x_vals;
-					vector<double> next_y_vals;
-
-					// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-					// start with previous left points
-					//for (size_t i = 0; i < (previous_path_x.size() /*> 10 ? 10 : previous_path_x.size()*/); ++i)
-					//{
-					//	next_x_vals.push_back(previous_path_x[i]);
-					//	next_y_vals.push_back(previous_path_y[i]);
-					//}
-
-					// break up spline
-					double target_x = 30; //*traj_l.rbegin(); //30.;
-					double target_y = s(target_x);
-					double target_dist = sqrt(target_x * target_x + target_y * target_y);
-
-					double x_add_on = 0;
-					//cout << "pts = ";
-					for (int i = 0; i <= 50 - next_x_vals.size(); ++i)
+					vector<double> next_x, next_y;
+					cout << "target speed = " << ego.target_speed << ", ref_vel = " << ref_vel << endl;
+					if (ref_vel > ego.target_speed)
 					{
-						// 2.24 -> mph to m/s
-						double N = target_dist / (0.02 * ref_vel / 2.24);
-						double x_point = x_add_on + target_x / N;
-						double y_point = s(x_point);
-						//double x_point = (traj_l[i] - car_s); // * target_x / target_dist; //traj_x[i];  //polyval(s_coeffs, 0.02 * (i + 1));
-						//double y_point = s(x_point);		  // + polyval(d_coeffs, 0.02 * (i + 1));
-						//cout << "(" << x_point << "," << y_point << "), ";
-
-						x_add_on = x_point;
-
-						double x_ref = x_point;
-						double y_ref = y_point;
-
-						// vehicle to world
-						x_point = x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
-						y_point = x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
-
-						x_point += ref_x;
-						y_point += ref_y;
-
-						next_x_vals.push_back(x_point);
-						next_y_vals.push_back(y_point);
+						ref_vel -= 0.224;
 					}
-					cout << "\n";
+					else
+					{
+						ref_vel += 0.224;
+					}
+					for (size_t i = 0; i < traj_x.size(); ++i)
+					{
+						traj_x[i] = (i + 1) * 0.02 * ref_vel * slope;
+						traj_y[i] = s(traj_x[i]);
+					}
+					toWorldFrame(next_x, next_y, traj_x, traj_y, ref_x, ref_y, ref_yaw);
+
 					std::chrono::steady_clock::time_point t_end = std::chrono::steady_clock::now();
 					std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() << std::endl;
+
+					next_x.insert(next_x.begin(), previous_path_x.begin(), previous_path_x.end());
+					next_y.insert(next_y.begin(), previous_path_y.begin(), previous_path_y.end());
+					cout << "next_x size = " << next_x.size() << endl;
 					// END
 					json msgJson;
-					msgJson["next_x"] = next_x_vals;
-					msgJson["next_y"] = next_y_vals;
+					msgJson["next_x"] = next_x;
+					msgJson["next_y"] = next_y;
 
 					auto msg = "42[\"control\"," + msgJson.dump() + "]";
 

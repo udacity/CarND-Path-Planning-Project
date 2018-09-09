@@ -4,13 +4,13 @@ double calculate_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<double> &delta, const double T,
                       const vector<Vehicle> &predictions, bool verbose)
 {
-    double cost = 0.;    
+    double cost = 0.;
     //cout << predictions.size();
     vector<CostFun> cf_list = {time_diff_cost, s_diff_cost, d_diff_cost, collision_cost, buffer_cost, efficiency_cost};
     vector<double> weights = {1, 1, 1, 20, 1, 20};
-    
+
     for (size_t i = 0; i < cf_list.size(); ++i)
-    {    
+    {
         cost += weights[i] * cf_list[i](traj, target_vehicle, delta, T, predictions);
     }
 
@@ -117,4 +117,29 @@ double efficiency_cost(const vector<double> &traj,
     double targ_v = tmp[0] / T;
 
     return logistic(2 * abs((targ_v - avg_v) / avg_v));
+}
+
+double max_accel_cost(const vector<double> &traj,
+                      const int &target_vehicle,
+                      const vector<double> &delta, const double T,
+                      const vector<Vehicle> &predictions)
+{
+    vector<double> s(traj.begin(), traj.begin() + 3);
+    vector<double> d(traj.begin() + 3, traj.begin() + 6);
+    double t = traj[12];
+
+    auto sd = differntiate(s);
+    auto sdd = differntiate(sd);
+    vector<double> t_vec;
+    for (double _ = 0; _ < t; _ += 0.02)
+    {
+        t_vec.push_back(_);
+    }
+    auto a = polyval(sdd, t_vec);
+
+    auto ma = max_element(a.begin(), a.end());
+    if (*ma > MAX_ACC)
+        return 1.0;
+    else
+        return 0.;
 }
