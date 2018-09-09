@@ -28,6 +28,7 @@ vector<double> Vehicle::choose_next_state(const vector<Vehicle> &predictions)
 
     lstate = possible_successor_states[idx];
     state = evalState(trajectories[idx], trajectories[idx][12]);
+    lane += lane_direction[lstate];
     return trajectories[idx];
 }
 
@@ -111,16 +112,16 @@ vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
     }
 }
 
-vector<double> Vehicle::lane_change_trajectory(string state, const vector<Vehicle> &predictions)
+vector<double> Vehicle::lane_change_trajectory(string states, const vector<Vehicle> &predictions)
 {
     cout << "___lane change traj____\n";
     int idx = 0;
-    int new_lane = lane + lane_direction[state];
+    int new_lane = lane + lane_direction[states];
     if (get_vehicle_ahead(predictions, idx))
     {
         vector<double> start_s(state.begin(), state.begin() + 3);
         vector<double> start_d(state.begin() + 3, state.begin() + 6);
-        vector<double> delta = {-30, 0, 0, 4.0 * lane_direction[state], 0, 0};
+        vector<double> delta = {-30, 0, 0, 4.0 * lane_direction[states], 0, 0};
 
         return PTG(start_s, start_d, idx, delta, HORIZON, predictions);
     }
@@ -142,11 +143,12 @@ vector<double> Vehicle::free_lane_trajectory()
 
     max_avail_speed = max_avail_speed > target_speed ? target_speed : max_avail_speed;
     double delta_speed = max_avail_speed - state[1];
-    double a = delta_speed / HORIZON;
-    double s0 = state[0] + state[1] * HORIZON + HORIZON * 0.5 * delta_speed;
+    double a = MAX_ACC; //delta_speed / HORIZON;
+    double ta = (target_speed - state[1]) / MAX_ACC;
+    double s0 = state[0] + state[1] * HORIZON + ta * ta * 0.5 * a;
 
-    vector<double> target_state = {s0, max_avail_speed, a, 2. + 4. * lane, 0, 0};
-    
+    vector<double> target_state = {s0, target_speed, 0, 2. + 4. * lane, 0, 0};
+
     printState(state);
     printState(target_state);
 
@@ -460,7 +462,7 @@ void printState(const vector<double> &x)
 
 void printVec(const vector<double> &x)
 {
-    for (int i = 0; i < 6; ++i)
+    for (int i = 0; i < x.size(); ++i)
     {
         cout << x[i] << ", ";
     }

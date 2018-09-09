@@ -22,16 +22,16 @@ using namespace std;
     (total_accel_cost,  1),
 */
 const vector<float> WEIGHTS = {1, 20, 20, 1, 1, 1, 20, 1, 1, 1};
-const vector<float> SIGMA_SD = {10., 4., 2., 1., 1., 1.};
+const vector<float> SIGMA_SD = {0.1,0.1,0.1,0.1,0.1,0.1};//{10., 4., 2., 1., 1., 1.};
 const float VEHICLE_RADIUS = 1.5;
-const double HORIZON = 4.;
+const double HORIZON = 5.;
 const double MAX_SPEED = 50 * 0.44704;
 const double MAX_ACC = 10.0;
 const double MAX_JERK = 10.0;
 
 struct Vehicle
 {
-    map<string, int> lane_direction = {{"LCL", 1}, {"LCR", -1}};
+    map<string, int> lane_direction = {{"LCL", 1}, {"KL", 0}, {"LCR", -1}};
 
     // state: s, s_dot, s_ddot, d, d_dot, d_ddot
     vector<double> state;
