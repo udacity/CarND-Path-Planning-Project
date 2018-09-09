@@ -116,5 +116,5 @@ double efficiency_cost(const vector<double> &traj,
     auto tmp = predictions[target_vehicle].state_in(T);
     double targ_v = tmp[0] / T;
 
-    return logistic(2 * (targ_v - avg_v) / avg_v);
+    return logistic(2 * abs((targ_v - avg_v) / avg_v));
 }
