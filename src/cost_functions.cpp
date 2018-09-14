@@ -5,14 +5,16 @@ double calculate_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<Vehicle> &predictions, bool verbose)
 {
     double cost = 0.;
-    //cout << predictions.size();
-    vector<CostFun> cf_list = {time_diff_cost, s_diff_cost, d_diff_cost, collision_cost, buffer_cost, efficiency_cost};
+    // cout << predictions.size();
+    vector<CostFun> cf_list = {time_diff_cost, s_diff_cost, d_diff_cost,
+                               collision_cost, buffer_cost, efficiency_cost};
     vector<double> weights = {1, 1, 1, 30, 1, 30};
     if (verbose)
         cout << endl;
     for (size_t i = 0; i < cf_list.size(); ++i)
     {
-        double c = weights[i] * cf_list[i](traj, target_vehicle, delta, T, predictions);
+        double c =
+            weights[i] * cf_list[i](traj, target_vehicle, delta, T, predictions);
         cost += c;
         if (verbose)
         {
@@ -24,9 +26,11 @@ double calculate_cost(const vector<double> &traj, const int &target_vehicle,
     return cost;
 }
 
-double calculate_cost_traj(const vector<double> &traj, const int &target_vehicle,
+double calculate_cost_traj(const vector<double> &traj,
+                           const int &target_vehicle,
                            const vector<double> &delta, const double T,
-                           const vector<Vehicle> &predictions, int lane, bool verbose)
+                           const vector<Vehicle> &predictions, int lane,
+                           bool verbose)
 {
     double cost = 0;
     vector<double> s(traj.begin(), traj.begin() + 6);
@@ -57,13 +61,13 @@ double calculate_cost_traj(const vector<double> &traj, const int &target_vehicle
 
     // cost of going straight at the center line of the current lane
     double md = meanVecAbs(d_s) - 4.0 * lane - 2.0;
-    double cost_straight = logistic(md);
-    cost += cost_straight * 1.0;
+    double cost_straight = logistic(md) * 1.0;
+    cost += cost_straight;
 
-    // cost of going fast, or distance to the goal
+    // cost of distance to the goal
     double dist_to_goal = MAX_SPEED * T - (s_s[s_s.size() - 1] - s_s[0]);
-    double cost_to_goal = logistic(2 * dist_to_goal / (MAX_SPEED * T));
-    cost += cost_to_goal * 20.0;
+    double cost_to_goal = logistic(2 * dist_to_goal / (MAX_SPEED * T)) * 20.0;
+    cost += cost_to_goal;
 
     // cost of speed limit
     double mv = maxVelocity(s_v, d_v);
@@ -87,9 +91,29 @@ double calculate_cost_traj(const vector<double> &traj, const int &target_vehicle
     cost += cost_jerk_limit;
 
     // cost of collision
-    double cost_collision = collision_cost(traj, target_vehicle, delta, T, predictions);
-    cost += cost_collision * 50;
+    double cost_collision =
+        collision_cost(traj, target_vehicle, delta, T, predictions) * 50;
+    cost += cost_collision;
 
+    // cost of buffer distance
+    double buffer_dist_cost = buffer_cost(traj, target_vehicle, delta, T, predictions) * 50;
+    cost += buffer_dist_cost;
+
+    // cost of end speed
+    double cost_end_speed = logistic(2.0 * abs(MAX_SPEED - s_v[100]) / MAX_SPEED) * 10;
+    cost += cost_end_speed;
+
+    if (verbose)
+    {
+        cout << "cost_straight = " << cost_straight << endl;
+        cout << "cost_to_goal = " << cost_to_goal << endl;
+        cout << "cost_speed_limit = " << cost_speed_limit << endl;
+        cout << "cost_acc_limit = " << cost_acc_limit << endl;
+        cout << "cost_jerk_limit = " << cost_jerk_limit << endl;
+        cout << "cost_collision = " << cost_collision << endl;
+        cout << "buffer_dist_cost = " << buffer_dist_cost << endl;
+        cout << "cost_end_speed = " << cost_end_speed << endl;
+    }
     return cost;
 }
 
@@ -170,20 +194,42 @@ double collision_cost(const vector<double> &traj, const int &target_vehicle,
     }
 }
 
-double buffer_cost(const vector<double> &traj,
-                   const int &target_vehicle,
+double buffer_cost(const vector<double> &traj, const int &target_vehicle,
                    const vector<double> &delta, const double T,
                    const vector<Vehicle> &predictions)
 {
-    double d = nearest_approach_to_any_vehicle(traj, predictions);
-    return logistic(2 * VEHICLE_RADIUS / d);
+    double cost = 0;
+    vector<double> s(traj.begin(), traj.begin() + 6);
+    vector<double> d(traj.begin() + 6, traj.begin() + 12);
+    auto s_dot = differntiate(s);
+    double hs = polyval(s, T);
+    double hv = polyval(s_dot, T);
+    double hd = polyval(d, T);
+    double bd, dist, ts, tv;
+    for (auto it = predictions.begin(); it != predictions.end(); ++it)
+    {
+        if (getLane(hd) == getLane(it->state[3]))
+        {
+            // on the same lane
+            tv = it->state[1];
+            ts = it->s[100];
+            bd = hs - ts;
+            dist = (hv * hv - tv * tv) / (2 * MAX_ACC);
+            if (dist > bd)
+                return 1;
+        }
+        else
+        {
+            continue;
+        }
+    }
+    return 0;
 }
 
 /**
  * Reward high average speed
-*/
-double efficiency_cost(const vector<double> &traj,
-                       const int &target_vehicle,
+ */
+double efficiency_cost(const vector<double> &traj, const int &target_vehicle,
                        const vector<double> &delta, const double T,
                        const vector<Vehicle> &predictions)
 {
@@ -193,12 +239,11 @@ double efficiency_cost(const vector<double> &traj,
     auto tmp = predictions[target_vehicle].state_in(t);
     double targ_s = tmp[0];
 
-    //targ_v = MAX_SPEED * 0.98;
+    // targ_v = MAX_SPEED * 0.98;
     return logistic(2 * abs((targ_s - sv) / targ_s));
 }
 
-double max_accel_cost(const vector<double> &traj,
-                      const int &target_vehicle,
+double max_accel_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<double> &delta, const double T,
                       const vector<Vehicle> &predictions)
 {

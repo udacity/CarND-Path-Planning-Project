@@ -186,4 +186,5 @@ double meanVecAbs(const vector<double> &x);
 
 double maxVelocity(const vector<double> &vx, const vector<double> &vy);
 
+double min2(double x1, double x2);
 #endif // HELPERS_H_
