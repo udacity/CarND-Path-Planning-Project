@@ -113,6 +113,7 @@ double calculate_cost_traj(const vector<double> &traj,
         cout << "cost_collision = " << cost_collision << endl;
         cout << "buffer_dist_cost = " << buffer_dist_cost << endl;
         cout << "cost_end_speed = " << cost_end_speed << endl;
+        cout << "Total = " << cost << endl;
     }
     return cost;
 }
@@ -213,7 +214,7 @@ double buffer_cost(const vector<double> &traj, const int &target_vehicle,
             // on the same lane
             tv = it->state[1];
             ts = it->s[100];
-            bd = hs - ts;
+            bd = ts - hs;
             dist = (hv * hv - tv * tv) / (2 * MAX_ACC);
             if (dist > bd)
                 return 1;
