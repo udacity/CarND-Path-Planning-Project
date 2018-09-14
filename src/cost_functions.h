@@ -20,6 +20,10 @@ double calculate_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<double> &delta, const double T,
                       const vector<Vehicle> &predictions, bool verbose = false);
 
+double calculate_cost_traj(const vector<double> &traj, const int &target_vehicle,
+                           const vector<double> &delta, const double T,
+                           const vector<Vehicle> &predictions, int lane, bool verbose = false);
+
 double time_diff_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<double> &delta, const double T,
                       const vector<Vehicle> &predictions);
@@ -65,8 +69,8 @@ double efficiency_cost(const vector<double> &traj,
                        const vector<Vehicle> &predictions);
 
 double max_accel_cost(const vector<double> &traj,
-                       const int &target_vehicle,
-                       const vector<double> &delta, const double T,
-                       const vector<Vehicle> &predictions);
+                      const int &target_vehicle,
+                      const vector<double> &delta, const double T,
+                      const vector<Vehicle> &predictions);
 
 #endif // COST_FUNCTIONS_H_

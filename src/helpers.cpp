@@ -7,7 +7,7 @@
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
-static const int N_SAMPLES = 4;
+static const int N_SAMPLES = 1;
 static std::random_device rd{};
 static std::mt19937 gen{rd()};
 
@@ -24,7 +24,9 @@ vector<double> Vehicle::choose_next_state(const vector<Vehicle> &predictions)
         //cout << "Hello 2 .. traj_states.size() = " << traj_states.size();
         costs.push_back(traj_states[13]);
         trajectories.push_back(traj_states);
+        cout << possible_successor_states[i] << ": " << traj_states[13] << ", ";
     }
+    cout << endl;
     int idx = distance(costs.begin(), min_element(costs.begin(), costs.end()));
 
     lstate = possible_successor_states[idx];
@@ -37,9 +39,56 @@ vector<double> Vehicle::choose_next_state(const vector<Vehicle> &predictions)
     }
     else
     {
-        this->target_speed = MAX_SPEED * 0.98;
+        this->target_speed = MAX_SPEED * 0.95;
     }
     return trajectories[idx];
+}
+
+vector<double> Vehicle::choose_next_state_v2(const vector<Vehicle> &predictions)
+{
+    int idx = 0;
+    vector<int> lanes(3);
+    for (int i = -1; i < 2; ++i)
+        lanes[i] = (lane + i) % 3;
+
+    if (get_vehicle_ahead(predictions, idx))
+    {
+        vector<double> s_start(state.begin(), state.begin() + 3);
+        vector<double> d_start(state.begin() + 3, state.begin() + 6);
+
+        double ds = predictions[idx].state[0] - state[0] + (predictions[idx].state[1] - state[1]) * HORIZON;
+        double dv = MAX_SPEED - state[1];
+        size_t ns = 5, nd = 3, nv = 3;
+        vector<vector<double>> trajectories(ns * nd * nv);
+        vector<double> trajectory(13), s_goal(3), d_goal(3), s_coeffs(6), d_coeffs(6), delta;
+        trajectory[12] = HORIZON;
+        double cost, best_cost = 1e9;
+        int idx = 0, best_idx;
+        for (size_t i = 0; i < nv; ++i)
+            for (size_t j = 0; j < nd; ++j)
+                for (size_t k = 0; k < ns; ++k)
+                {
+                    s_goal = {s_start[0] + (float)k / (ns - 1) * ds, s_start[1] + (float)i / (nv - 1), 0};
+                    d_goal = {d_start[0] + lanes[j] * 4, 0, 0};
+                    s_coeffs = JMT(s_start, s_goal, HORIZON);
+                    d_coeffs = JMT(d_start, d_goal, HORIZON);
+                    copy(s_coeffs.begin(), s_coeffs.end(), trajectory.begin());
+                    copy(d_coeffs.begin(), d_coeffs.end(), trajectory.begin() + 6);
+                    trajectories.push_back(trajectory);
+                    cost = calculate_cost_traj(trajectory, idx, delta, HORIZON, predictions, lane);
+                    if (cost < best_cost)
+                    {
+                        best_cost = cost;
+                        best_idx = idx;
+                    }
+                    ++idx;
+                }
+        cout << "Best cost = " << best_cost << endl;
+    }
+    else
+    {
+        cerr << "No vehicle in front!. Shift the host vehicle forward.\n";
+    }
 }
 
 vector<string> Vehicle::successor_states()
@@ -59,14 +108,14 @@ vector<string> Vehicle::successor_states()
     }
     else if (state.compare("LCL") == 0)
     {
-        if (lane != lanes_available - 1)
+        if (lane != 0)
         {
             states.push_back("LCL");
         }
     }
     else if (state.compare("LCR") == 0)
     {
-        if (lane != 0)
+        if (lane != lanes_available - 1)
         {
             states.push_back("LCR");
         }
@@ -90,21 +139,23 @@ vector<double> Vehicle::generate_trajectory(string state_, const vector<Vehicle>
 
 vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
 {
-    cout << "___lane keep traj____\n";
+    //cout << "___lane keep traj____\n";
     int idx = 0;
     if (get_vehicle_ahead(predictions, idx))
     {
-        if (predictions[idx].state[0] - state[0] > 100)
+        cout << "There is a vehicle in front, speed " << predictions[idx].state[1] << "m/s, ";
+        double max_s = 60, min_s = 10;
+        if (predictions[idx].state[0] - state[0] > max_s)
         {
             return free_lane_trajectory();
         }
         vector<double> start_s(state.begin(), state.begin() + 3);
         vector<double> start_d(state.begin() + 3, state.begin() + 6);
-        vector<double> delta = {-30, 0, 0, 0, 0, 0};
+        vector<double> delta = {-min_s, 0, 0, 0, 0, 0};
         // follow front vehicle
         follow_front = true;
-        this->speed = predictions[idx].state[1];
-        cout<<"There is a vehicle in front ___\n";
+        this->speed = (MAX_SPEED * 0.9 - predictions[idx].state[1]) / (max_s - min_s) * (predictions[idx].state[0] - state[0]) + predictions[idx].state[1];
+        cout << predictions[idx].state[0] - state[0] << "m. \n";
         return PTG(start_s, start_d, idx, delta, HORIZON, predictions);
     }
     else
@@ -117,7 +168,7 @@ vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
         double max_avail_speed = (state[1] + MAX_ACC * HORIZON);
         max_avail_speed = max_avail_speed > MAX_SPEED ? MAX_SPEED : max_avail_speed;
         double target_speed = max_avail_speed - state[1];
-        vector<double> delta = {50, target_speed, 0, 0, 0, 0};
+        vector<double> delta = {50, 0, 0, 0, 0, 0};
 
         vector<Vehicle> tmp;
         tmp.push_back(*this);
@@ -127,7 +178,7 @@ vector<double> Vehicle::keep_lane_trajectory(const vector<Vehicle> &predictions)
 
 vector<double> Vehicle::lane_change_trajectory(string states, const vector<Vehicle> &predictions)
 {
-    cout << "___lane change traj____\n";
+    //cout << "___lane change traj____\n";
     int idx = 0;
     int new_lane = lane + lane_direction[states];
     if (get_vehicle_ahead(predictions, idx))
@@ -135,7 +186,7 @@ vector<double> Vehicle::lane_change_trajectory(string states, const vector<Vehic
         vector<double> start_s(state.begin(), state.begin() + 3);
         vector<double> start_d(state.begin() + 3, state.begin() + 6);
         vector<double> delta = {0, 0, 0, 4.0 * lane_direction[states], 0, 0};
-
+        // MAX_SPEED * 0.98 - predictions[idx].state[1]
         return PTG(start_s, start_d, idx, delta, HORIZON, predictions);
     }
     else
@@ -235,7 +286,7 @@ vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d,
         //costs.push_back(i);
     }
     int idx = distance(costs.begin(), min_element(costs.begin(), costs.end()));
-
+    calculate_cost(trajectories[idx], target_vehicle, delta, T, predictions, true);
     vector<double> rst;
     rst = trajectories[idx];
     rst.push_back(costs[idx]);
@@ -343,7 +394,7 @@ vector<double> VecSub(const vector<double> &v1, const vector<double> &v2)
     return r;
 }
 
-double logistic(double x) { return 2.0 / (1. + exp(-x)) - 1.; }
+double logistic(double x) { return (2.0 / (1. + exp(-abs(x))) - 1.); }
 
 vector<double> perturb_goal(const vector<double> &sd)
 {
@@ -437,27 +488,31 @@ double nearest_approach_to_any_vehicle(const vector<double> &traj,
 double nearest_approach(const vector<double> &traj, const Vehicle &vehicle)
 {
     double closest = 1e9;
-    vector<double> s(traj.begin(), traj.begin() + 3);
-    vector<double> d(traj.begin() + 3, traj.begin() + 6);
-    double T = traj[12];
-    double t, cur_s, cur_d, target_s, target_d, dist;
-    vector<double> states;
-    for (int i = 0; i < 100; ++i)
+    vector<double> s(traj.begin(), traj.begin() + 6);
+    vector<double> d(traj.begin() + 6, traj.begin() + 12);
+    // double T = traj[12];
+    double target_s, target_d, dist;
+    vector<double> t_vec(101);
+    for (int i = 0; i < 101; ++i)
     {
-        t = float(i) / 100 * T;
-        cur_s = polyval(s, t);
-        cur_d = polyval(d, t);
-        states = vehicle.state_in(t);
-        target_s = states[0];
-        target_d = states[3];
-
-        dist = pow(cur_s - target_s, 2) + pow(cur_d - target_d, 2);
-        if (dist < closest * closest)
+        t_vec[i] = float(i) / 100.0 * HORIZON;
+    }
+    auto cur_s = polyval(s, t_vec);
+    auto cur_d = polyval(d, t_vec);
+    double dx, dy;
+    for (int i = 0; i < 101; ++i)
+    {
+        target_s = vehicle.s[i];
+        target_d = vehicle.d[i];
+        dx = cur_s[i] - target_s;
+        dy = cur_d[i] - target_d;
+        dist = dx * dx + dy * dy;
+        if (dist < closest)
         {
-            closest = sqrt(dist);
+            closest = dist;
         }
     }
-    return closest;
+    return sqrt(closest);
 }
 
 int getLane(double d)
@@ -511,4 +566,63 @@ void toWorldFrame(vector<double> &x_w, vector<double> &y_w, const vector<double>
         x_w[i] = cos(yaw_ref) * x_v[i] - sin(yaw_ref) * y_v[i] + x_ref;
         y_w[i] = sin(yaw_ref) * x_v[i] + cos(yaw_ref) * y_v[i] + y_ref;
     }
+}
+
+bool compareVec(TwoVect &a, TwoVect &b) { return a.v1 < b.v1; }
+
+void sortVecs(vector<double> &v1, vector<double> &v2)
+{
+    auto a = v1;
+    auto b = v2;
+    v1.clear();
+    v2.clear();
+    v1.push_back(a[0]);
+    v2.push_back(b[0]);
+
+    for (size_t i = 1; i < a.size(); ++i)
+    {
+        if (a[i] > v1[v1.size() - 1])
+        {
+            v1.push_back(a[i]);
+            v2.push_back(b[i]);
+        }
+    }
+}
+
+void sortVecs2(vector<double> &v1, vector<double> &v2)
+{
+    vector<TwoVect> vecS;
+    for (size_t i = 0; i < v1.size(); ++i)
+    {
+        vecS.push_back(TwoVect(v1[i], v2[i]));
+    }
+    sort(vecS.begin(), vecS.end(), compareVec);
+    for (size_t i = 0; i < v1.size(); ++i)
+    {
+        v1[i] = vecS[i].v1;
+        v2[i] = vecS[i].v2;
+    }
+}
+
+double meanVecAbs(const vector<double> &x)
+{
+    double y = 0;
+    for (auto it = x.begin(); it != x.end(); ++it)
+    {
+        y += abs(*it);
+    }
+    return y / x.size();
+}
+
+double maxVelocity(const vector<double> &vx, const vector<double> &vy)
+{
+    double mv = 0;
+    double v;
+    for (size_t i = 0; i < vx.size(); ++i)
+    {
+        v = vx[i] * vx[i] + vy[i] * vy[i];
+        if (v > mv)
+            mv = v;
+    }
+    return sqrt(mv);
 }

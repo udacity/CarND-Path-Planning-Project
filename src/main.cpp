@@ -23,6 +23,8 @@ using json = nlohmann::json;
 const double TARGET_SPEED = 49.5;
 const double DT = 0.02;
 const double d2r = M_PI / 180.;
+const double tomps = 0.224;
+
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
@@ -261,21 +263,26 @@ int main()
 
 					size_t prev_size = prev_path_x.size();
 					cout << "prev size = " << prev_size << endl;
-					
+
 					vector<double> previous_path_x;
 					vector<double> previous_path_y;
 					if (prev_size > 10)
 					{
-						prev_size = 10;
-						
+						prev_size = 20;
+
 						previous_path_x.resize(prev_size);
 						previous_path_y.resize(prev_size);
-						for(size_t i=0;i<prev_size;++i)
+						for (size_t i = 0; i < prev_size; ++i)
 						{
-							previous_path_x[i] =prev_path_x[i];
-							previous_path_y[i] =prev_path_y[i];
+							previous_path_x[i] = prev_path_x[i];
+							previous_path_y[i] = prev_path_y[i];
 						}
+						auto tmp = getFrenet(previous_path_x[prev_size - 1], previous_path_y[prev_size - 1], car_yaw * d2r, map_waypoints_x, map_waypoints_y);
+						//cout << "end path s = " << end_path_s << " tmp[0] = " << tmp[0] << endl;
+						end_path_s = tmp[0];
+						end_path_d = tmp[1];
 						car_s = end_path_s;
+						car_d = end_path_d;
 					}
 
 					vector<double> prev_d, prev_s;
@@ -289,8 +296,9 @@ int main()
 					//printVec(prev_s);
 
 					cout << "car: speed = " << car_speed << "m/s, (x,y) = (" << car_x << ", " << car_y << "), (s, d) = (" << car_s << ", " << car_d << ")\n";
-					//ego.state = {car_s, ego.speed, 0, car_d, 0, 0};
-					ego.lane = getLane(car_d);
+					ego.state = {car_s, car_speed * tomps, 0, car_d, 0, 0};
+					//ego.lane = getLane(car_d);
+					ego.updateLane();
 					if (!initialized)
 					{
 						ego.lstate = "KL";
@@ -302,14 +310,17 @@ int main()
 					vector<Vehicle> predictions;
 					for (size_t i = 0; i < sensor_fusion.size(); ++i)
 					{
-						vector<double> veh = {sensor_fusion[i][5], sensor_fusion[i][3], 0, sensor_fusion[i][6], 0, 0};
+						double v_speed = sensor_fusion[i][3];
+						v_speed *= tomps;
+						vector<double> veh = {sensor_fusion[i][5], v_speed, 0, sensor_fusion[i][6], 0, 0};
 						predictions.push_back(Vehicle(veh));
+						predictions[i].updateTraj();
 					}
 					double dt = 0.02;
-					int N = 30;
+					int N = 50;
 					vector<double> ego_rst = ego.choose_next_state(predictions);
 					//vector<double> ego_rst = ego.free_lane_trajectory();
-					ego.state = evalState(ego_rst, dt * (N - prev_size));
+					//ego.state = evalState(ego_rst, dt * (N - prev_size));
 					vector<double> s_coeffs(ego_rst.begin(), ego_rst.begin() + 6);
 					vector<double> d_coeffs(ego_rst.begin() + 6, ego_rst.begin() + 12);
 					double dur = ego_rst[12];
@@ -322,11 +333,13 @@ int main()
 					{
 						t_vec.push_back(dt * (1 + i));
 					}
-					vector<double> t_fit = {0.5, 1, 1.5};
+					vector<double> t_fit = {2, 3, 4, 5, 6, 10};
 					auto traj_s = polyval(s_coeffs, t_vec);
 					auto traj_d = polyval(d_coeffs, t_vec);
 					auto fit_s = polyval(s_coeffs, t_fit);
 					auto fit_d = polyval(d_coeffs, t_fit);
+					cout << "fit_s = ";
+					printVec(fit_s);
 
 					vector<double> traj_x, traj_y, fit_x, fit_y;
 
@@ -374,6 +387,14 @@ int main()
 						ptsy.push_back(ref_y_prev);
 						ptsy.push_back(ref_y);
 					}
+					/*for (size_t i = 0; i < fit_x.size(); ++i)
+					{
+						if (fit_x[i] > ptsx[1])
+						{
+							ptsx.push_back(fit_x[i]);
+							ptsy.push_back(fit_y[i]);
+						}
+					}*/
 					ptsx.insert(ptsx.end(), fit_x.begin(), fit_x.end());
 					ptsy.insert(ptsy.end(), fit_y.begin(), fit_y.end());
 
@@ -384,6 +405,7 @@ int main()
 					traj_y = tmpy;
 
 					tk::spline s;
+					sortVecs(fx_v, fy_v);
 					s.set_points(fx_v, fy_v);
 					double dist_x = 30;
 					double dist_y = s(dist_x);
