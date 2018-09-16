@@ -10,6 +10,7 @@
 using namespace std;
 
 struct Vehicle;
+struct Traj2D;
 
 using CostFun = function<double(const vector<double> &traj,
                                 const int &target_vehicle,
@@ -23,6 +24,10 @@ double calculate_cost(const vector<double> &traj, const int &target_vehicle,
 double calculate_cost_traj(const vector<double> &traj, const int &target_vehicle,
                            const vector<double> &delta, const double T,
                            const vector<Vehicle> &predictions, int lane, bool verbose = false);
+
+double calculate_cost_veh_traj(const Traj2D &traj,
+                               const double T,
+                               const vector<Vehicle> &predictions, bool verbose = false);
 
 double time_diff_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<double> &delta, const double T,
@@ -38,6 +43,9 @@ double d_diff_cost(const vector<double> &traj, const int &target_vehicle,
 
 double collision_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<double> &delta, const double T,
+                      const vector<Vehicle> &predictions);
+
+double collision_cost(const Traj2D &traj, const double T,
                       const vector<Vehicle> &predictions);
 
 double max_accel_cost(const vector<double> &traj, const int &target_vehicle,
@@ -61,6 +69,10 @@ double total_jerk_cost(const vector<double> &traj,
 double buffer_cost(const vector<double> &traj,
                    const int &target_vehicle,
                    const vector<double> &delta, const double T,
+                   const vector<Vehicle> &predictions);
+
+double buffer_cost(const Traj2D &traj,
+                   const double T,
                    const vector<Vehicle> &predictions);
 
 double efficiency_cost(const vector<double> &traj,

@@ -58,13 +58,20 @@ Vehicle::choose_next_state_v2(const vector<Vehicle> &predictions)
         vector<double> s_start(state.begin(), state.begin() + 3);
         vector<double> d_start(state.begin() + 3, state.begin() + 6);
 
-        double ds = predictions[idx].state[0] - state[0] +
-                    predictions[idx].state[1] * HORIZON;
+        size_t ns = 5, nd = 3, nv = 4;
+        double delta_s = predictions[idx].state[0] - state[0] +
+                         predictions[idx].state[1] * HORIZON;
+        vector<double> ds;
+        ds.push_back(10 + s_start[0]);
+        for (size_t i = 0; i < ns; ++i)
+        {
+            ds.push_back(s_start[0] + (float)i / (ns - 1) * delta_s);
+        }
         double v_target = predictions[idx].state[1];
         double minv = min2(state[1], v_target);
         double dv = MAX_SPEED - minv;
-        size_t ns = 5, nd = 3, nv = 3;
-        vector<vector<double>> trajectories(ns * nd * nv);
+
+        vector<vector<double>> trajectories(ds.size() * nd * nv);
         vector<double> trajectory(13), s_goal(3), d_goal(3), s_coeffs(6),
             d_coeffs(6), delta;
         trajectory[12] = HORIZON;
@@ -74,11 +81,10 @@ Vehicle::choose_next_state_v2(const vector<Vehicle> &predictions)
         {
             for (size_t j = 0; j < nd; ++j)
             {
-                for (size_t k = 0; k < ns; ++k)
+                for (size_t k = 0; k < ds.size(); ++k)
                 {
-                    s_goal = {s_start[0] + (float)k / (ns - 1) * ds,
-                              -v_target + minv + (float)i / (nv - 1) * dv, 0};
-                    d_goal = {d_start[0] + lanes[j] * 4, 0, 0};
+                    s_goal = {ds[k], -v_target + minv + (float)i / (nv - 1) * dv, 0};
+                    d_goal = {j * 4.0 + 2, 0, 0};
                     s_coeffs = JMT(s_start, s_goal, HORIZON);
                     d_coeffs = JMT(d_start, d_goal, HORIZON);
                     copy(s_coeffs.begin(), s_coeffs.end(), trajectory.begin());
@@ -103,12 +109,61 @@ Vehicle::choose_next_state_v2(const vector<Vehicle> &predictions)
         printVec(trajectories[best_index]);
         calculate_cost_traj(trajectories[best_index], idx, delta, HORIZON,
                             predictions, lane, true);
-        return trajectories[best_index];
+        trajectory = trajectories[best_index];
+        vector<double> best_s_coeffs(trajectory.begin(), trajectory.begin() + 6);
+        auto v_coeffs = differntiate(best_s_coeffs);
+        target_speed = polyval(v_coeffs, 0.02 * 50);
+        target_speed = target_speed > 2 ? target_speed : 2;
+        trajectory.push_back(best_cost);
+        return trajectory;
     }
     else
     {
         cerr << "No vehicle in front!. Shift the host vehicle forward.\n";
     }
+}
+
+Traj2D
+Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
+{
+    size_t nd = 3, nv = 20;
+
+    vector<Traj2D> trajectories;
+
+    double s0 = state[0];
+    double d0 = state[3];
+    double v0 = state[1];
+
+    double cost, best_cost = 1e9;
+    int index = 0, best_index;
+    double vt;
+    for (size_t i = 0; i < nd; ++i)
+    {
+        for (size_t j = 0; j < nv; ++j)
+        {
+            vt = float(j) / (nv - 1) * MAX_SPEED;
+            trajectories.push_back(Traj2D(s0, d0, v0, vt, i));
+
+            cost = calculate_cost_veh_traj(trajectories[index], HORIZON,
+                                           predictions);
+            if (cost < best_cost)
+            {
+                best_cost = cost;
+                best_index = index;
+            }
+
+            ++index;
+            cout << cost << ", ";
+        }
+        cout << endl;
+    }
+
+    cout << "Best cost = " << best_cost << ", best_index = " << best_index
+         << endl;
+    calculate_cost_veh_traj(trajectories[best_index], HORIZON,
+                            predictions, true);
+    target_speed = trajectories[best_index].vs;
+    return trajectories[best_index];
 }
 
 vector<string> Vehicle::successor_states()

@@ -7,7 +7,7 @@ double calculate_cost(const vector<double> &traj, const int &target_vehicle,
     double cost = 0.;
     // cout << predictions.size();
     vector<CostFun> cf_list = {time_diff_cost, s_diff_cost, d_diff_cost,
-                               collision_cost, buffer_cost, efficiency_cost};
+                               /*collision_cost, buffer_cost,*/ efficiency_cost};
     vector<double> weights = {1, 1, 1, 30, 1, 30};
     if (verbose)
         cout << endl;
@@ -118,6 +118,55 @@ double calculate_cost_traj(const vector<double> &traj,
     return cost;
 }
 
+double calculate_cost_veh_traj(const Traj2D &traj,
+                               const double T,
+                               const vector<Vehicle> &predictions, bool verbose)
+{
+    double cost = 0;
+
+    // cost of going straight at the center line of the current lane
+    double md = meanVecAbs(traj.d) - traj.d0;
+    double cost_straight = logistic(md) * 1.0;
+    cost += cost_straight;
+
+    // cost of distance to the goal
+    double dist_to_goal = MAX_SPEED * T - traj.vs * T;
+    double cost_to_goal = logistic(2 * dist_to_goal / (MAX_SPEED * T)) * 20.0;
+    cost += cost_to_goal;
+
+    // cost of speed limit
+    double mv = traj.vs;
+    double cost_speed_limit = 0;
+    if (mv > MAX_SPEED)
+        cost_speed_limit = 1.0 * 50;
+    cost += cost_speed_limit;
+
+    // cost of collision
+    double cost_collision =
+        collision_cost(traj, T, predictions) * 50;
+    cost += cost_collision;
+
+    // cost of buffer distance
+    double buffer_dist_cost = buffer_cost(traj, T, predictions) * 50;
+    cost += buffer_dist_cost;
+
+    // cost of end speed
+    double cost_end_speed = logistic(2.0 * abs(MAX_SPEED - traj.vs) / MAX_SPEED) * 10;
+    cost += cost_end_speed;
+
+    if (verbose)
+    {
+        cout << "cost_straight = " << cost_straight << endl;
+        cout << "cost_to_goal = " << cost_to_goal << endl;
+        cout << "cost_speed_limit = " << cost_speed_limit << endl;
+        cout << "cost_collision = " << cost_collision << endl;
+        cout << "buffer_dist_cost = " << buffer_dist_cost << endl;
+        cout << "cost_end_speed = " << cost_end_speed << endl;
+        cout << "Total = " << cost << endl;
+    }
+    return cost;
+}
+
 double time_diff_cost(const vector<double> &traj, const int &target_vehicle,
                       const vector<double> &delta, const double T,
                       const vector<Vehicle> &predictions)
@@ -195,6 +244,26 @@ double collision_cost(const vector<double> &traj, const int &target_vehicle,
     }
 }
 
+double collision_cost(const Traj2D &traj, const double T,
+                      const vector<Vehicle> &predictions)
+{
+    double dmin = 1e9;
+    double dx, dy, d;
+    for (auto it = predictions.begin(); it != predictions.end(); ++it)
+        for (size_t i = 0; i < 101; ++i)
+        {
+            dx = traj.s[i] - it->s[i];
+            dy = traj.d[i] - it->d[i];
+            d = dx * dx + dy * dy;
+            if (d < dmin)
+                dmin = d;
+        }
+    if (sqrt(dmin) < 2 * VEHICLE_RADIUS)
+        return 1.;
+    else
+        return 0;
+}
+
 double buffer_cost(const vector<double> &traj, const int &target_vehicle,
                    const vector<double> &delta, const double T,
                    const vector<Vehicle> &predictions)
@@ -215,6 +284,32 @@ double buffer_cost(const vector<double> &traj, const int &target_vehicle,
             tv = it->state[1];
             ts = it->s[100];
             bd = ts - hs;
+            dist = (hv * hv - tv * tv) / (2 * MAX_ACC);
+            if (dist > bd)
+                return 1;
+        }
+        else
+        {
+            continue;
+        }
+    }
+    return 0;
+}
+
+double buffer_cost(const Traj2D &traj, const double T,
+                   const vector<Vehicle> &predictions)
+{
+    double hv, tv, ts, bd, dist;
+    hv = traj.vs;
+    for (auto it = predictions.begin(); it != predictions.end(); ++it)
+    {
+        if (getLane(traj.dT) == getLane(it->state[3]))
+        {
+            // on the same lane
+            tv = it->state[1];
+            ts = it->s[100];
+            bd = ts - traj.sT;
+
             dist = (hv * hv - tv * tv) / (2 * MAX_ACC);
             if (dist > bd)
                 return 1;
