@@ -17,7 +17,7 @@ int main()
 {
 
     Vehicle v1;
-    v1.state = {72 + 50, MAX_SPEED * 0.2, 0, 6, 0, 0};
+    v1.state = {72 + 50, MAX_SPEED * 0.6, 0, 6, 0, 0};
     v1.updateTraj();
     Vehicle ego;
     ego.state = {72, MAX_SPEED * 0.8, 0, 6, 0, 0};
@@ -31,8 +31,8 @@ int main()
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() << std::endl;
 
     ego.prev_traj = traj2;
-    printVec(traj2.s);
-    cout << endl;
-    printVec(ego.prev_traj.s);
+    //printVec(traj2.s);
+    //cout << endl;
+    //printVec(ego.prev_traj.s);
     return 0;
 }

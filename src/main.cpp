@@ -297,8 +297,11 @@ int main()
 					cout << "previous s = ";
 					printVec(prev_s);
 
-					cout << "car: speed = " << car_speed << "m/s, (x,y) = (" << car_x << ", " << car_y << "), (s, d) = (" << car_s << ", " << car_d << ")\n";
 					car_speed *= tomps;
+					cout << "car: speed = " << car_speed << "m/s, (x,y) = (" << car_x << ", " << car_y << "), (s, d) = (" << car_s << ", " << car_d << ")\n";
+
+					// use ref_vel instead of car_speed
+					car_speed = ref_vel;
 					ego.state = {car_s, car_speed, 0, car_d, 0, 0};
 					double dt = 0.02;
 					int N = 50;
@@ -312,40 +315,19 @@ int main()
 						ego.buf_states.resize(N);
 						initialized = true;
 					}
-					else
-					{
-						//printVec(ego.prev_traj.s);
-						/*
-						double mindiff = 1e9;
-						for (size_t i = 0; i < ego.buf_states.size(); ++i)
-						{
-							//cout << ego.buf_states[i][0] << ", ";
-							if (abs(car_s - ego.buf_states[i][0]) < mindiff)
-							{
-								mindiff = abs(car_s - ego.buf_states[i][0]);
-								idx_prev_end = i;
-							}
-						}
-						cout << endl
-							 << "time of path end = " << idx_prev_end << endl;
-						ego.state = ego.buf_states[idx_prev_end];*/
-					}
+
 					ego.updateLane();
 
 					vector<Vehicle> predictions;
 					for (size_t i = 0; i < sensor_fusion.size(); ++i)
 					{
 						double v_speed = sensor_fusion[i][3];
-						v_speed *= tomps;
-						vector<double> veh = {sensor_fusion[i][5], v_speed, 0, sensor_fusion[i][6], 0, 0};
+						v_speed = abs(v_speed);
+						//v_speed *= tomps;
+						vector<double> veh = {sensor_fusion[i][5], v_speed /*+ car_speed*/, 0, sensor_fusion[i][6], 0, 0};
 						predictions.push_back(Vehicle(veh));
 						predictions[i].updateTraj();
 					}
-					/*auto shifted_ego = ego;
-					shifted_ego.state[0] += 50;
-					shifted_ego.state[1] = MAX_SPEED;
-					shifted_ego.updateTraj();
-					predictions.push_back(shifted_ego);*/
 
 					//vector<double> ego_rst = ego.choose_next_state_v2(predictions);
 					auto ego_rst = ego.choose_next_state_v3(predictions);
@@ -362,17 +344,10 @@ int main()
 					{
 						t_vec.push_back(dt * (1 + i));
 					}
-					vector<double> t_fit = { 2, 3, 4, 5};
+					vector<double> t_fit = {2, 3, 4, 5};
 					vector<double> traj_s, traj_d, fit_s, fit_d;
 					ego_rst.pos(t_vec, traj_s, traj_d);
 					ego_rst.pos(t_fit, fit_s, fit_d);
-					//auto states = ego_rst.get_states(t_vec);
-					if (initialized)
-					{
-						//auto states_prev = ego.buf_states;
-						//copy(states_prev.begin() + idx_prev_end-prev_size, states_prev.begin() + idx_prev_end, ego.buf_states.begin());
-					}
-					//copy(states.begin(), states.end(), ego.buf_states.begin() + prev_size);
 
 					cout << "fit_s = ";
 					printVec(fit_s);
@@ -450,20 +425,32 @@ int main()
 
 					vector<double> next_x, next_y;
 					cout << "target speed = " << ego.target_speed << ", ref_vel = " << ref_vel << endl;
+
+					if (abs(ref_vel - ego.target_speed) > 0.224)
+					{
+						if (ref_vel < ego.target_speed)
+							ref_vel += 0.224 * 2.5;
+						else
+							ref_vel -= 0.224;
+					}
+					else if (abs(ref_vel - ego.target_speed) > 0.01)
+					{
+						ref_vel = ego.target_speed;
+					}
+					/*
 					if (ref_vel > ego.target_speed + 0.225)
 					{
-						ref_vel -= 0.112;
+						ref_vel -= 0.112 * 2;
 					}
 					else if (ref_vel < ego.target_speed)
 					{
-						ref_vel += 0.112;
-					}
+						ref_vel += 0.112 * 2;
+					}*/
 					//ref_vel = ego.target_speed;
 					for (size_t i = 0; i < traj_x.size(); ++i)
 					{
 						traj_x[i] = (i + 1) * 0.02 * ref_vel * slope;
 						traj_y[i] = s(traj_x[i]);
-
 					}
 					toWorldFrame(next_x, next_y, traj_x, traj_y, ref_x, ref_y, ref_yaw);
 
