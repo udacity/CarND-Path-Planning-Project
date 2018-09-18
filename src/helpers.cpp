@@ -126,7 +126,7 @@ Vehicle::choose_next_state_v2(const vector<Vehicle> &predictions)
 Traj2D
 Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
 {
-    size_t nd = 3, nv = 20;
+    size_t nd = 3, nv = 30;
 
     vector<Traj2D> trajectories;
 
@@ -134,30 +134,80 @@ Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
     double d0 = state[3];
     double v0 = state[1];
 
-    double cost, best_cost = 1e9;
-    int index = 0, best_index;
-    double vt;
-    for (size_t i = 0; i < nd; ++i)
+    int idx = 0;
+    bool ahead = get_vehicle_ahead(predictions, idx);
+
+    vector<double> vt(nv + 1);
+    for (size_t j = 0; j < nv; ++j)
     {
-        for (size_t j = 0; j < nv; ++j)
-        {
-            vt = float(j) / (nv - 1) * MAX_SPEED;
-            trajectories.push_back(Traj2D(s0, d0, v0, vt, i));
-
-            cost = calculate_cost_veh_traj(trajectories[index], HORIZON,
-                                           predictions);
-            if (cost < best_cost)
-            {
-                best_cost = cost;
-                best_index = index;
-            }
-
-            ++index;
-            cout << cost << ", ";
-        }
-        cout << endl;
+        vt[j] = float(j) / (nv - 1) * MAX_SPEED;
     }
 
+    for (size_t i = 0; i < nd; ++i)
+    {
+        if (i == lane)
+        { // going straight
+            if (ahead)
+            { // follow front vehicle
+                double fv_speed = predictions[idx].state[1];
+                double dist = predictions[idx].state[0] - s0;
+                double ref_speed = 0;
+                cout << "Dist to fv = " << dist << "m"
+                     << ", fv speed = " << fv_speed << "m/s\n";
+                if (dist > 25.0)
+                { // far from front vehicle, increase speed
+                    ref_speed = 0.08 * (dist - 10.) + fv_speed;
+                }
+                else if (dist < 20.0)
+                { // too close, decrease speed
+                    ref_speed = fv_speed / 8. * (dist - 10) + fv_speed;
+                }
+                else
+                { // keep distance
+                    ref_speed = fv_speed;
+                }
+                // clipping speed
+                ref_speed = ref_speed > MAX_SPEED ? MAX_SPEED : ref_speed;
+                ref_speed = ref_speed > 0 ? ref_speed : 0;
+                vt[nv] = ref_speed;
+                cout << "Going straight, ref_speed = " << ref_speed << "m/s\n";
+                for (size_t j = 0; j <= nv; ++j)
+                {
+                    trajectories.push_back(Traj2D(s0, d0, v0, vt[j], i));
+                }
+                //trajectories.push_back(Traj2D(s0, d0, v0, ref_speed, i));
+            }
+            else
+            { // going as fast as possible
+                trajectories.push_back(Traj2D(s0, d0, v0, MAX_SPEED, i));
+            }
+        }
+        else
+        { // lane change
+            int side_v_id = 0;
+            if (check_lane_change(predictions, i, side_v_id))
+            {
+                for (size_t j = 0; j < nv; ++j)
+                {
+                    trajectories.push_back(Traj2D(s0, d0, v0, vt[j], i));
+                }
+            }
+        }
+    }
+    double cost, best_cost = 1e9;
+    int index = 0, best_index = 0;
+    for (index = 0; index < trajectories.size(); ++index)
+    {
+        cost = calculate_cost_veh_traj(trajectories[index], HORIZON,
+                                       predictions);
+        if (cost < best_cost)
+        {
+            best_cost = cost;
+            best_index = index;
+        }
+        cout << cost << ", ";
+    }
+    cout << endl;
     cout << "Best cost = " << best_cost << ", best_index = " << best_index
          << endl;
     calculate_cost_veh_traj(trajectories[best_index], HORIZON,
@@ -322,6 +372,39 @@ bool Vehicle::get_vehicle_ahead(const vector<Vehicle> &predictions, int &idx)
         }
     }
     return found;
+}
+
+bool Vehicle::check_lane_change(const vector<Vehicle> &predictions, const int lane_in, int &idx)
+{
+    // enable lane change
+    bool lc = true;
+    double d = 1e9;
+    for (size_t i = 0; i < predictions.size(); ++i)
+    {
+        if (getLane(predictions[i].state[3]) == lane_in)
+        { // target vehicle in the same lane as lane_in
+            if ((this->state[0] < predictions[i].state[0] + 5.0) && (this->state[0] + 30) > predictions[i].state[0])
+            { // the target vehicle is close to the host vehicle, do not change lane
+                lc = false;
+                return lc;
+            }
+            else if ((this->state[0] < predictions[i].state[0] + 10.0) && (this->state[0] > predictions[i].state[0] + 5.0))
+            { // the target vehicle is a bit behind the host vehicle
+                if (this->state[1] < predictions[i].state[1])
+                { // but the target vehicle is driving faster. Do not change lane in this case
+                    if (predictions[i].state[0] < d)
+                    {
+                        d = predictions[i].state[1];
+                        idx = i;
+                    }
+                    lc = false;
+                    return lc;
+                }
+            }
+        }
+    }
+
+    return lc;
 }
 
 vector<double> PTG(const vector<double> &start_s, const vector<double> &start_d,

@@ -24,9 +24,9 @@ using namespace std;
 const vector<float> WEIGHTS = {1, 1, 1, 20, 1, 1, 20, 1, 1, 1};
 const vector<float> SIGMA_SD = {0.1, 0.1, 0.1, 0.1, 0.1, 0.1}; //{10., 4., 2., 1., 1., 1.};
 const float VEHICLE_RADIUS = 1.5;
-const double HORIZON = 3.;
+const double HORIZON = 4.;
 const double LC_DUR = 3.;
-const double MAX_SPEED = 50 * 0.44704 * 0.95;
+const double MAX_SPEED = 50 * 0.44704 * 0.98;
 const double MAX_ACC = 10.0;
 const double MAX_JERK = 10.0;
 
@@ -37,7 +37,7 @@ struct Traj2D
     double vs, vd, v0;
     double s0, d0, sts, sT, dT;
     double ts, td;
-    double as;
+    double as, ad;
 
     bool cached;
     Traj2D()
@@ -69,15 +69,16 @@ struct Traj2D
         vs = v_s;
         s0 = s_0;
         d0 = d_0;
-        as = MAX_ACC * 0.3;
+        as = MAX_ACC * 0.6;
+        ad = 4.;
         ts = (vs - v0) / as;
         sts = s0 + v0 * ts + 0.5 * as * ts * ts;
 
         sT = s0 + vs * HORIZON - 0.5 * as * ts * ts;
         dT = 4. * lane + 2;
 
-        double delta_d = dT - d0;
-        vd = delta_d / LC_DUR;
+        vd = 2.0*(dT-d0)/abs(dT-d0);
+        td = abs((dT - d0) / vd);
 
         vector<double> t_vec;
         for (size_t i = 0; i < 101; ++i)
@@ -97,7 +98,7 @@ struct Traj2D
             else
                 s.push_back(sts + (t - ts) * vs);
 
-            if (t < LC_DUR)
+            if (t < td)
             {
                 d.push_back(d0 + vd * t);
             }
@@ -108,6 +109,44 @@ struct Traj2D
         }
 
         cached = true;
+    }
+
+    double get_td0()
+    {
+        double t = 0.;
+
+        return t;
+    }
+
+    double get_d(double t)
+    {
+        double dt = 0.;
+        double dD = dT - d0;
+        if (abs(dD) <= 4.0)
+        {
+            if (abs(dD) <= 2.0)
+            {
+                double vd0 = sqrt(2. * 4 * abs(dD)) * dD / abs(dD);
+                double ad0 = -4. * dD / abs(dD);
+                dt = vd0 * t + 0.5 * ad0 * t * t;
+            }
+            else
+            {
+                double vd0 = sqrt(2. * 4 * (4 - abs(dD))) * dD / abs(dD);
+                double ad0 = 4. * dD / abs(dD);
+                dt = vd0 * t + 0.5 * ad0 * t * t;
+            }
+        }
+        else
+        {
+            if (abs(dD) <= 6.0)
+            {
+            }
+            else
+            {
+            }
+        }
+        return dt;
     }
 
     vector<double> pos(const double t)
@@ -123,7 +162,7 @@ struct Traj2D
         else
             sd.push_back(sts + (t - ts) * vs);
 
-        if (t < LC_DUR)
+        if (t < td)
         {
             sd.push_back(d0 + vd * t);
         }
@@ -152,7 +191,7 @@ struct Traj2D
             else
                 s_o.push_back(sts + (t - ts) * vs);
 
-            if (t < LC_DUR)
+            if (t < td)
             {
                 d_o.push_back(d0 + vd * t);
             }
@@ -327,6 +366,7 @@ struct Vehicle
     vector<double> lane_change_trajectory(string state, const vector<Vehicle> &predictions);
     vector<double> free_lane_trajectory();
     bool get_vehicle_ahead(const vector<Vehicle> &predictions, int &idx);
+    bool check_lane_change(const vector<Vehicle> &predictions, const int lane_in, int &idx);
 };
 
 std::vector<double> JMT(std::vector<double> start, std::vector<double> end,
