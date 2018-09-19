@@ -69,15 +69,18 @@ struct Traj2D
         vs = v_s;
         s0 = s_0;
         d0 = d_0;
-        as = MAX_ACC * 0.8;
+        double signs = vs > v0 ? 1 : -1;
+
+        as = MAX_ACC * 0.8 * signs;
         ad = 4.;
-        ts = (vs - v0) / as;
+        ts = abs((vs - v0) / as);
         sts = s0 + v0 * ts + 0.5 * as * ts * ts;
 
         sT = s0 + vs * HORIZON - 0.5 * as * ts * ts;
         dT = 4. * lane + 2;
+        double signd = dT > d0 ? 1 : -1;
 
-        vd = 2.0*(dT-d0)/abs(dT-d0);
+        vd = 2.0 * signd;
         td = abs((dT - d0) / vd);
 
         vector<double> t_vec;
