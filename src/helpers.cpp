@@ -379,31 +379,39 @@ bool Vehicle::check_lane_change(const vector<Vehicle> &predictions, const int la
     // enable lane change
     bool lc = true;
     double d = 1e9;
+    double L1 = 30 + state[0], L2 = state[0] - 5, L3 = state[0] - 10;
     for (size_t i = 0; i < predictions.size(); ++i)
     {
+        double t_s = predictions[i].state[0];
+        double t_v = predictions[i].state[1];
         if (getLane(predictions[i].state[3]) == lane_in)
         { // target vehicle in the same lane as lane_in
-            if ((this->state[0] < predictions[i].state[0] + 5.0) && (this->state[0] + 30) > predictions[i].state[0])
-            { // the target vehicle is close to the host vehicle, do not change lane
-                lc = false;
-                return lc;
-            }
-            else if ((this->state[0] < predictions[i].state[0] + 10.0) && (this->state[0] > predictions[i].state[0] + 5.0))
-            { // the target vehicle is a bit behind the host vehicle
-                if (this->state[1] < predictions[i].state[1])
-                { // but the target vehicle is driving faster. Do not change lane in this case
-                    if (predictions[i].state[0] < d)
-                    {
-                        d = predictions[i].state[1];
-                        idx = i;
-                    }
+            if ((t_s > L3) && (t_s < L1))
+            { // the target vehicle is interesting
+                cout << "Find a vehicle: "
+                     << "host s = " << state[0] << " v = " << state[1] << ", target s = " << t_s << " v = " << t_v << endl;
+                if ((t_s > L2) && (t_s < L1))
+                { // the target vehicle is too close to the host vehicle, do not change lane
                     lc = false;
                     return lc;
+                }
+                else if ((t_s > L3) && (t_s < L2))
+                { // the target vehicle is a bit behind the host vehicle
+                    if (this->state[1] < t_v)
+                    { // but the target vehicle is driving faster. Do not change lane in this case
+                        if (predictions[i].state[0] < d)
+                        {
+                            d = predictions[i].state[0];
+                            idx = i;
+                        }
+                        lc = false;
+                        return lc;
+                    }
                 }
             }
         }
     }
-
+    cout << "Free to change to lane " << lane_in << endl;
     return lc;
 }
 
