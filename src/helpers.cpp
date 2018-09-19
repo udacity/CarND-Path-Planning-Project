@@ -142,6 +142,21 @@ Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
     {
         vt[j] = float(j) / (nv - 1) * MAX_SPEED;
     }
+    vector<bool> lc_valid(nd);
+    for (size_t i = 0; i < nd; ++i)
+    {
+        lc_valid[i] = false;
+        int side_v_id = 0;
+        if (i != lane)
+        {
+            lc_valid[i] = check_lane_change(predictions, i, side_v_id);
+        }
+    }
+    // if cross two lanes, make sure both lanes are empty
+    if (lane == 0)
+        lc_valid[2] = lc_valid[2] && lc_valid[1];
+    if (lane == 2)
+        lc_valid[0] = lc_valid[0] && lc_valid[1];
 
     for (size_t i = 0; i < nd; ++i)
     {
@@ -177,7 +192,6 @@ Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
                     trajectories.push_back(Traj2D(s0, d0, v0, vt[j], i));
                 }
                 r_idx = trajectories.size() - 1;
-                //trajectories.push_back(Traj2D(s0, d0, v0, ref_speed, i));
             }
             else
             { // going as fast as possible
@@ -186,8 +200,7 @@ Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
         }
         else
         { // lane change
-            int side_v_id = 0;
-            if (check_lane_change(predictions, i, side_v_id))
+            if (lc_valid[i])
             {
                 for (size_t j = 0; j < nv; ++j)
                 {
@@ -207,9 +220,9 @@ Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
             best_cost = cost;
             best_index = index;
         }
-        cout << cost << ", ";
+        //cout << cost << ", ";
     }
-    cout << endl;
+    //cout << endl;
     cout << "Best cost = " << best_cost << ", best_index = " << best_index
          << endl;
     calculate_cost_veh_traj(trajectories[best_index], HORIZON,
@@ -383,17 +396,18 @@ bool Vehicle::check_lane_change(const vector<Vehicle> &predictions, const int la
     // enable lane change
     bool lc = true;
     double d = 1e9;
-    double L1 = 30 + state[0], L2 = state[0] - 5, L3 = state[0] - 10;
+    double L1 = 30 + state[0], L2 = state[0] - 3, L3 = state[0] - 5;
     for (size_t i = 0; i < predictions.size(); ++i)
     {
         double t_s = predictions[i].state[0];
         double t_v = predictions[i].state[1];
-        if (getLane(predictions[i].state[3]) == lane_in)
+        double t_d = predictions[i].state[3];
+        if (getLane(t_d) == lane_in)
         { // target vehicle in the same lane as lane_in
             if ((t_s > L3) && (t_s < L1))
             { // the target vehicle is interesting
                 cout << "Find a vehicle: "
-                     << "host s = " << state[0] << " v = " << state[1] << ", target s = " << t_s << " v = " << t_v << endl;
+                     << "host s = " << state[0] << " d = " << state[3] << " v = " << state[1] << ", target s = " << t_s << " d = " << t_d << " v = " << t_v << endl;
                 if ((t_s > L2) && (t_s < L1))
                 { // the target vehicle is too close to the host vehicle, do not change lane
                     lc = false;
