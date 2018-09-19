@@ -320,9 +320,14 @@ int main()
 
 					vector<Vehicle> predictions;
 					for (size_t i = 0; i < sensor_fusion.size(); ++i)
-					{
-						double v_speed = sensor_fusion[i][3];
-						v_speed = abs(v_speed);
+					{ // car's unique ID, car's x position in map coordinates,
+						// car's y position in map coordinates, car's x velocity in m/s,
+						// car's y velocity in m/s, car's s position in frenet coordinates,
+						// car's d position in frenet coordinates
+						double vx = sensor_fusion[i][3];
+						double vy = sensor_fusion[i][4];
+						double v_speed = sqrt(vx * vx + vy * vy);
+						//v_speed = abs(v_speed);
 						//v_speed *= tomps;
 						vector<double> veh = {sensor_fusion[i][5], v_speed /*+ car_speed*/, 0, sensor_fusion[i][6], 0, 0};
 						predictions.push_back(Vehicle(veh));
