@@ -396,7 +396,7 @@ bool Vehicle::check_lane_change(const vector<Vehicle> &predictions, const int la
     // enable lane change
     bool lc = true;
     double d = 1e9;
-    double L1 = 30 + state[0], L2 = state[0] - 3, L3 = state[0] - 5;
+    double L1 = 10 + state[0], L2 = state[0] - 3, L3 = state[0] - 5;
     for (size_t i = 0; i < predictions.size(); ++i)
     {
         double t_s = predictions[i].state[0];
