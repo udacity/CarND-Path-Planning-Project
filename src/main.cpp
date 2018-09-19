@@ -270,7 +270,7 @@ int main()
 					size_t idx_path_start = 0;
 					if (prev_size > 10)
 					{
-						prev_size = 10;
+						prev_size = 5;
 
 						previous_path_x.resize(prev_size);
 						previous_path_y.resize(prev_size);
@@ -357,8 +357,8 @@ int main()
 
 					cout << "fit_s = ";
 					printVec(fit_s);
-					cout << "traj_s = ";
-					printVec(traj_s);
+					//cout << "traj_s = ";
+					//printVec(traj_s);
 					vector<double> traj_x, traj_y, fit_x, fit_y;
 
 					for (size_t i = 0; i < traj_s.size(); ++i)
@@ -429,7 +429,7 @@ int main()
 					double dist_y = s(dist_x);
 					double slope = dist_x / sqrt(dist_x * dist_x + dist_y * dist_y);
 
-					vector<double> next_x, next_y;					
+					vector<double> next_x, next_y;
 
 					if (abs(ref_vel - ego.target_speed) > 0.224)
 					{
