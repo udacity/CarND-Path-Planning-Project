@@ -17,10 +17,10 @@ int main()
 {
 
     Vehicle v1;
-    v1.state = {72 + 50, MAX_SPEED * 0.6, 0, 6, 0, 0};
+    v1.state = {72 + 122, MAX_SPEED * 0.8, 0, 6, 0, 0};
     v1.updateTraj();
     Vehicle ego;
-    ego.state = {72, MAX_SPEED * 0.8, 0, 6, 0, 0};
+    ego.state = {72, MAX_SPEED * 0.12, 0, 6.2, 0, 0};
     vector<Vehicle> vehs;
     vehs.push_back(v1);
 
@@ -29,7 +29,8 @@ int main()
     auto traj2 = ego.choose_next_state_v3(vehs);
     std::chrono::steady_clock::time_point t_end = std::chrono::steady_clock::now();
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() << std::endl;
-
+    cout << "Goal speed = " << traj2.vs << "m/s\n";
+    cout << "dT = " << traj2.dT << "m \n";
     ego.prev_traj = traj2;
     //printVec(traj2.s);
     //cout << endl;

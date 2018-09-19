@@ -134,7 +134,7 @@ Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
     double d0 = state[3];
     double v0 = state[1];
 
-    int idx = 0;
+    int idx = 0, r_idx = 0;
     bool ahead = get_vehicle_ahead(predictions, idx);
 
     vector<double> vt(nv + 1);
@@ -153,7 +153,8 @@ Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
                 double dist = predictions[idx].state[0] - s0;
                 double ref_speed = 0;
                 cout << "Dist to fv = " << dist << "m"
-                     << ", fv speed = " << fv_speed << "m/s\n";
+                     << ", fv speed = " << fv_speed << "m/s"
+                     << ", v0 = " << v0 << "m/s\n";
                 if (dist > 25.0)
                 { // far from front vehicle, increase speed
                     ref_speed = 0.08 * (dist - 10.) + fv_speed;
@@ -175,6 +176,7 @@ Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
                 {
                     trajectories.push_back(Traj2D(s0, d0, v0, vt[j], i));
                 }
+                r_idx = trajectories.size() - 1;
                 //trajectories.push_back(Traj2D(s0, d0, v0, ref_speed, i));
             }
             else
@@ -212,6 +214,8 @@ Vehicle::choose_next_state_v3(const vector<Vehicle> &predictions)
          << endl;
     calculate_cost_veh_traj(trajectories[best_index], HORIZON,
                             predictions, true);
+    //calculate_cost_veh_traj(trajectories[r_idx], HORIZON,
+    //                        predictions, true);
     target_speed = trajectories[best_index].vs;
     return trajectories[best_index];
 }

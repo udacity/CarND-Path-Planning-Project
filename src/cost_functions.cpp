@@ -96,7 +96,7 @@ double calculate_cost_traj(const vector<double> &traj,
     cost += cost_collision;
 
     // cost of buffer distance
-    double buffer_dist_cost = buffer_cost(traj, target_vehicle, delta, T, predictions) * 50;
+    double buffer_dist_cost = buffer_cost(traj, target_vehicle, delta, T, predictions) * 20;
     cost += buffer_dist_cost;
 
     // cost of end speed
@@ -147,7 +147,7 @@ double calculate_cost_veh_traj(const Traj2D &traj,
     cost += cost_collision;
 
     // cost of buffer distance
-    double buffer_dist_cost = buffer_cost(traj, T, predictions) * 50;
+    double buffer_dist_cost = buffer_cost(traj, T, predictions) * 20;
     cost += buffer_dist_cost;
 
     // cost of end speed
@@ -156,6 +156,7 @@ double calculate_cost_veh_traj(const Traj2D &traj,
 
     if (verbose)
     {
+        cout << "s0 = " << traj.s0 << ", d0 = " << traj.d0 << ", v0 = " << traj.v0 << ", sT = " << traj.sT << ", dT = " << traj.dT << ", vT = " << traj.vs << endl;
         cout << "cost_straight = " << cost_straight << endl;
         cout << "cost_to_goal = " << cost_to_goal << endl;
         cout << "cost_speed_limit = " << cost_speed_limit << endl;
@@ -301,6 +302,7 @@ double buffer_cost(const Traj2D &traj, const double T,
 {
     double hv, tv, ts, bd, dist;
     hv = traj.vs;
+    double buf_dist = 20.;
     for (auto it = predictions.begin(); it != predictions.end(); ++it)
     {
         if (getLane(traj.dT) == getLane(it->state[3]))

@@ -69,7 +69,7 @@ struct Traj2D
         vs = v_s;
         s0 = s_0;
         d0 = d_0;
-        as = MAX_ACC * 0.6;
+        as = MAX_ACC * 0.8;
         ad = 4.;
         ts = (vs - v0) / as;
         sts = s0 + v0 * ts + 0.5 * as * ts * ts;

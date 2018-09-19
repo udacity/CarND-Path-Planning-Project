@@ -332,6 +332,7 @@ int main()
 					//vector<double> ego_rst = ego.choose_next_state_v2(predictions);
 					auto ego_rst = ego.choose_next_state_v3(predictions);
 					ego.prev_traj = ego_rst;
+					cout << "target speed = " << ego.target_speed << ", ref_vel = " << ref_vel << endl;
 					//vector<double> ego_rst = ego.free_lane_trajectory();
 					//ego.state = evalState(ego_rst, dt * (N - prev_size));
 
@@ -423,8 +424,7 @@ int main()
 					double dist_y = s(dist_x);
 					double slope = dist_x / sqrt(dist_x * dist_x + dist_y * dist_y);
 
-					vector<double> next_x, next_y;
-					cout << "target speed = " << ego.target_speed << ", ref_vel = " << ref_vel << endl;
+					vector<double> next_x, next_y;					
 
 					if (abs(ref_vel - ego.target_speed) > 0.224)
 					{
