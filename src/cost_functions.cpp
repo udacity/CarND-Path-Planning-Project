@@ -312,8 +312,8 @@ double buffer_cost(const Traj2D &traj, const double T,
             if (bd > 0)
             {
                 dist = (hv * hv - tv * tv) / (2.0 * MAX_ACC);
-                if (5.0 > bd)
-                    return 1;
+                if (buf_dist > bd)
+                    return (buf_dist - bd) / buf_dist;
             }
         }
         else
