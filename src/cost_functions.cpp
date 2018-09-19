@@ -130,7 +130,7 @@ double calculate_cost_veh_traj(const Traj2D &traj,
     cost += cost_straight;
 
     // cost of distance to the goal
-    double dist_to_goal = MAX_SPEED * T - traj.sT;
+    double dist_to_goal = MAX_SPEED * T - (traj.sT - traj.s0);
     double cost_to_goal = logistic(2 * dist_to_goal / (MAX_SPEED * T)) * 20.0;
     cost += cost_to_goal;
 
