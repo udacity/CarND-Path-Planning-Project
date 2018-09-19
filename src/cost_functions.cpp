@@ -73,7 +73,7 @@ double calculate_cost_traj(const vector<double> &traj,
     double mv = maxVelocity(s_v, d_v);
     double cost_speed_limit = 0;
     if (mv > MAX_SPEED)
-        cost_speed_limit = 1.0 * 50;
+        cost_speed_limit = 1.0 * 0;
     cost += cost_speed_limit;
 
     // cost of acc limit
