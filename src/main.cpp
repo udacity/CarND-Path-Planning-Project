@@ -100,12 +100,21 @@ int main() {
 
         json msgJson;
 
+        unsigned int lane = 1;
+        double velocity = 49;
+
         vector<SensorFusion> sf = tl.sensor_fusion;
         for(unsigned int i=0; i<sf.size(); i++) {
           double diff = sf[i].s - tl.s;
           if(diff > 0 && diff < 30){
             double check_speed = sqrt(sf[i].vx*sf[i].vx + sf[i].vy*sf[i].vy);
-            cout<<"Ahead "<<sf[i].id <<"; "<<check_speed<<endl;
+
+            if(sf[i].d < (4*lane+4) && sf[i].d> (4*lane)){
+              double vs = sqrt(sf[i].vx*sf[i].vx + sf[i].vy*sf[i].vy);
+              velocity = vs*2.237 - 2;
+              cout<<"Ahead velocity "<<velocity<<endl;
+            }
+
           }
         }
 
@@ -162,7 +171,7 @@ int main() {
 
 
 
-        Trajectory tr = trajectory_util.generate(tl, map, 1, 49.0);
+        Trajectory tr = trajectory_util.generate(tl, map, lane, velocity);
 
         msgJson["next_x"] = tr.x;
         msgJson["next_y"] = tr.y;

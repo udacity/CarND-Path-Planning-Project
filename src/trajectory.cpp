@@ -65,26 +65,6 @@ Trajectory TrajectoryUtil::generate(Telemetry tl, Map map, unsigned int target_l
 
   double x_add_on = 0;
   
-  cout<<" ---------------- "<<endl;
-  cout<<"car x=" << tl.x <<"; car y="<<tl.y<<endl;
-  for(unsigned int i=0; i<tl.previous_path_x.size(); i++){
-    cout << "x=" << tl.previous_path_x[i]<<"; y="<< tl.previous_path_y[i];
-    if(i>0) {
-      double px = tl.previous_path_x[i-1];
-      double cx = tl.previous_path_x[i];
-      double dx = cx - px;
-
-      double py = tl.previous_path_y[i-1];
-      double cy = tl.previous_path_y[i];
-      double dy = cy - py;
-
-      double magn = sqrt(dx*dx + dy*dy);
-      cout <<"; magn="<<magn;
-
-    }
-    cout << endl;
-  }
-
   //Fill up the rest of our path planner after filling it with previous points, here we will always output 50 points
   double total_speed;
 
@@ -99,40 +79,27 @@ Trajectory TrajectoryUtil::generate(Telemetry tl, Map map, unsigned int target_l
     double dx = cx-px;
     double dy = cy-py;
     double ds = sqrt(dx*dx+ dy*dy);
-    cout << "DS " << ds <<endl;
     total_speed = ds/0.02;
   }
 
   double target_vel_mps = target_vel/2.237;
   double total_x = 0;
   Eigen::MatrixXd new_points(3, 50-tl.previous_path_x.size());
-  cout << "Current speed mps " << total_speed<<"; Limit "<<target_vel_mps<<endl;
+
   for (unsigned int i = 0; i<new_points.cols(); i++) {
     if(total_speed < target_vel_mps){
       total_speed += 0.1;
     } else if (total_speed > target_vel_mps) {
       total_speed -= 0.1;
     }
-    cout << "  total speed miles/s "<< total_speed<<endl;
+
     double dx = total_speed * 0.02;
     total_x += dx;
-    double x_ref = total_x * cos(ref_yaw);
+    double x_ref = total_x;
     double y_ref = s(x_ref);
     new_points(0, i) = x_ref;
     new_points(1, i) = y_ref;
     new_points(2, i) = 1.0;//Homogenous
-    // double N = (target_dist / (.02 * target_vel/ 2.24));
-    // double x_point = x_add_on + (target_x) /N; //Project points from hypotenuse to x-axis
-    // double y_point = s(x_point);
-
-    // x_add_on = x_point;
-
-    // double x_ref = x_point;
-    // double y_ref = y_point;
-
-    // new_points(0, i) = x_ref;
-    // new_points(1, i) = y_ref;
-    // new_points(2, i) = 1.0;//Homogenous
   }
 
   new_points = Trigs::rigid(new_points, ref_yaw, dx, dy);

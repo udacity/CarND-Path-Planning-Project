@@ -17,8 +17,6 @@ struct Position {
 class TrajectoryUtil {
 
   private:
-    //double prev_x;
-    //double prev_y;
     std::array<Position, 2> get_ref_state(Telemetry tl);
     std::vector<double> row_to_vector(Eigen::MatrixXd m, int row);
   public:
