@@ -1,5 +1,5 @@
-#ifndef TRIGS_H
-#define TRIGS_H
+#ifndef TRIGS_H_
+#define TRIGS_H_
 
 #include <math.h>
 #include "Eigen-3.3/Eigen/Dense"
@@ -39,6 +39,23 @@ class Trigs{
       result = Trigs::rotate(result, theta);
       return result;
     }
+
+    static double min(double i, double j){
+      return (i<j) ? i : j;
+    }
+
+    static double min(double i, double j, double k){
+      return min(min(i, j), k);
+    }
+
+    static double max(double i, double j){
+      return (i>j) ? i : j;
+    }
+
+    static double max(double i, double j, double k){
+      return max(max(i, j), k);
+    }
+
 
 
 };

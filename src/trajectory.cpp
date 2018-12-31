@@ -5,15 +5,12 @@
 #include "telemetry.h"
 #include "trigs.h"
 #include "frenet.h"
-#include "state.h"
 #include "map.h"
 
 #include "trajectory.h"
 
 using namespace std;
 Trajectory TrajectoryUtil::generate(Telemetry tl, Map map, unsigned int target_lane, double target_vel){
-
-  //State& cst = State::Instance();
 
   Eigen::MatrixXd anchors(3,5);
   /* Initialize reference state */
@@ -31,7 +28,7 @@ Trajectory TrajectoryUtil::generate(Telemetry tl, Map map, unsigned int target_l
   /* Initialize anchor points */
   // In Frenet add evenly 30m spaced points ahead of the starting reference
   for(unsigned int i=0; i<3; i++){
-    vector<double> next_wp0 = Frenet::getXY(tl.s + 30*(i+1) + 10, (2+4*target_lane), map);
+    vector<double> next_wp0 = Frenet::getXY(tl.s + 30*(i+1) + 20, (2+4*target_lane), map);
     anchors(0, 2+i) = next_wp0[0];
     anchors(1, 2+i) = next_wp0[1];
   }
@@ -82,15 +79,14 @@ Trajectory TrajectoryUtil::generate(Telemetry tl, Map map, unsigned int target_l
     total_speed = ds/0.02;
   }
 
-  double target_vel_mps = target_vel/2.237;
   double total_x = 0;
   Eigen::MatrixXd new_points(3, 50-tl.previous_path_x.size());
 
   for (unsigned int i = 0; i<new_points.cols(); i++) {
-    if(total_speed < target_vel_mps){
-      total_speed += 0.1;
-    } else if (total_speed > target_vel_mps) {
-      total_speed -= 0.1;
+    if(total_speed < target_vel){
+      total_speed = Trigs::min(total_speed+0.1, target_vel);
+    } else if (total_speed > target_vel) {
+      total_speed = Trigs::max(total_speed-0.1, target_vel);
     }
 
     double dx = total_speed * 0.02;

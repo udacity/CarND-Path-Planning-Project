@@ -24,8 +24,8 @@
  */
 
 
-#ifndef TK_SPLINE_H
-#define TK_SPLINE_H
+#ifndef TK_SPLINE_H_
+#define TK_SPLINE_H_
 
 #include <cstdio>
 #include <cassert>

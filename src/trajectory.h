@@ -1,3 +1,6 @@
+#ifndef TRAJECTORY_H_
+#define TRAJECTORY_H_
+
 #include <vector>
 #include "Eigen-3.3/Eigen/Dense"
 #include "telemetry.h"
@@ -22,3 +25,4 @@ class TrajectoryUtil {
   public:
     Trajectory generate(Telemetry tl, Map map, unsigned int target_lane, double target_vel);
 };
+#endif

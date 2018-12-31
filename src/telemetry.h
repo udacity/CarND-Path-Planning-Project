@@ -1,5 +1,5 @@
-#ifndef TELEMETRY_H
-#define TELEMETRY_H
+#ifndef TELEMETRY_H_
+#define TELEMETRY_H_
 
 #include <vector>
 #include "json.hpp"

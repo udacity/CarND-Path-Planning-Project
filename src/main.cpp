@@ -12,6 +12,8 @@
 #include "trajectory.h"
 #include "telemetry.h"
 #include "map.h"
+#include "predictor.h"
+#include "behavior.h"
 
 
 using namespace std;
@@ -72,8 +74,10 @@ int main() {
 
 
   TrajectoryUtil trajectory_util;
+  Predictor& predictor = Predictor::Instance();
+  BehaviorPlanner& behavior = BehaviorPlanner::Instance();
 
-  h.onMessage([&map, &trajectory_util](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map, &trajectory_util, &predictor, &behavior](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
         uWS::OpCode opCode) {
       // "42" at the start of the message means there's a websocket message event.
       // The 4 signifies a websocket message
@@ -100,23 +104,24 @@ int main() {
 
         json msgJson;
 
-        unsigned int lane = 1;
-        double velocity = 49;
+        unsigned int curr_lane = (int)tl.d/4;
 
-        vector<SensorFusion> sf = tl.sensor_fusion;
-        for(unsigned int i=0; i<sf.size(); i++) {
-          double diff = sf[i].s - tl.s;
-          if(diff > 0 && diff < 30){
-            double check_speed = sqrt(sf[i].vx*sf[i].vx + sf[i].vy*sf[i].vy);
+        BPosition next = behavior.next_position(predictor.update(tl), curr_lane);
 
-            if(sf[i].d < (4*lane+4) && sf[i].d> (4*lane)){
-              double vs = sqrt(sf[i].vx*sf[i].vx + sf[i].vy*sf[i].vy);
-              velocity = vs*2.237 - 2;
-              cout<<"Ahead velocity "<<velocity<<endl;
-            }
+      //  vector<SensorFusion> sf = tl.sensor_fusion;
+      //  for(unsigned int i=0; i<sf.size(); i++) {
+      //    double diff = sf[i].s - tl.s;
+      //    if(diff > 0 && diff < 30){
+      //      double check_speed = sqrt(sf[i].vx*sf[i].vx + sf[i].vy*sf[i].vy);
 
-          }
-        }
+      //      if(sf[i].d < (4*lane+4) && sf[i].d> (4*lane)){
+      //        double vs = sqrt(sf[i].vx*sf[i].vx + sf[i].vy*sf[i].vy);
+      //        velocity = vs*2.237 - 2;
+      //        cout<<"Ahead velocity "<<velocity<<endl;
+      //      }
+
+      //    }
+      //  }
 
         //for(int i = 0; i < tl.sensor_fusion.size(); i++) {
         //   //car is in our lane
@@ -171,7 +176,7 @@ int main() {
 
 
 
-        Trajectory tr = trajectory_util.generate(tl, map, lane, velocity);
+        Trajectory tr = trajectory_util.generate(tl, map, next.lane, next.speed);
 
         msgJson["next_x"] = tr.x;
         msgJson["next_y"] = tr.y;
