@@ -104,9 +104,7 @@ int main() {
 
         json msgJson;
 
-        unsigned int curr_lane = (int)tl.d/4;
-
-        BPosition next = behavior.next_position(predictor.update(tl), curr_lane);
+        BPosition next = behavior.next_position(predictor.update(tl), tl);
 
       //  vector<SensorFusion> sf = tl.sensor_fusion;
       //  for(unsigned int i=0; i<sf.size(); i++) {

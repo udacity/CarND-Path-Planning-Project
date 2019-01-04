@@ -12,6 +12,12 @@
 using namespace std;
 Trajectory TrajectoryUtil::generate(Telemetry tl, Map map, unsigned int target_lane, double target_vel){
 
+  if(!is_busy){
+    preferred_lane = target_lane;
+    is_busy = true;
+  } else if( tl.d > preferred_lane*4+1.5 && tl.d < preferred_lane*4+2.5){
+    is_busy = false;
+  }
   Eigen::MatrixXd anchors(3,5);
   /* Initialize reference state */
   array<Position, 2> state = get_ref_state(tl);
@@ -28,14 +34,14 @@ Trajectory TrajectoryUtil::generate(Telemetry tl, Map map, unsigned int target_l
   /* Initialize anchor points */
   // In Frenet add evenly 30m spaced points ahead of the starting reference
   for(unsigned int i=0; i<3; i++){
-    vector<double> next_wp0 = Frenet::getXY(tl.s + 30*(i+1) + 20, (2+4*target_lane), map);
+    vector<double> next_wp0 = Frenet::getXY(tl.s + 30*(i+1) + 30, (2+4*preferred_lane), map);
     anchors(0, 2+i) = next_wp0[0];
     anchors(1, 2+i) = next_wp0[1];
   }
 
   anchors = anchors.colwise() + Trigs::homo();
   Eigen::MatrixXd car_pos = Trigs::rigid_reverse(anchors, -ref_yaw, -dx, -dy);
-  
+
   vector<double> ptsx = row_to_vector(car_pos, 0);
   vector<double> ptsy = row_to_vector(car_pos, 1);
 
@@ -61,13 +67,13 @@ Trajectory TrajectoryUtil::generate(Telemetry tl, Map map, unsigned int target_l
   double target_dist = sqrt(target_x*target_x + target_y*target_y);
 
   double x_add_on = 0;
-  
+
   //Fill up the rest of our path planner after filling it with previous points, here we will always output 50 points
   double total_speed;
 
   unsigned int pp_size = tl.previous_path_x.size();
   if(pp_size < 2){
-     total_speed = tl.speed/2.237;
+    total_speed = tl.speed;
   } else {
     double px = tl.previous_path_x[pp_size-2];
     double cx = tl.previous_path_x[pp_size-1];
@@ -160,3 +166,9 @@ vector<double> TrajectoryUtil::row_to_vector(Eigen::MatrixXd m, int row){
   vector<double> result(v.data(), v.data() + v.size());
   return result;
 }
+
+/*
+ * Generate trajectory in local coordinates
+ */
+//Trajectory TrajectoryUtil::generateLocal(Telemetry tl, Map map, unsigned int target_lane, double target_vel){
+//}

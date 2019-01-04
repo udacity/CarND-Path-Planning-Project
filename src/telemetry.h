@@ -41,7 +41,7 @@ class TelemetryUtils{
       tl.s = j[1]["s"];
       tl.d = j[1]["d"];
       tl.yaw = j[1]["yaw"];
-      tl.speed = j[1]["speed"];
+      tl.speed = (double)j[1]["speed"]/2.237;
 
       // Previous path data given to the Planner
       tl.previous_path_x = j[1]["previous_path_x"];
