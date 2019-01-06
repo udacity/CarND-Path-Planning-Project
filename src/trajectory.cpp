@@ -86,7 +86,7 @@ Trajectory TrajectoryUtil::generate(Telemetry tl, Map map, unsigned int target_l
   }
 
   double total_x = 0;
-  Eigen::MatrixXd new_points(3, 50-tl.previous_path_x.size());
+  Eigen::MatrixXd new_points(3, 25-tl.previous_path_x.size());
 
   for (unsigned int i = 0; i<new_points.cols(); i++) {
     if(total_speed < target_vel){

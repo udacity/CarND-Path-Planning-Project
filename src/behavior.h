@@ -1,7 +1,7 @@
 #ifndef BEHAVIOR_H_
 #define BEHAVIOR_H_
 //TODO: use from predictor
-#define SLOT_RAD 4.99999
+#define SLOT_RAD_1 4.99999
 
 #include <vector>
 #include "telemetry.h"
@@ -25,7 +25,7 @@ class BehaviorPlanner {
 
     BPosition next_position(vector<vector<Slot>> belief, Telemetry tl){
       unsigned int curr_lane = (int)tl.d/4;
-      unsigned int next_row = 20-(int)(tl.speed + SLOT_RAD)/10;
+      unsigned int next_row = 20-(int)(tl.speed + SLOT_RAD_1)/10;
 
       vector<vector<double>> dp(belief.size(), vector<double>(belief[0].size(), 0));
 
