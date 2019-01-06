@@ -1,13 +1,12 @@
 #ifndef BEHAVIOR_H_
 #define BEHAVIOR_H_
-//TODO: use from predictor
-#define SLOT_RAD_1 4.99999
 
 #include <vector>
 #include "telemetry.h"
 #include "map.h"
 #include "trigs.h"
 #include "belief.h"
+#include "config.h"
 
 using namespace std;
 
@@ -25,11 +24,11 @@ class BehaviorPlanner {
 
     BPosition next_position(vector<vector<Slot>> belief, Telemetry tl){
       unsigned int curr_lane = (int)tl.d/4;
-      unsigned int next_row = 20-(int)(tl.speed + SLOT_RAD_1)/10;
+      unsigned int next_row = 20-(int)(tl.speed + SLOT_RAD)/SLOT_LENGTH;
 
       vector<vector<double>> dp(belief.size(), vector<double>(belief[0].size(), 0));
 
-      for(unsigned int j=0; j<3; j++){
+      for(unsigned int j=0; j<LANES; j++){
         dp[0][j] = belief[0][j].speed;
       }
 
@@ -37,7 +36,7 @@ class BehaviorPlanner {
         for(unsigned int j=0; j<3; j++){
           for(int k=-1; k<2; k++){
             int source_lane = j+k;
-            if(source_lane>=0 && source_lane <3){
+            if(source_lane>=0 && source_lane <LANES){
               if( k!=0 && 
                   !belief[i][source_lane].is_occupied && 
                   !belief[i-1][source_lane].is_occupied &&
@@ -58,7 +57,7 @@ class BehaviorPlanner {
       pos.lane=curr_lane;
       for(int i=-1; i<2; i++){
         unsigned int target_lane = curr_lane + i;
-        if(target_lane>=0 && target_lane<3){
+        if(target_lane>=0 && target_lane<LANES){
           cout << dp[next_row][target_lane]<< " | ";
           if(i!=0){
             if (
