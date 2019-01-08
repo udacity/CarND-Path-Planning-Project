@@ -1,6 +1,7 @@
 #ifndef BEHAVIOR_H_
 #define BEHAVIOR_H_
 
+#include <iostream>
 #include <vector>
 #include "telemetry.h"
 #include "map.h"
@@ -23,8 +24,9 @@ class BehaviorPlanner {
     }
 
     BPosition next_position(vector<vector<Slot>> belief, Telemetry tl){
+      cout<<"behavior start"<<endl;
       unsigned int curr_lane = (int)tl.d/4;
-      unsigned int next_row = 20-(int)(tl.speed + SLOT_RAD)/SLOT_LENGTH;
+      unsigned int next_row = (SLOTS-1)/2-(int)(tl.speed + SLOT_RAD)/SLOT_LENGTH;
 
       vector<vector<double>> dp(belief.size(), vector<double>(belief[0].size(), 0));
 
@@ -32,16 +34,22 @@ class BehaviorPlanner {
         dp[0][j] = belief[0][j].speed;
       }
 
-      for(unsigned int i=1; i<dp.size(); i++){
+      for(unsigned int i=5; i<dp.size(); i++){
         for(unsigned int j=0; j<3; j++){
           for(int k=-1; k<2; k++){
             int source_lane = j+k;
             if(source_lane>=0 && source_lane <LANES){
               if( k!=0 && 
                   !belief[i][source_lane].is_occupied && 
-                  !belief[i-1][source_lane].is_occupied &&
                   !belief[i][j].is_occupied &&
-                  !belief[i-1][j].is_occupied){
+                  !belief[i-1][source_lane].is_occupied &&
+                  !belief[i-1][j].is_occupied &&
+                  !belief[i-2][source_lane].is_occupied &&
+                  !belief[i-2][j].is_occupied &&
+                  !belief[i-3][source_lane].is_occupied &&
+                  !belief[i-4][source_lane].is_occupied &&
+                  !belief[i-5][source_lane].is_occupied 
+                    ){
                 dp[i][j] = Trigs::max(dp[i][j], dp[i-1][source_lane] + belief[i][j].speed);
               } else if(k==0){
                 dp[i][j] = Trigs::max(dp[i][j], dp[i-1][source_lane] + belief[i][j].speed);
@@ -75,6 +83,7 @@ class BehaviorPlanner {
       //pos.lane = 1;
 
       pos.speed = belief[next_row][pos.lane].speed;
+      cout<<"behavior "<<endl;
       return pos;
     }
 
