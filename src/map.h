@@ -17,7 +17,7 @@ class MapUtils{
   public:
     static double diff(double ego_s, double car_s){
       double ahead = car_s - ego_s;
-      double behind = ahead + MAP_MAX_S;
+      double behind = ahead - MAP_MAX_S;
       if(std::fabs(ahead) < std::fabs(behind)){
         return ahead;
       }

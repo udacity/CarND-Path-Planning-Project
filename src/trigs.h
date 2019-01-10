@@ -56,6 +56,15 @@ class Trigs{
       return max(max(i, j), k);
     }
 
+    static int min(int i, int j){
+      return (i<j) ? i : j;
+    }
+
+    static int min(int i, int j, int k){
+      return min(min(i, j), k);
+    }
+
+
 
 
 };

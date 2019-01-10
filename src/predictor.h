@@ -18,41 +18,40 @@ class Predictor {
       return instance;
     }
 
-    vector<vector<Slot>> update(Telemetry tl){
-      vector<vector<Slot>> occupation_ts(SLOTS, vector<Slot>(LANES, create_empty_slot()));
-      cout<<"SLOTS "<<SLOTS<<endl;
+    vector<vector<vector<Slot>>> update(Telemetry tl){
+      vector<vector<vector<Slot>>> occupation_ts(PREDICTOR_TIME_SLOTS, vector<vector<Slot>>(SLOTS, vector<Slot>(LANES, create_empty_slot())));
 
       vector<SensorFusion> sf = tl.sensor_fusion;
-      cout<<"sf size "<<sf.size()<<endl;
       for(unsigned int i=0; i<sf.size(); i++) {
         double obs_speed = calc_speed(sf[i].vx, sf[i].vy);
-        //for(unsigned int t=0; t<PREDICTOR_TIME_SLOTS; t++){
-        unsigned int t = 1;
-        double diff = predict_diff(t, tl.s, tl.speed, sf[i].s, obs_speed);
 
-        //Observable car is in visibility range
-        if(diff>-1*SLOTS*SLOT_LENGTH/2 && diff < SLOTS*SLOT_LENGTH/2){
-          int direction = (diff<0)?-1:0;
-          int slot = (SLOTS-1)/2 - (int) (diff+direction*SLOT_RAD) / SLOT_LENGTH; 
-          int lane = (int) (sf[i].d / 4);
-          if(lane>=0 && lane <LANES){
-            occupation_ts/*[t]*/[slot][lane] = create_occupied_slot(obs_speed-5);
-            if(slot>1){
-              occupation_ts[slot-1][lane] = create_occupied_slot(obs_speed-5);
-            }
-            if(slot<SLOTS-1){
-              occupation_ts[slot+1][lane] = create_occupied_slot(obs_speed-5);
-            }
-            for(unsigned int j=2; j<7; j++){
-              if(slot<SLOTS-j && !occupation_ts[slot+j][lane].is_occupied){
-                occupation_ts[slot+j][lane] = create_unoccupied_slot(Trigs::min(obs_speed+j*2-2, occupation_ts[slot+j][lane].speed));
+        for(unsigned int t=0; t<PREDICTOR_TIME_SLOTS; t++){
+          double diff = predict_diff(t, tl.s, tl.speed, sf[i].s, obs_speed);
+
+          //Observable car is in visibility range
+          if(diff>-1*SLOTS*SLOT_LENGTH/2 && diff < SLOTS*SLOT_LENGTH/2){
+            int direction = (diff<0)?-1:0;
+            int slot = (SLOTS-1)/2 - (int) (diff+direction*SLOT_RAD) / SLOT_LENGTH; 
+            int lane = (int) (sf[i].d / 4);
+            if(lane>=0 && lane <LANES){
+              // Occupy more than one slot
+              for(int ds=-6; ds<10; ds++){
+                int occupied_slot = slot + ds;
+                if(occupied_slot>=0 && occupied_slot<SLOTS){
+                  occupation_ts[t][occupied_slot][lane] = create_occupied_slot(obs_speed - 5);
+                }
               }
             }
-
-          }
-        } 
-        //}
+          } 
+        }
       }
+
+     // cout<<"Keep speed"<<endl;
+     // for(int t=0; t<PREDICTOR_TIME_SLOTS; t++) {
+     //   char slot = occupation_ts[t][100][1].is_occupied?'X':'.';
+     //   cout<<slot<<'|';
+     // }
+     // cout<<endl;
 
       return occupation_ts;
     }
@@ -70,7 +69,6 @@ class Predictor {
       double ego_pos_s = ego_s + ego_speed * time;
       double obs_pos_s = obs_s + obs_speed * time;
       double diff = MapUtils::diff(ego_pos_s, obs_pos_s);
-      cout<<"Predict diff "<<ego_pos_s<<"; " <<obs_pos_s<<"; "<<diff<<endl;
       return  diff;
     }
 
