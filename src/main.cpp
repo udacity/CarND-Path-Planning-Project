@@ -90,9 +90,6 @@ int main() {
 
           	json msgJson;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
-
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
             // from Aaron's solution in the video tutorial
             int prev_size = previous_path_x.size();
@@ -124,11 +121,16 @@ int main() {
               ref_vel += 0.224;
             }
 
+            /* generate path by interpolation and smooth trajectory with spline */
+          	vector<double> next_x_vals;
+          	vector<double> next_y_vals;
+
+            vector<vector<double>> interpolated_wps;
             // in Frenet add evenly 30m spaced points ahead of the starting reference
-            vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            vector<vector<double>> interpolated_wps{next_wp0, next_wp1, next_wp2};
+            for(int i=1; i<4; i++){
+              vector<double> next_wps = getXY(car_s+30*i, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+              interpolated_wps.push_back(next_wps);
+            }
             constructPath(car_x, car_y, car_yaw, ref_vel, previous_path_x, previous_path_y, interpolated_wps, next_x_vals, next_y_vals);
 
             msgJson["next_x"] = next_x_vals;
