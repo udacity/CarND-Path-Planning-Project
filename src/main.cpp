@@ -128,7 +128,7 @@ int main() {
               }else if (car_lane < lane){
                 if(fabs(check_car_s-car_s) < 30){
                   other_cars[0]  = true;
-                  cout<<"Left Car ["<<car_id<<"]"<<delta_s<<"m"<<endl;
+                  cout<<"Left Car ["<<car_id<<"]: "<<delta_s<<"m"<<endl;
                   if (check_car_s > car_s){
                     cout<<"| ^ |   |   |"<<endl;
                     cout<<"| ^ |   |   |"<<endl;
@@ -145,7 +145,7 @@ int main() {
               }else{
                 if (fabs(check_car_s-car_s) < 30){
                   other_cars[2] = true;
-                  cout<<"Right Car ["<<car_id<<"]"<<delta_s<<"m"<<endl;
+                  cout<<"Right Car ["<<car_id<<"]: "<<delta_s<<"m"<<endl;
                   if (check_car_s > car_s){
                     cout<<"|   |   | ^ |"<<endl;
                     cout<<"|   |   | ^ |"<<endl;
