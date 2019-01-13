@@ -91,21 +91,77 @@ int main() {
           	json msgJson;
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-            // from Aaron's solution in the video tutorial
+            // build upon Aaron's solution in the video tutorial
             int prev_size = previous_path_x.size();
             if(prev_size > 0){
               car_s = end_path_s;
             }
             bool too_close = false;
             // find ref_v to use
+            // The data format for each car is: [ id, x, y, vx, vy, s, d]. The id is a unique identifier for that car. The x, y values are in global map coordinates
+            // represent if i am too close to other cars on the left, ahead, right of current car with 3 boolean
+            bool other_cars [3] = {false, false, false};
             for(int i=0; i<sensor_fusion.size(); i++){
-              float d = sensor_fusion[i][6];
+              int car_id = sensor_fusion[i][0];
+              double x = sensor_fusion[i][1];
+              double y = sensor_fusion[i][2];
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double s = sensor_fusion[i][5];
+              double d = sensor_fusion[i][6];
+          
+              double check_speed = sqrt(vx*vx+vy*vy);
+              double check_car_s = s;
+              // estimate car s position given previous path
+              check_car_s += ((double)prev_size* 0.02 * check_speed);
+              double delta_s = check_car_s - car_s;
+              int car_lane = getLane(d);
+              if (car_lane == lane){
+                if((check_car_s > car_s) && ((check_car_s-car_s) < 30)){
+                  other_cars[1]  = true;
+                  cout<<"---- ^^^^^^^^^^^^^^ ---- "<<endl;
+                  cout<<"Ahead Car ["<<car_id<<"]: "<<delta_s<<"m"<<endl;
+                  cout<<endl;
+                }else{
+                  other_cars[1] = false;
+                }
+              }else if (car_lane < lane){
+                if(fabs(check_car_s-car_s) < 30){
+                  other_cars[0]  = true;
+                  cout<<"Left Car ["<<car_id<<"]"<<delta_s<<"m"<<endl;
+                  if (check_car_s > car_s){
+                    cout<<"| ^ |   |   |"<<endl;
+                    cout<<"| ^ |   |   |"<<endl;
+                    cout<<"|   | * |   |"<<endl;
+                  }else{
+                    cout<<"|   | * |   |"<<endl;
+                    cout<<"| ^ |   |   |"<<endl;
+                    cout<<"| ^ |   |   |"<<endl;
+                  }
+                  cout<<endl;
+                }else{
+                  other_cars[0] = false;
+                }
+              }else{
+                if (fabs(check_car_s-car_s) < 30){
+                  other_cars[2] = true;
+                  cout<<"Right Car ["<<car_id<<"]"<<delta_s<<"m"<<endl;
+                  if (check_car_s > car_s){
+                    cout<<"|   |   | ^ |"<<endl;
+                    cout<<"|   |   | ^ |"<<endl;
+                    cout<<"|   | * |   |"<<endl;
+                  }else{
+                    cout<<"|   | * |   |"<<endl;
+                    cout<<"|   |   | ^ |"<<endl;
+                    cout<<"|   |   | ^ |"<<endl;
+                  }
+                  cout<<endl;
+                }else{
+                  other_cars[2] = false;
+                }
+              }
+              
               if(d<(2+4*lane+2) && d>(2+4*lane-2)){
-                double vx = sensor_fusion[i][3];
-                double vy = sensor_fusion[i][4];
-                double check_speed = sqrt(vx*vx+vy*vy);
-                double check_car_s = sensor_fusion[i][5];
-                check_car_s += ((double)prev_size* 0.02 * check_speed);
                 if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)){
                   //ref_vel = 29.5;
                   too_close = true;

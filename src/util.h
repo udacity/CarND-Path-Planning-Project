@@ -156,7 +156,17 @@ namespace util {
       return {x,y};
 
     }
-  
+  /**
+     d is the Frenet coordinate, lane width is 4m
+     0 => left lane, 1 => mid lane, 2 => right lane
+     8 < d < 12 ~~ d<(2+4*lane+2) && d>(2+4*lane-2) <= right  (lane=2)
+     4 < d < 8  ~~ d<(2+4*lane+2) && d>(2+4*lane-2) <= middle (lane=1)
+     0 < d < 4  ~~ d<(2+4*lane+2) && d>(2+4*lane-2) <= left   (lane=0)
+   */
+  int getLane(double d){
+    return int(floor(d / 4));
+  }
+
   void globalToLocalCoord(double ref_x, double ref_y, double ref_yaw,
                           vector<double> & ptsx, vector<double>& ptsy){
     for(int i =0; i<ptsx.size(); i++){
