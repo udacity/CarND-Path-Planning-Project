@@ -141,7 +141,7 @@ int main() {
               check_car_s += ((double)prev_size* 0.02 * check_speed);
               double delta_s = check_car_s - car_s;
               int car_lane = getLane(d);
-              bool is_blocker = (fabs(check_car_s-car_s) < 30) && (check_car_s > car_s);
+              bool is_blocker = ((fabs(check_car_s-car_s) < 30) && (check_car_s > car_s)) || ((car_s > check_car_s) && (car_s - check_car_s <=10));
               if (is_blocker){
                 too_close = (car_lane == lane);
                 blocking_cars[car_lane].push_back(car);
@@ -153,20 +153,29 @@ int main() {
               // check blockers
               if(blocking_cars[lane].size() ==0){
                 keep_lane = true;
-                cout<<"|   |( )|   |"<<endl;
+                if(blocking_cars[0].size()>0){
+                  cout<<"| ^ |( )";
+                }else{
+                  cout<<"|   |( )";
+                }
+                if(blocking_cars[2].size()>0){
+                  cout<<"| ^ |"<<endl;
+                }else{
+                  cout<<"|   |"<<endl;
+                }
               }else{
-                if(blocking_cars[lane-1].size()>0 && blocking_cars[lane+1].size()>0){
+                if(blocking_cars[0].size()>0 && blocking_cars[2].size()>0){
                   keep_lane = true;
-                  cout<<"| ^ |   | ^ |"<<endl;
+                  cout<<"| ^ | ^ | ^ |"<<endl;
                 }else{
                   keep_lane = false;
-                  if(blocking_cars[lane-1].size()==0){
-                    cout<<"|( )|   | ^ |"<<endl;
+                  if(blocking_cars[0].size()==0){
+                    cout<<"|( )| ^ | ^ |"<<endl;
                     go_left = true;
                     go_right = false;
                     lane = 0;
-                  }else if (blocking_cars[lane+1].size()==0){
-                    cout<<"| ^ |   |( )|"<<endl;
+                  }else if (blocking_cars[2].size()==0){
+                    cout<<"| ^ | ^ |( )|"<<endl;
                     go_right = true;
                     go_left = false;
                     lane = 2;
@@ -178,7 +187,7 @@ int main() {
             }
             // left lane scenario
             else if (lane ==0){
-              if(blocking_cars[lane+1].size()>0){
+              if(blocking_cars[1].size()>0){
                 keep_lane = true;
                 cout<<"|( )| ^ |   |"<<endl;
               }else{
@@ -198,7 +207,7 @@ int main() {
             }
             // right lane scenario
             else if(lane ==2){
-              if(blocking_cars[lane-1].size()>0){
+              if(blocking_cars[1].size()>0){
                 keep_lane = true;
                 cout<<"|   | ^ |( )|"<<endl;
               }else{
@@ -219,7 +228,7 @@ int main() {
             cout<<"|-----------|"<<endl;
             if(keep_lane){
               if (too_close){
-                ref_vel -= 0.224*2;
+                ref_vel -= 0.224*3;
               }else if(ref_vel < 49.5){
                 if(blocking_cars[lane].size()>0){
                   ref_vel -= 0.224*2;
@@ -227,11 +236,10 @@ int main() {
                   ref_vel += 0.224;
                 }
               }
-            }
-            /*
+            }            
             for(int i=0; i<3; i++) {
               blocking_cars[i].clear();
-              }*/
+            }
             /* generate path by interpolation and smooth trajectory with spline */
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
