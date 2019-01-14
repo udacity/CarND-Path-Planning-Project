@@ -45,7 +45,7 @@ int main() {
   int lane = 1;
 
   // Have a reference velocity to target
-  double ref_vel = 49.5; // mph
+  double ref_vel = 0;
 
   h.onMessage([&ref_vel, &map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
                &map_waypoints_dx, &map_waypoints_dy, &lane](
@@ -98,7 +98,7 @@ int main() {
     if (prev_size > 0) {
       car_s = end_path_s;
     }
-    
+
     bool too_close = false;
 
     // find ref_v to use
@@ -109,13 +109,22 @@ int main() {
         const double vx = sensor_fusion[i][3];
         const double vy = sensor_fusion[i][4];
         const auto check_speed = sqrt(pow(vx, 2) + pow(vy, 2));
-        const auto check_car_s = static_cast<double>(sensor_fusion[i][5]) + prev_size * 0.02 * check_speed;
+        const auto check_car_s = static_cast<double>(sensor_fusion[i][5]) +
+                                 prev_size * 0.02 * check_speed;
         if (car_s < check_car_s && check_car_s < car_s + 30) {
-          ref_vel = 29.5;
+          too_close = true;
+          if (lane > 0) {
+            lane = 0;
+          }
         }
       }
     }
 
+    if (too_close) {
+      ref_vel -= .224;
+    } else if (ref_vel < 49.5) {
+      ref_vel += .224;
+    }
 
     // Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m.
     // Later we will interpolate these waypoints with a pline and fill it in
