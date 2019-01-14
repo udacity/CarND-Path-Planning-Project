@@ -9,6 +9,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "spline.h"
 #include <uWS/uWS.h>
 
 // for convenience
@@ -36,14 +37,13 @@ std::string hasData(std::string s) {
 
 double distance(const double x1, const double y1, const double x2,
                 const double y2) {
-  return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+  return sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
 }
 
 int closestWaypoint(const double x, const double y,
                     const std::vector<double> &maps_x,
                     const std::vector<double> &maps_y) {
-
-  double closest_len = std::numeric_limits<double>::max();
+  auto closest_len = std::numeric_limits<double>::max();
   int closest_waypoint = 0;
 
   for (size_t i = 0; i < maps_x.size(); i++) {
@@ -60,21 +60,17 @@ int closestWaypoint(const double x, const double y,
 int nextWaypoint(const double x, const double y, const double theta,
                  const std::vector<double> &maps_x,
                  const std::vector<double> &maps_y) {
-
   auto closest_waypoint = closestWaypoint(x, y, maps_x, maps_y);
 
   const auto map_x = maps_x[closest_waypoint];
   const auto map_y = maps_y[closest_waypoint];
-  const auto heading = atan2((map_y - y), (map_x - x));
+  const auto heading = atan2(map_y - y, map_x - x);
 
   double angle = fabs(theta - heading);
   angle = std::min(2 * pi() - angle, angle);
 
   if (angle > pi() / 4) {
-    closest_waypoint++;
-    if (closest_waypoint == maps_x.size()) {
-      closest_waypoint = 0;
-    }
+    closest_waypoint = (closest_waypoint + 1) % maps_x.size();
   }
 
   return closest_waypoint;
@@ -101,7 +97,6 @@ std::vector<double> getFrenet(const double x, const double y,
   auto frenet_d = distance(x_x, x_y, proj_x, proj_y);
 
   // see if d value is positive or negative by comparing it to a center point
-
   const auto center_x = 1000 - maps_x[prev_wp];
   const auto center_y = 2000 - maps_y[prev_wp];
   const auto center_to_pos = distance(center_x, center_y, x_x, x_y);
@@ -113,10 +108,9 @@ std::vector<double> getFrenet(const double x, const double y,
 
   // calculate s value
   double frenet_s = 0;
-  for (int i = 0; i < prev_wp; i++) {
+  for (int i = 0; i < prev_wp; ++i) {
     frenet_s += distance(maps_x[i], maps_y[i], maps_x[i + 1], maps_y[i + 1]);
   }
-
   frenet_s += distance(0, 0, proj_x, proj_y);
 
   return {frenet_s, frenet_d};
@@ -139,8 +133,7 @@ std::vector<double> getXY(const double s, const double d,
   const auto heading =
       atan2((maps_y[wp2] - maps_y[prev_wp]), (maps_x[wp2] - maps_x[prev_wp]));
   // the x,y,s along the segment
-  const auto seg_s = (s - maps_s[prev_wp]);
-
+  const auto seg_s = s - maps_s[prev_wp];
   const auto seg_x = maps_x[prev_wp] + seg_s * cos(heading);
   const auto seg_y = maps_y[prev_wp] + seg_s * sin(heading);
 
@@ -179,8 +172,14 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-               &map_waypoints_dx, &map_waypoints_dy](
+  // start in lane 1.
+  int lane = 1;
+
+  // Have a reference velocity to target
+  double ref_vel = 49.5; // mph
+
+  h.onMessage([&ref_vel, &map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
+               &map_waypoints_dx, &map_waypoints_dy, &lane](
       uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -190,16 +189,16 @@ int main() {
     if (length <= 2 || data[0] != '4' || data[1] != '2')
       return;
 
-    const auto s = hasData(data);
+    const auto json_str = hasData(data);
 
-    if (s == "") {
+    if (json_str == "") {
       // Manual driving
       const std::string msg = "42[\"manual\",{}]";
       ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
       return;
     }
 
-    const auto j = json::parse(s);
+    const auto j = json::parse(json_str);
 
     if (j[0].get<std::string>() != "telemetry")
       return;
@@ -207,39 +206,106 @@ int main() {
     // j[1] is the data JSON object
 
     // Main car's localization Data
-    const double car_x = j[1]["x"];
-    const double car_y = j[1]["y"];
-    const double car_s = j[1]["s"];
-    const double car_d = j[1]["d"];
-    const double car_yaw = j[1]["yaw"];
-    const double car_speed = j[1]["speed"];
+    const auto car_x = static_cast<double>(j[1]["x"]);
+    const auto car_y = static_cast<double>(j[1]["y"]);
+    const auto car_s = static_cast<double>(j[1]["s"]);
+    const auto car_d = static_cast<double>(j[1]["d"]);
+    const auto car_yaw = static_cast<double>(j[1]["yaw"]);
+    const auto car_speed = static_cast<double>(j[1]["speed"]);
 
     // Previous path data given to the Planner
     const auto previous_path_x = j[1]["previous_path_x"];
     const auto previous_path_y = j[1]["previous_path_y"];
     // Previous path's end s and d values
-    const double end_path_s = j[1]["end_path_s"];
-    const double end_path_d = j[1]["end_path_d"];
+    const auto end_path_s = static_cast<double>(j[1]["end_path_s"]);
+    const auto end_path_d = static_cast<double>(j[1]["end_path_d"]);
 
     // Sensor Fusion Data, a list of all other cars on the same side of
     // the road.
     const auto sensor_fusion = j[1]["sensor_fusion"];
 
-    json msgJson;
+    const auto prev_size = previous_path_x.size();
 
-    std::vector<double> next_x_vals;
-    std::vector<double> next_y_vals;
+    // Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m.
+    // Later we will interpolate these waypoints with a pline and fill it in
+    // with more points that control speed.
 
-    const double dist_inc = 0.5;
-    for (int i = 0; i < 50; i++) {
-      const auto next_s = car_s + (i + 1) * dist_inc;
-      const auto next_d = 6;
-      const auto xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x,
-                            map_waypoints_y);
-      next_x_vals.push_back(xy[0]);
-      next_y_vals.push_back(xy[1]);
+    std::vector<double> ptsx, ptsy;
+
+    auto ref_x = car_x;
+    auto ref_y = car_y;
+    auto ref_yaw = deg2rad(car_yaw);
+
+    if (prev_size < 2) {
+      const auto prev_car_x = car_x - cos(car_yaw);
+      const auto prev_car_y = car_y - sin(car_yaw);
+
+      ptsx.push_back(prev_car_x);
+      ptsx.push_back(ref_x);
+
+      ptsy.push_back(prev_car_y);
+      ptsy.push_back(ref_y);
+    } else {
+      ref_x = previous_path_x[prev_size - 1];
+      ref_y = previous_path_y[prev_size - 1];
+
+      const double ref_x_prev = previous_path_x[prev_size - 2];
+      const double ref_y_prev = previous_path_y[prev_size - 2];
+      ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
+
+      ptsx.push_back(ref_x_prev);
+      ptsx.push_back(ref_x);
+
+      ptsy.push_back(ref_y_prev);
+      ptsy.push_back(ref_y);
     }
 
+    for (int i = 1; i < 4; ++i) {
+      const auto next_wp =
+          getXY(car_s + 30 * i, 2 + 4 * lane, map_waypoints_s,
+                map_waypoints_x, map_waypoints_y);
+      ptsx.push_back(next_wp[0]);
+      ptsy.push_back(next_wp[1]);
+    }
+
+    for (size_t i = 0; i < ptsx.size(); ++i) {
+      const auto shift_x = ptsx[i] - ref_x;
+      const auto shift_y = ptsy[i] - ref_y;
+
+      ptsx[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
+      ptsy[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
+    }
+
+    tk::spline s;
+    s.set_points(ptsx, ptsy);
+
+    std::vector<double> next_x_vals, next_y_vals;
+    for (size_t i = 0; i < previous_path_x.size(); ++i) {
+      next_x_vals.push_back(previous_path_x[i]);
+      next_y_vals.push_back(previous_path_y[i]);
+    }
+
+    const auto target_x = 30.0L;
+    const auto target_y = s(target_x);
+    const auto target_dist = distance(target_x, target_y, 0, 0);
+
+    auto x_add_on = 0.0L;
+
+    for (size_t i = 0; i <= 50 - previous_path_x.size(); ++i) {
+      const auto N = target_dist / (0.02 * ref_vel / 2.24);
+      const auto x_ref = x_add_on + target_x / N;
+      const auto y_ref = s(x_ref);
+
+      x_add_on = x_ref;
+
+      const auto x_point = ref_x + x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
+      const auto y_point = ref_y + x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
+
+      next_x_vals.push_back(x_point);
+      next_y_vals.push_back(y_point);
+    }
+
+    json msgJson;
     msgJson["next_x"] = next_x_vals;
     msgJson["next_y"] = next_y_vals;
 
