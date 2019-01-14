@@ -77,7 +77,7 @@ int main() {
     // Main car's localization Data
     const auto car_x = static_cast<double>(j[1]["x"]);
     const auto car_y = static_cast<double>(j[1]["y"]);
-    const auto car_s = static_cast<double>(j[1]["s"]);
+    auto car_s = static_cast<double>(j[1]["s"]);
     const auto car_d = static_cast<double>(j[1]["d"]);
     const auto car_yaw = static_cast<double>(j[1]["yaw"]);
     const auto car_speed = static_cast<double>(j[1]["speed"]);
@@ -94,6 +94,28 @@ int main() {
     const auto sensor_fusion = j[1]["sensor_fusion"];
 
     const auto prev_size = previous_path_x.size();
+
+    if (prev_size > 0) {
+      car_s = end_path_s;
+    }
+    
+    bool too_close = false;
+
+    // find ref_v to use
+    for (size_t i = 0; i < sensor_fusion.size(); ++i) {
+      const double d = sensor_fusion[i][6];
+      // check whether car is in my lane or not.
+      if (2 + 4 * lane - 2 < d && d < 2 + 4 * lane + 2) {
+        const double vx = sensor_fusion[i][3];
+        const double vy = sensor_fusion[i][4];
+        const auto check_speed = sqrt(pow(vx, 2) + pow(vy, 2));
+        const auto check_car_s = static_cast<double>(sensor_fusion[i][5]) + prev_size * 0.02 * check_speed;
+        if (car_s < check_car_s && check_car_s < car_s + 30) {
+          ref_vel = 29.5;
+        }
+      }
+    }
+
 
     // Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m.
     // Later we will interpolate these waypoints with a pline and fill it in
