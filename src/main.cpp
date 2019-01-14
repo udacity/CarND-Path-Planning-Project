@@ -5,12 +5,37 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include <set>
 #include "util.h"
 
 using namespace util;
 // for convenience
 using json = nlohmann::json;
 
+class Car {
+public:
+  int id;
+  double x;
+  double y;
+  double vx;
+  double vy;
+  double s;
+  double d;
+
+  Car(){};
+  Car(int i, double x, double y, double vx, double vy, double s, double d){
+    this->id = i;
+    this->x = x;
+    this->y = y;
+    this->vx = vx;
+    this->vy = vy;
+    this->s = s;
+    this->d = d;
+  };
+  bool operator< (const Car & other) const {
+    return id < other.id;
+  }
+};
 
 int main() {
   uWS::Hub h;
@@ -50,6 +75,7 @@ int main() {
   }
   int lane = 1; // start with lane 1
   double ref_vel = 0.0; // mph
+  vector<vector<Car>> blocking_cars(3, vector<Car>{});
 
   h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -99,8 +125,8 @@ int main() {
             bool too_close = false;
             // find ref_v to use
             // The data format for each car is: [ id, x, y, vx, vy, s, d]. The id is a unique identifier for that car. The x, y values are in global map coordinates
-            // represent if i am too close to other cars on the left, ahead, right of current car with 3 boolean
-            bool other_cars [3] = {false, false, false};
+            //vector<vector<Car>> blocking_cars(3, vector<Car>{});
+            bool keep_lane = true, go_left = false, go_right = false;
             for(int i=0; i<sensor_fusion.size(); i++){
               int car_id = sensor_fusion[i][0];
               double x = sensor_fusion[i][1];
@@ -109,78 +135,104 @@ int main() {
               double vy = sensor_fusion[i][4];
               double s = sensor_fusion[i][5];
               double d = sensor_fusion[i][6];
-          
+              Car car(car_id, x, y, vx, vy, s, d);
               double check_speed = sqrt(vx*vx+vy*vy);
               double check_car_s = s;
               // estimate car s position given previous path
               check_car_s += ((double)prev_size* 0.02 * check_speed);
               double delta_s = check_car_s - car_s;
               int car_lane = getLane(d);
-              if (car_lane == lane){
-                if((check_car_s > car_s) && ((check_car_s-car_s) < 30)){
-                  other_cars[1]  = true;
-                  cout<<"|   | Car ["<<car_id<<"] ahead: "<<delta_s<<"m"<<endl;
-                  cout<<"| ^ |"<<endl;
-                  cout<<"| ^ |"<<endl;
-                  cout<<"| * |"<<endl;
-                  cout<<endl;
-                }else{
-                  other_cars[1] = false;
-                }
-              }else if (car_lane < lane){
-                if(fabs(check_car_s-car_s) < 30){
-                  other_cars[0]  = true;
-                  if (check_car_s > car_s){
-                    cout<<"|   |   | Car ["<<car_id<<"] left front: "<<delta_s<<"m"<<endl;
-                    cout<<"| ^ |   |"<<endl;
-                    cout<<"| ^ |   |"<<endl;
-                    cout<<"|   | * |"<<endl;
-                  }else{
-                    cout<<"|   |   | Car ["<<car_id<<"] left rare: "<<delta_s<<"m"<<endl;
-                    cout<<"|   | * |"<<endl;
-                    cout<<"| ^ |   |"<<endl;
-                    cout<<"| ^ |   |"<<endl;
-                  }
-                  cout<<endl;
-                }else{
-                  other_cars[0] = false;
-                }
-              }else{
-                if (fabs(check_car_s-car_s) < 30){
-                  other_cars[2] = true;
-                  if (check_car_s > car_s){
-                    cout<<"|   |   | Car ["<<car_id<<"] right front: "<<delta_s<<"m"<<endl;
-                    cout<<"|   | ^ |"<<endl;
-                    cout<<"|   | ^ |"<<endl;
-                    cout<<"| * |   |"<<endl;
-                  }else{
-                    cout<<"|   |   | Car ["<<car_id<<"] right rare: "<<delta_s<<"m"<<endl;
-                    cout<<"| * |   |"<<endl;
-                    cout<<"|   | ^ |"<<endl;
-                    cout<<"|   | ^ |"<<endl;
-                  }
-                  cout<<endl;
-                }else{
-                  other_cars[2] = false;
-                }
-              }
-              
-              if(d<(2+4*lane+2) && d>(2+4*lane-2)){
-                if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)){
-                  //ref_vel = 29.5;
-                  too_close = true;
-                  if (lane > 0) {
-                    lane = 0;
-                  }
-                }
+              bool is_blocker = (fabs(check_car_s-car_s) < 30) && (check_car_s > car_s);
+              if (is_blocker){
+                too_close = (car_lane == lane);
+                blocking_cars[car_lane].push_back(car);
               }
             }
-            if (too_close){
-              ref_vel -= 0.224;
-            }else if(ref_vel < 49.5){
-              ref_vel += 0.224;
+            cout<<"|-----------|"<<endl;
+            // mid lane scenario
+            if (lane==1){
+              // check blockers
+              if(blocking_cars[lane].size() ==0){
+                keep_lane = true;
+                cout<<"|   |( )|   |"<<endl;
+              }else{
+                if(blocking_cars[lane-1].size()>0 && blocking_cars[lane+1].size()>0){
+                  keep_lane = true;
+                  cout<<"| ^ |   | ^ |"<<endl;
+                }else{
+                  keep_lane = false;
+                  if(blocking_cars[lane-1].size()==0){
+                    cout<<"|( )|   | ^ |"<<endl;
+                    go_left = true;
+                    go_right = false;
+                    lane = 0;
+                  }else if (blocking_cars[lane+1].size()==0){
+                    cout<<"| ^ |   |( )|"<<endl;
+                    go_right = true;
+                    go_left = false;
+                    lane = 2;
+                  }
+                }
+              }
+              cout<<"|   |   |   |"<<endl;
+              cout<<"|   | * |   |"<<endl;
+            }
+            // left lane scenario
+            else if (lane ==0){
+              if(blocking_cars[lane+1].size()>0){
+                keep_lane = true;
+                cout<<"|( )| ^ |   |"<<endl;
+              }else{
+                if(blocking_cars[lane].size()==0){
+                  keep_lane = true;
+                  cout<<"|( )|   |   |"<<endl;
+                }else{
+                  cout<<"|   |( )| ^ |"<<endl;
+                  keep_lane = false;
+                  go_right = true;
+                  go_left = false;
+                  lane = 1;
+                }
+              }
+              cout<<"|   |   |   |"<<endl;
+              cout<<"| * |   |   |"<<endl;
+            }
+            // right lane scenario
+            else if(lane ==2){
+              if(blocking_cars[lane-1].size()>0){
+                keep_lane = true;
+                cout<<"|   | ^ |( )|"<<endl;
+              }else{
+                if(blocking_cars[lane].size()==0){
+                  keep_lane = true;
+                  cout<<"|   |   |( )|"<<endl;
+                }else{
+                  keep_lane = false;
+                  go_left = true;
+                  go_right = false;
+                  lane = 1;
+                  cout<<"|   |( )| ^ |"<<endl;
+                }
+              }
+              cout<<"|   |   |   |"<<endl;
+              cout<<"|   |   | * |"<<endl;
+            }
+            cout<<"|-----------|"<<endl;
+            if(keep_lane){
+              if (too_close){
+                ref_vel -= 0.224*2;
+              }else if(ref_vel < 49.5){
+                if(blocking_cars[lane].size()>0){
+                  ref_vel -= 0.224*2;
+                }else{
+                  ref_vel += 0.224;
+                }
+              }
             }
 
+            for(int i=0; i<3; i++) {
+              blocking_cars[i].clear();
+            }
             /* generate path by interpolation and smooth trajectory with spline */
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
