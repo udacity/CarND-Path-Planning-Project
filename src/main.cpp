@@ -119,8 +119,10 @@ int main() {
               if (car_lane == lane){
                 if((check_car_s > car_s) && ((check_car_s-car_s) < 30)){
                   other_cars[1]  = true;
-                  cout<<"---- ^^^^^^^^^^^^^^ ---- "<<endl;
-                  cout<<"Ahead Car ["<<car_id<<"]: "<<delta_s<<"m"<<endl;
+                  cout<<"|   | Car ["<<car_id<<"] ahead: "<<delta_s<<"m"<<endl;
+                  cout<<"| ^ |"<<endl;
+                  cout<<"| ^ |"<<endl;
+                  cout<<"| * |"<<endl;
                   cout<<endl;
                 }else{
                   other_cars[1] = false;
@@ -128,15 +130,16 @@ int main() {
               }else if (car_lane < lane){
                 if(fabs(check_car_s-car_s) < 30){
                   other_cars[0]  = true;
-                  cout<<"Left Car ["<<car_id<<"]: "<<delta_s<<"m"<<endl;
                   if (check_car_s > car_s){
-                    cout<<"| ^ |   |   |"<<endl;
-                    cout<<"| ^ |   |   |"<<endl;
-                    cout<<"|   | * |   |"<<endl;
+                    cout<<"|   |   | Car ["<<car_id<<"] left front: "<<delta_s<<"m"<<endl;
+                    cout<<"| ^ |   |"<<endl;
+                    cout<<"| ^ |   |"<<endl;
+                    cout<<"|   | * |"<<endl;
                   }else{
-                    cout<<"|   | * |   |"<<endl;
-                    cout<<"| ^ |   |   |"<<endl;
-                    cout<<"| ^ |   |   |"<<endl;
+                    cout<<"|   |   | Car ["<<car_id<<"] left rare: "<<delta_s<<"m"<<endl;
+                    cout<<"|   | * |"<<endl;
+                    cout<<"| ^ |   |"<<endl;
+                    cout<<"| ^ |   |"<<endl;
                   }
                   cout<<endl;
                 }else{
@@ -145,15 +148,16 @@ int main() {
               }else{
                 if (fabs(check_car_s-car_s) < 30){
                   other_cars[2] = true;
-                  cout<<"Right Car ["<<car_id<<"]: "<<delta_s<<"m"<<endl;
                   if (check_car_s > car_s){
-                    cout<<"|   |   | ^ |"<<endl;
-                    cout<<"|   |   | ^ |"<<endl;
-                    cout<<"|   | * |   |"<<endl;
+                    cout<<"|   |   | Car ["<<car_id<<"] right front: "<<delta_s<<"m"<<endl;
+                    cout<<"|   | ^ |"<<endl;
+                    cout<<"|   | ^ |"<<endl;
+                    cout<<"| * |   |"<<endl;
                   }else{
-                    cout<<"|   | * |   |"<<endl;
-                    cout<<"|   |   | ^ |"<<endl;
-                    cout<<"|   |   | ^ |"<<endl;
+                    cout<<"|   |   | Car ["<<car_id<<"] right rare: "<<delta_s<<"m"<<endl;
+                    cout<<"| * |   |"<<endl;
+                    cout<<"|   | ^ |"<<endl;
+                    cout<<"|   | ^ |"<<endl;
                   }
                   cout<<endl;
                 }else{
