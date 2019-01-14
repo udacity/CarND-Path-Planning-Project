@@ -75,8 +75,7 @@ int main() {
   }
   int lane = 1; // start with lane 1
   double ref_vel = 0.0; // mph
-  vector<vector<Car>> blocking_cars(3, vector<Car>{});
-
+  
   h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -125,7 +124,7 @@ int main() {
             bool too_close = false;
             // find ref_v to use
             // The data format for each car is: [ id, x, y, vx, vy, s, d]. The id is a unique identifier for that car. The x, y values are in global map coordinates
-            //vector<vector<Car>> blocking_cars(3, vector<Car>{});
+            vector<vector<Car>> blocking_cars(3, vector<Car>{});
             bool keep_lane = true, go_left = false, go_right = false;
             for(int i=0; i<sensor_fusion.size(); i++){
               int car_id = sensor_fusion[i][0];
@@ -229,10 +228,10 @@ int main() {
                 }
               }
             }
-
+            /*
             for(int i=0; i<3; i++) {
               blocking_cars[i].clear();
-            }
+              }*/
             /* generate path by interpolation and smooth trajectory with spline */
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
