@@ -123,6 +123,7 @@ int main() {
                       }
                       bool too_close = false;
                       bool keep_lane = true;
+                      bool too_close_aside = false;
                       AStar::Generator generator;
                       generator.setWorldSize({3, 3}); // 3x3 grid
                       std::vector<AStar::Vec2i> obstacles; // fill the last row with obstables
@@ -151,23 +152,26 @@ int main() {
                             obstacles.push_back({1, car_lane});
                           }
                         }
-                        too_close = (car_lane == lane) && (fabs(check_car_s-car_s) < 20) && (check_car_s > car_s); //too close to the car ahead
+                        too_close = (car_lane == lane) && (fabs(check_car_s-car_s) < 30) && (check_car_s > car_s); //too close to the car ahead
                         if (too_close && ref_vel > check_speed){
                           ref_vel -= 0.224*2;
+                        }
+                        if (car_lane !=lane && fabs(check_car_s-car_s) < 15){
+                          too_close_aside = true;
                         }
                       }
            
                       generator.addCollisionList(obstacles);
                       vector<AStar::Vec2i> targets;
                       for(int i=0; i<3; i++){
-                        bool is_obs = false;
+                        bool has_obs = false;
                         for(auto obs: obstacles){
-                          if(obs.x==0 && obs.y==i){
-                            is_obs = true;
+                          if(obs.y==i){
+                            has_obs = true;
                             break;
                           }
                         }
-                        if(!is_obs){
+                        if(!has_obs){
                           targets.push_back({0, i});
                         }
                       }
@@ -185,7 +189,7 @@ int main() {
                           }
                         }
                         //std::cout<<"Bes path length  "<<min_cost<<" Target ("<<target.x<<","<<target.y<<")"<<std::endl;
-                        if(target.y != lane){
+                        if(target.y != lane && !too_close_aside){
                           keep_lane = false;
                           std::cout<<"Change to the next lane ["<<target.y<<"]"<<std::endl;
                           lane = target.y;
