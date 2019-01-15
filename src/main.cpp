@@ -13,31 +13,6 @@ using namespace util;
 // for convenience
 using json = nlohmann::json;
 
-class Car {
-public:
-  int id;
-  double x;
-  double y;
-  double vx;
-  double vy;
-  double s;
-  double d;
-
-  Car(){};
-  Car(int i, double x, double y, double vx, double vy, double s, double d){
-    this->id = i;
-    this->x = x;
-    this->y = y;
-    this->vx = vx;
-    this->vy = vy;
-    this->s = s;
-    this->d = d;
-  };
-  bool operator< (const Car & other) const {
-    return id < other.id;
-  }
-};
-
 int main() {
   uWS::Hub h;
 
@@ -117,13 +92,15 @@ int main() {
 
                       // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
                       // build upon Aaron's solution in the video tutorial
+                      double max_speed = 48.5;
+                      double accl = 0.224;
                       int prev_size = previous_path_x.size();
                       if(prev_size > 0){
                         car_s = end_path_s;
                       }
-                      bool too_close = false;
+                      bool too_close = false,  too_close_left = false, too_close_right = false;
                       bool keep_lane = true;
-                      bool too_close_aside = false;
+
                       AStar::Generator generator;
                       generator.setWorldSize({3, 3}); // 3x3 grid
                       std::vector<AStar::Vec2i> obstacles; // fill the last row with obstables
@@ -138,26 +115,37 @@ int main() {
                         double vy = sensor_fusion[i][4];
                         double s = sensor_fusion[i][5];
                         double d = sensor_fusion[i][6];
-                        Car car(car_id, x, y, vx, vy, s, d);
+
                         double check_speed = sqrt(vx*vx+vy*vy);
                         double check_car_s = s;
                         // estimate car s position given previous path
                         check_car_s += ((double)prev_size* 0.02 * check_speed);
-                        double delta_s = check_car_s - car_s;
                         int car_lane = getLane(d);
-                        bool is_blocker = ((fabs(check_car_s-car_s) < 30) && (check_car_s > car_s)) || ((car_s > check_car_s) && (car_s - check_car_s < 10));
+                        bool is_blocker = ((check_car_s > car_s) && (check_car_s-car_s < 30)) || ((car_s > check_car_s) && (car_s - check_car_s < 10));
                         if (is_blocker){
-                          obstacles.push_back({0, car_lane});
-                          if (delta_s <= 0 && car_lane != lane){
-                            obstacles.push_back({1, car_lane});
+                          double car_dist = fabs(check_car_s - car_s);
+                          if(check_car_s > car_s){
+                            obstacles.push_back({0, car_lane});
+                            if (car_dist < 10 ){
+                              obstacles.push_back({1, car_lane});
+                            }
+                          }else{
+                            if (car_lane != lane){
+                              obstacles.push_back({2, car_lane});
+                            }
                           }
                         }
                         too_close = (car_lane == lane) && (fabs(check_car_s-car_s) < 30) && (check_car_s > car_s); //too close to the car ahead
                         if (too_close && ref_vel > check_speed){
-                          ref_vel -= 0.224*2;
+                          ref_vel -= accl * 2;
                         }
-                        if (car_lane !=lane && fabs(check_car_s-car_s) < 15){
-                          too_close_aside = true;
+                        if (car_lane !=lane && fabs(check_car_s-car_s) < 10){
+                          if (car_lane > lane){
+                            too_close_right = true;
+                          }
+                          if(car_lane < lane){
+                            too_close_right = true;
+                          }
                         }
                       }
            
@@ -188,12 +176,18 @@ int main() {
                             target = t;
                           }
                         }
-                        //std::cout<<"Bes path length  "<<min_cost<<" Target ("<<target.x<<","<<target.y<<")"<<std::endl;
-                        if(target.y != lane && !too_close_aside){
+                        //std::cout<<"Best path length  "<<min_cost<<" Target ("<<target.x<<","<<target.y<<")"<<std::endl;
+                        if(target.y > lane && !too_close_right){
                           keep_lane = false;
-                          std::cout<<"Change to the next lane ["<<target.y<<"]"<<std::endl;
+                          //std::cout<<"Change to the right lane ["<<target.y<<"]"<<std::endl;
                           lane = target.y;
-                        }else{
+                        }
+                        else if(target.y < lane && !too_close_left){
+                          keep_lane = false;
+                          //std::cout<<"Change to the left lane ["<<target.y<<"]"<<std::endl;
+                          lane = target.y;
+                        }
+                        else{
                           keep_lane = true;
                         }
                       }
@@ -207,11 +201,11 @@ int main() {
                       generator.setTarget(target);
                       generator.drawWorld();
                       if(keep_lane){
-                        if(ref_vel < 48.5){
-                          ref_vel += 0.224*1.5;
+                        if(ref_vel < max_speed){
+                          ref_vel += accl * 1.5;
                         }
                         else{
-                          ref_vel -= .224;
+                          ref_vel -= accl;
                         }
                       }
                       /* generate path by interpolation and smooth trajectory with spline */
