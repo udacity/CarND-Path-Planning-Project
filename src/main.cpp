@@ -172,8 +172,6 @@ int main() {
 
 
 
-
-
         Trajectory tr = trajectory_util.generate(tl, map, next.lane, next.speed);
 
         msgJson["next_x"] = tr.x;

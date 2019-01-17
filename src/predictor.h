@@ -19,7 +19,7 @@ class Predictor {
     }
 
     vector<vector<vector<Slot>>> update(Telemetry tl){
-      vector<vector<vector<Slot>>> occupation_ts(PREDICTOR_TIME_SLOTS, vector<vector<Slot>>(SLOTS, vector<Slot>(LANES, create_empty_slot())));
+      vector<vector<vector<Slot>>> belief(PREDICTOR_TIME_SLOTS, vector<vector<Slot>>(3, vector<Slot>(LANES, create_empty_slot())));
 
       vector<SensorFusion> sf = tl.sensor_fusion;
       for(unsigned int i=0; i<sf.size(); i++) {
@@ -29,16 +29,28 @@ class Predictor {
           double diff = predict_diff(t, tl.s, tl.speed, sf[i].s, obs_speed);
 
           //Observable car is in visibility range
-          if(diff>-1*SLOTS*SLOT_LENGTH/2 && diff < SLOTS*SLOT_LENGTH/2){
+          if(diff>-SLOTS && diff < SLOTS){
             int direction = (diff<0)?-1:0;
             int slot = (SLOTS-1)/2 - (int) (diff+direction*SLOT_RAD) / SLOT_LENGTH; 
             int lane = (int) (sf[i].d / 4);
             if(lane>=0 && lane <LANES){
               // Occupy more than one slot
-              for(int ds=-6; ds<10; ds++){
+              for(int ds=-2; ds<4; ds++){
                 int occupied_slot = slot + ds;
-                if(occupied_slot>=0 && occupied_slot<SLOTS){
-                  occupation_ts[t][occupied_slot][lane] = create_occupied_slot(obs_speed - 5);
+                if(is_slot_in_belief(occupied_slot)){
+                  belief[t][to_belief_slot(occupied_slot)][lane] = create_occupied_slot(Trigs::max(obs_speed - 5, 0));
+                }
+              }
+
+              // Create slow slots
+              for(int ds=4; ds<10; ds++){
+                int target_slot_idx = slot+ds;
+                if(is_slot_in_belief(target_slot_idx)){
+                  Slot target_slot = belief[t][to_belief_slot(target_slot_idx)][lane];
+                  if(!target_slot.is_occupied) {
+                    double target_speed = obs_speed - 5 + (ds-4)*2;
+                    belief[t][to_belief_slot(target_slot_idx)][lane] = create_unoccupied_slot(Trigs::min(obs_speed, target_speed));
+                  }
                 }
               }
             }
@@ -46,14 +58,8 @@ class Predictor {
         }
       }
 
-     // cout<<"Keep speed"<<endl;
-     // for(int t=0; t<PREDICTOR_TIME_SLOTS; t++) {
-     //   char slot = occupation_ts[t][100][1].is_occupied?'X':'.';
-     //   cout<<slot<<'|';
-     // }
-     // cout<<endl;
 
-      return occupation_ts;
+      return belief;
     }
 
 
@@ -74,6 +80,15 @@ class Predictor {
 
     double calc_speed(double vx, double vy){
       return sqrt(vx*vx + vy*vy);
+    }
+
+    bool is_slot_in_belief(int slot_num){
+      //return slot_num >= 0 && slot_num < SLOTS;
+      return slot_num > 198 && slot_num < 202;
+    }
+
+    int to_belief_slot(int slot_num) {
+      return slot_num -199;
     }
 
     Slot create_empty_slot(){
