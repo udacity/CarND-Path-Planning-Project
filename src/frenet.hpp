@@ -1,8 +1,8 @@
 #ifndef FRENET_H_
 #define FRENET_H_
 #include <vector>
-#include "trigs.h"
-#include "map.h"
+#include "trigs.hpp"
+#include "map.hpp"
 
 using namespace std;
 

@@ -2,10 +2,10 @@
 #include <iostream>
 #include "Eigen-3.3/Eigen/Dense"
 #include "spline.h"
-#include "telemetry.h"
-#include "trigs.h"
-#include "frenet.h"
-#include "map.h"
+#include "telemetry.hpp"
+#include "trigs.hpp"
+#include "frenet.hpp"
+#include "map.hpp"
 
 #include "trajectory.h"
 

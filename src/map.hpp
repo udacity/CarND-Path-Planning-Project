@@ -1,5 +1,5 @@
-#ifndef MAP_H_
-#define MAP_H_
+#ifndef MAP_HPP_
+#define MAP_HPP_
 #define MAP_MAX_S 6945.554
 
 #include <vector>

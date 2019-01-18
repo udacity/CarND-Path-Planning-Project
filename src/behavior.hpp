@@ -1,11 +1,11 @@
-#ifndef BEHAVIOR_H_
-#define BEHAVIOR_H_
+#ifndef BEHAVIOR_HPP_
+#define BEHAVIOR_HPP_
 
 #include <iostream>
 #include <vector>
-#include "telemetry.h"
-#include "map.h"
-#include "trigs.h"
+#include "telemetry.hpp"
+#include "map.hpp"
+#include "trigs.hpp"
 #include "belief.h"
 #include "config.h"
 

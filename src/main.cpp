@@ -10,10 +10,10 @@
 #include "json.hpp"
 #include "spline.h"
 #include "trajectory.h"
-#include "telemetry.h"
-#include "map.h"
-#include "predictor.h"
-#include "behavior.h"
+#include "telemetry.hpp"
+#include "map.hpp"
+#include "predictor.hpp"
+#include "behavior.hpp"
 
 
 using namespace std;

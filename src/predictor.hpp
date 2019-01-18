@@ -1,12 +1,11 @@
-#ifndef PREDICTOR_H_
-#define PREDICTOR_H_
+#ifndef PREDICTOR_HPP_
+#define PREDICTOR_HPP_
 
 #include <vector>
-#include "telemetry.h"
-#include "map.h"
+#include "telemetry.hpp"
 #include "belief.h"
-#include "trigs.h"
-#include "map.h"
+#include "trigs.hpp"
+#include "map.hpp"
 #include "config.h"
 
 

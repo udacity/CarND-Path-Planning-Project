@@ -3,8 +3,8 @@
 
 #include <vector>
 #include "Eigen-3.3/Eigen/Dense"
-#include "telemetry.h"
-#include "map.h"
+#include "telemetry.hpp"
+#include "map.hpp"
 
 struct Trajectory {
   std::vector<double> x;

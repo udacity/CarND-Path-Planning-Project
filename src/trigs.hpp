@@ -1,5 +1,5 @@
-#ifndef TRIGS_H_
-#define TRIGS_H_
+#ifndef TRIGS_HPP_
+#define TRIGS_HPP_
 
 #include <math.h>
 #include "Eigen-3.3/Eigen/Dense"
