@@ -74,7 +74,7 @@ int NextWaypoint(double x, double y, double theta, const vector<double> &maps_x,
 	double angle = fabs(theta-heading);
   angle = min(2*pi() - angle, angle);
 
-  if(angle > pi()/4)
+  if(angle > pi()/2)
   {
     closestWaypoint++;
   if (closestWaypoint == maps_x.size())
