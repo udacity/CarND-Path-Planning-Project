@@ -50,8 +50,10 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
+  bool initialized = false;
+
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy]
+               &map_waypoints_dx,&map_waypoints_dy,&initialized]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -90,14 +92,19 @@ int main() {
 
           json msgJson;
 
-          vector<double> next_x_vals;
-          vector<double> next_y_vals;
+          vector<double> next_x_vals = previous_path_x;
+          vector<double> next_y_vals = previous_path_y;
 
+	  if (!initialized) {
+		  initialized = true;
+		  next_x_vals = map_waypoints_x;
+		  next_y_vals = map_waypoints_y;
+          }
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-	  // Interpolate some points between here and the next waypoint.
+	  /*/ Interpolate some points between here and the next waypoint.
 	  double prev_x = map_waypoints_x[0], prev_y = map_waypoints_y[0];
 	  for (int i = 1; i < map_waypoints_x.size(); i++) {
                 double y1 = prev_y, y2 = map_waypoints_y[i], x1 = prev_x, x2 = map_waypoints_x[i];
@@ -109,6 +116,7 @@ int main() {
 			next_y_vals.push_back(y);
 		}
 	  }
+	  */
 
 
           msgJson["next_x"] = next_x_vals;
