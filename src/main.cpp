@@ -97,6 +97,18 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
+	  // Interpolate some points between here and the next waypoint.
+	  double prev_x = map_waypoints_x[0], prev_y = map_waypoints_y[0];
+	  for (int i = 1; i < map_waypoints_x.size(); i++) {
+                double y1 = prev_y, y2 = map_waypoints_y[i], x1 = prev_x, x2 = map_waypoints_x[i];
+		double m = (y2 - y1)/(x2 - x1);
+		for (int j = 0; j < 500; j++) {
+			double x = x1 + (x2 - x1)/500.0;
+			double y = m * (x - x1) + y1;
+			next_x_vals.push_back(x);
+			next_y_vals.push_back(y);
+		}
+	  }
 
 
           msgJson["next_x"] = next_x_vals;
