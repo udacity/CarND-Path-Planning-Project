@@ -5,6 +5,7 @@
 #include "spline.h"
 #include <fstream>
 #include <iostream>
+// #include <koolplot/koolplot.h>
 #include <string>
 #include <uWS/uWS.h>
 #include <vector>
@@ -52,8 +53,10 @@ int main()
         map_waypoints_dy.push_back(d_y);
     }
 
+    int lane = 1;
+    double ref_vel = 0.0; // the desired drive velocity
     h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-                    &map_waypoints_dx, &map_waypoints_dy](uWS::WebSocket<uWS::SERVER>* ws, char* data, size_t length,
+                    &map_waypoints_dx, &map_waypoints_dy, &lane, &ref_vel, &h](uWS::WebSocket<uWS::SERVER>* ws, char* data, size_t length,
                     uWS::OpCode opCode) {
         // "42" at the start of the message means there's a websocket message event.
         // The 4 signifies a websocket message
@@ -94,6 +97,37 @@ int main()
                     vector<double> next_y_vals;
 
                     int prev_size = previous_path_x.size();
+                    bool too_close = false;
+
+                    if (prev_size > 0) {
+                        car_s = end_path_s;
+                    }
+
+                    for (unsigned int i = 0; i < sensor_fusion.size(); i++) {
+                        float d = sensor_fusion[i][6];
+                        if (d < (2 + 2 + 4 * lane) && d > (2 - 2 + 4 * lane)) {
+                            double vx = sensor_fusion[i][3];
+                            double vy = sensor_fusion[i][4];
+                            double check_speed = sqrt(vx * vx + vy * vy);
+                            double check_car_s = sensor_fusion[i][5];
+                            check_car_s += ((double)prev_size * 0.02 * check_speed);
+
+                            if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)) {
+                                too_close = true;
+
+                                if (lane > 0) {
+                                    lane = 0;
+                                }
+                            }
+                        }
+                    }
+
+                    if (too_close) {
+                        ref_vel -= 0.224;
+
+                    } else if (ref_vel < 49.9) {
+                        ref_vel += 0.224;
+                    }
 
                     vector<double> pts_x;
                     vector<double> pts_y;
@@ -131,9 +165,9 @@ int main()
                         pts_y.push_back(prev_ref_y);
                         pts_y.push_back(ref_y);
                     }
-                    int lane = 1;
-                    for (unsigned short k = 30; k <= 90; k += 30) {
-                        vector<double> wp = getXY(car_s + k, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+                    for (unsigned short k = 1; k <= 3; k++) {
+                        float scale = 10.0;
+                        vector<double> wp = getXY(car_s + k * scale, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
                         pts_x.push_back(wp[0]);
                         pts_y.push_back(wp[1]);
                     }
@@ -162,15 +196,6 @@ int main()
 
                     double x_add_on = 0;
 
-                    // reference velocity
-
-                    // for (unsigned short i = 0; i < prev_size; i++) {
-                    //     next_x_vals.push_back(previous_path_x[i]);
-                    //     next_y_vals.push_back(previous_path_y[i]);
-                    // }
-
-                    double ref_vel = 50; // the desired drive velocity
-
                     for (unsigned short i = 0; i < 50 - prev_size; i++) {
 
                         double N = target_dist / (.02 * ref_vel / 2.24); //clarify the .02 and the 2.24 values
@@ -195,33 +220,13 @@ int main()
 
                         previous_path_x.push_back(x_point);
                         previous_path_y.push_back(y_point);
-
-                        // next_x_vals.push_back(x_point);
-                        // next_y_vals.push_back(y_point);
                     }
-                    /**
-           * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds
-           */
-                    //             float dist_inc = 0.45;
-                    //             double cosine = cos(deg2rad(car_yaw));
-                    //             double sine = sin(deg2rad(car_yaw));
-                    //             double next_s, next_d = 0.0;
-                    //             next_d = 6;
 
-                    //             for (unsigned int a = 0; a < 50; a++) {
-                    //                 next_s = car_s + (a + 1) * dist_inc; // i + 1
-                    //                 vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-                    //                 next_x_vals.push_back(xy[0]);
-                    //                 next_y_vals.push_back(xy[1]);
-                    //             }
-                    // End todo
+                    // Plotdata x(previous_path_x, 50), y(previous_path_y, 50);
+                    // plot(x, y);
 
                     msgJson["next_x"] = previous_path_x;
                     msgJson["next_y"] = previous_path_y;
-
-                    // msgJson["next_x"] = next_x_vals;
-                    // msgJson["next_y"] = next_y_vals;
 
                     auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
@@ -252,6 +257,5 @@ int main()
         std::cerr << "Failed to listen to port" << std::endl;
         return -1;
     }
-
     h.run();
 }
