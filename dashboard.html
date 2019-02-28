@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+
+</head>
+
+<body>
+    <canvas id="canvas" width="2500" height="4000"></canvas>
+    <script>
+        function drawWaypoints() {
+            var canvas = document.getElementById('canvas');
+            if (canvas.getContext) {
+                var ctx = canvas.getContext('2d');
+                for (i = 0; i < k.next_x.length; i++) {
+                    ctx.lineTo(k.next_x[i], k.next_y[i]);
+                }
+            }
+        }
+
+    </script>
+
+    <script type="application/javascript">
+        var ws = new WebSocket("ws://127.0.0.1:4567");
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        var mapCtx = canvas.getContext('2d');
+
+        var lane_width = 0;
+        ws.onmessage = function (message) {
+            if (message.data.substr(0, 9) == "map_data:") {
+                var mapData = JSON.parse(message.data.substr(9, message.data.length - 9));
+
+                lane_width = mapData.lane_width;
+
+                mapCtx.beginPath();
+
+                mapCtx.lineWidth = 5 * mapData.lane_width * mapData.n_of_lanes * 2;//2 directions
+                ctx.strokeStyle = '#355c7d';
+
+                for (i = 0; i < mapData.map_x.length; i++) {
+                    mapCtx.lineTo(mapData.map_x[i], mapData.map_y[i]);
+                }
+
+                mapCtx.stroke();
+
+                for (i = 0; i < mapData.map_x.length; i++) {
+                    mapCtx.beginPath();
+                    mapCtx.lineWidth = 5;
+                    mapCtx.strokeStyle = '#f8b195';
+                    mapCtx.arc(mapData.map_x[i], mapData.map_y[i], 10, 0, Math.PI * 2, true);
+                    mapCtx.stroke();
+                }
+                ctx.beginPath();
+            }
+            else {
+                ctx.strokeStyle = '#f67280';
+                ctx.lineWidth = 5 * lane_width;
+                var k = JSON.parse(message.data.substr(13, message.data.length - 14));
+                let x = k.next_x[k.next_x.length - 1];
+                let y = k.next_y[k.next_x.length - 1];
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+        }
+        ws.onopen = function () {
+            ws.send("md");
+        }
+
+    </script>
+</body>
+
+</html>

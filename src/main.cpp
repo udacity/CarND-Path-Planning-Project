@@ -18,6 +18,10 @@ using std::vector;
 int main()
 {
     uWS::Hub h;
+    //     auto *k = &h;
+    //     auto group1 = k->createGroup<false>();
+    // group1->
+    //     k->connect("127.0.0.1", nullptr, {}, 5000, group1);
 
     // Load up map values for waypoint's x,y,s and d normalized normal vectors
     vector<double> map_waypoints_x;
@@ -55,9 +59,40 @@ int main()
 
     int lane = 1;
     double ref_vel = 0.0; // the desired drive velocity
-    h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-                    &map_waypoints_dx, &map_waypoints_dy, &lane, &ref_vel, &h](uWS::WebSocket<uWS::SERVER>* ws, char* data, size_t length,
+    double lane_width = 4.0;
+    int n_of_lanes = 3;
+    double acceleration = 0.224;
+    double point_2_point_time = 0.02;
+    int n_of_points = 50;
+    double max_speed = 49.8;
+    double target_relative_position = 30.0;
+
+    h.onMessage([&map_waypoints_x,
+                    &map_waypoints_y,
+                    &map_waypoints_s,
+                    &map_waypoints_dx,
+                    &map_waypoints_dy,
+                    &lane,
+                    &ref_vel,
+                    &h,
+                    &lane_width,
+                    &n_of_lanes,
+                    &acceleration,
+                    &point_2_point_time,
+                    &n_of_points,
+                    &max_speed,
+                    &target_relative_position](uWS::WebSocket<uWS::SERVER>* ws, char* data, size_t length,
                     uWS::OpCode opCode) {
+        // For the visualizer websocket client send the map data in response to the 'md' string
+        if (length && length > 1 && data[0] == 'm' && data[1] == 'd') {
+            json msgJson1;
+            msgJson1["map_x"] = map_waypoints_x;
+            msgJson1["map_y"] = map_waypoints_y;
+            msgJson1["lane_width"] = lane_width;
+            msgJson1["n_of_lanes"] = n_of_lanes;
+            auto msg1 = "map_data:" + msgJson1.dump();
+            ws->send(msg1.data(), msg1.length(), uWS::OpCode::TEXT);
+        }
         // "42" at the start of the message means there's a websocket message event.
         // The 4 signifies a websocket message
         // The 2 signifies a websocket event
@@ -82,8 +117,8 @@ int main()
                     double car_speed = j[1]["speed"];
 
                     // Previous path data given to the Planner
-                    auto previous_path_x = j[1]["previous_path_x"];
-                    auto previous_path_y = j[1]["previous_path_y"];
+                    vector<double> previous_path_x = j[1]["previous_path_x"];
+                    vector<double> previous_path_y = j[1]["previous_path_y"];
                     // Previous path's end s and d values
                     double end_path_s = j[1]["end_path_s"];
                     double end_path_d = j[1]["end_path_d"];
@@ -93,8 +128,8 @@ int main()
                     auto sensor_fusion = j[1]["sensor_fusion"];
 
                     json msgJson;
-                    vector<double> next_x_vals;
-                    vector<double> next_y_vals;
+                    vector<double> next_x_vals{ previous_path_x };
+                    vector<double> next_y_vals{ previous_path_y };
 
                     int prev_size = previous_path_x.size();
                     bool too_close = false;
@@ -105,14 +140,14 @@ int main()
 
                     for (unsigned int i = 0; i < sensor_fusion.size(); i++) {
                         float d = sensor_fusion[i][6];
-                        if (d < (2 + 2 + 4 * lane) && d > (2 - 2 + 4 * lane)) {
+                        if (d < (2 + 2 + lane_width * lane) && d > (2 - 2 + lane_width * lane)) {
                             double vx = sensor_fusion[i][3];
                             double vy = sensor_fusion[i][4];
                             double check_speed = sqrt(vx * vx + vy * vy);
                             double check_car_s = sensor_fusion[i][5];
-                            check_car_s += ((double)prev_size * 0.02 * check_speed);
+                            check_car_s += ((double)prev_size * point_2_point_time * check_speed);
 
-                            if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)) {
+                            if ((check_car_s > car_s) && ((check_car_s - car_s) < target_relative_position)) {
                                 too_close = true;
 
                                 if (lane > 0) {
@@ -123,10 +158,10 @@ int main()
                     }
 
                     if (too_close) {
-                        ref_vel -= 0.224;
+                        ref_vel -= acceleration;
 
-                    } else if (ref_vel < 49.9) {
-                        ref_vel += 0.224;
+                    } else if (ref_vel < max_speed) {
+                        ref_vel += acceleration;
                     }
 
                     vector<double> pts_x;
@@ -166,8 +201,8 @@ int main()
                         pts_y.push_back(ref_y);
                     }
                     for (unsigned short k = 1; k <= 3; k++) {
-                        float scale = 10.0;
-                        vector<double> wp = getXY(car_s + k * scale, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+                        double scale = target_relative_position;
+                        vector<double> wp = getXY(car_s + (double)(k * scale), (2 + lane_width * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
                         pts_x.push_back(wp[0]);
                         pts_y.push_back(wp[1]);
                     }
@@ -187,19 +222,19 @@ int main()
 
                     // target coordinate of the car in local coordinate system
                     // ie 30 meters ahead
-                    double target_x = 30.0;
+                    double target_x = target_relative_position;
 
                     // get the target y as the result of the previously defined spline function
                     double target_y = s(target_x);
 
-                    double target_dist = sqrt(target_x * target_x + target_y * target_y);
+                    double target_dist = sqrt((target_x) * (target_x) + (target_y) * (target_y));
 
                     double x_add_on = 0;
 
-                    for (unsigned short i = 0; i < 50 - prev_size; i++) {
+                    for (unsigned short i = 0; i < n_of_points - prev_size; i++) {
 
-                        double N = target_dist / (.02 * ref_vel / 2.24); //clarify the .02 and the 2.24 values
-                        double x_point = x_add_on + target_x / N;
+                        double N = (target_dist / (point_2_point_time * ref_vel / 2.24));
+                        double x_point = x_add_on + (target_x) / N;
                         double y_point = s(x_point);
 
                         x_add_on = x_point;
@@ -208,8 +243,8 @@ int main()
                         double y_ref = y_point;
 
                         // transform back to global coordinate system
-                        x_point = x_ref * cos(ref_yaw) - y_ref * sin(0 - ref_yaw);
-                        y_point = x_ref * sin(ref_yaw) + y_ref * cos(0 - ref_yaw);
+                        x_point = x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
+                        y_point = x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
 
                         x_point += ref_x;
                         y_point += ref_y;
@@ -217,30 +252,28 @@ int main()
                         // little premature optimisation here
                         // as we have already the vector of previous points
                         // we can add the next points to the same vector at the end
-
-                        previous_path_x.push_back(x_point);
-                        previous_path_y.push_back(y_point);
+                        next_x_vals.push_back(x_point);
+                        next_y_vals.push_back(y_point);
                     }
 
-                    // Plotdata x(previous_path_x, 50), y(previous_path_y, 50);
-                    // plot(x, y);
-
-                    msgJson["next_x"] = previous_path_x;
-                    msgJson["next_y"] = previous_path_y;
+                    msgJson["next_x"] = next_x_vals;
+                    msgJson["next_y"] = next_y_vals;
 
                     auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
-                    ws->send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+                    // ws->send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+                    h.Group<true>::broadcast(msg.data(), msg.length(), uWS::OpCode::TEXT);
                 } // end "telemetry" if
             } else {
                 // Manual driving
                 std::string msg = "42[\"manual\",{}]";
-                ws->send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+                // ws->send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+                h.Group<true>::broadcast(msg.data(), msg.length(), uWS::OpCode::TEXT);
             }
         } // end websocket if
     }); // end h.onMessage
 
-    h.onConnection([&h](uWS::WebSocket<uWS::SERVER>* ws, uWS::HttpRequest req) {
+    h.onConnection([&map_waypoints_x, &map_waypoints_y, &h](uWS::WebSocket<uWS::SERVER>* ws, uWS::HttpRequest req) {
         std::cout << "Connected!!!" << std::endl;
     });
 
