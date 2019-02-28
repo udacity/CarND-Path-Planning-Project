@@ -3,24 +3,10 @@
 
 <head>
     <meta charset="utf-8" />
-
 </head>
 
-<body>
+<body style="background-color: honeydew;">
     <canvas id="canvas" width="2500" height="4000"></canvas>
-    <script>
-        function drawWaypoints() {
-            var canvas = document.getElementById('canvas');
-            if (canvas.getContext) {
-                var ctx = canvas.getContext('2d');
-                for (i = 0; i < k.next_x.length; i++) {
-                    ctx.lineTo(k.next_x[i], k.next_y[i]);
-                }
-            }
-        }
-
-    </script>
-
     <script type="application/javascript">
         var ws = new WebSocket("ws://127.0.0.1:4567");
         var canvas = document.getElementById('canvas');
