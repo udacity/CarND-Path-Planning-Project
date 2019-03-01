@@ -18,11 +18,6 @@ using std::vector;
 int main()
 {
     uWS::Hub h;
-    //     auto *k = &h;
-    //     auto group1 = k->createGroup<false>();
-    // group1->
-    //     k->connect("127.0.0.1", nullptr, {}, 5000, group1);
-
     // Load up map values for waypoint's x,y,s and d normalized normal vectors
     vector<double> map_waypoints_x;
     vector<double> map_waypoints_y;
@@ -64,10 +59,11 @@ int main()
     double acceleration = 0.224;
     double point_2_point_time = 0.02;
     int n_of_points = 50;
-    double max_speed = 49.8;
+    double max_speed = 49.6;
     double target_relative_position = 30.0;
 
-    h.onMessage([&map_waypoints_x,
+    h.onMessage([&max_s,
+                    &map_waypoints_x,
                     &map_waypoints_y,
                     &map_waypoints_s,
                     &map_waypoints_dx,
@@ -133,6 +129,8 @@ int main()
 
                     int prev_size = previous_path_x.size();
                     bool too_close = false;
+                    bool too_close_left = false;
+                    bool too_close_right = false;
 
                     if (prev_size > 0) {
                         car_s = end_path_s;
@@ -140,26 +138,37 @@ int main()
 
                     for (unsigned int i = 0; i < sensor_fusion.size(); i++) {
                         float d = sensor_fusion[i][6];
+                        double vx = sensor_fusion[i][3];
+                        double vy = sensor_fusion[i][4];
+                        double other_car_speed = sqrt(vx * vx + vy * vy);
+                        double other_car_s = sensor_fusion[i][5];
+
+                        // check if we are too close to the car in front
                         if (d < (2 + 2 + lane_width * lane) && d > (2 - 2 + lane_width * lane)) {
-                            double vx = sensor_fusion[i][3];
-                            double vy = sensor_fusion[i][4];
-                            double check_speed = sqrt(vx * vx + vy * vy);
-                            double check_car_s = sensor_fusion[i][5];
-                            check_car_s += ((double)prev_size * point_2_point_time * check_speed);
+                            other_car_s += ((double)prev_size * point_2_point_time * other_car_speed);
 
-                            if ((check_car_s > car_s) && ((check_car_s - car_s) < target_relative_position)) {
+                            if ((other_car_s > car_s) && ((other_car_s - car_s) < target_relative_position)) {
                                 too_close = true;
+                            }
+                        }
 
-                                if (lane > 0) {
-                                    lane = 0;
-                                }
+                        // check if we are not about to hit the cars to the left and/or to the right
+                        if ((car_s + target_relative_position) > other_car_s && (car_s - target_relative_position) < other_car_s) {
+                            if (d < (2 - 2 + lane_width * lane)) {
+                                too_close_left = true;
+                            } else if (d > (2 + 2 + lane_width * lane)) {
+                                too_close_right = true;
                             }
                         }
                     }
 
-                    if (too_close) {
+                    // decision time :)
+                    if (too_close && !too_close_left && lane > 0) {
+                        lane--;
+                    } else if (too_close && !too_close_right && lane < 2) {
+                        lane++;
+                    } else if (too_close && ref_vel >= acceleration) {
                         ref_vel -= acceleration;
-
                     } else if (ref_vel < max_speed) {
                         ref_vel += acceleration;
                     }
@@ -200,9 +209,18 @@ int main()
                         pts_y.push_back(prev_ref_y);
                         pts_y.push_back(ref_y);
                     }
+                    // get 3 more points along the highway in frenet coordinates
                     for (unsigned short k = 1; k <= 3; k++) {
                         double scale = target_relative_position;
-                        vector<double> wp = getXY(car_s + (double)(k * scale), (2 + lane_width * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+                        double next_s = ((car_s + (double)(k * scale)));
+
+                        // when the next point is almost at the end of the track,
+                        // assign as s the first k s values from the waypoints
+                        if (next_s + 100 > max_s) {
+                            next_s = map_waypoints_s[k];
+                        }
+
+                        vector<double> wp = getXY(next_s, (2 + lane_width * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
                         pts_x.push_back(wp[0]);
                         pts_y.push_back(wp[1]);
                     }
@@ -249,9 +267,6 @@ int main()
                         x_point += ref_x;
                         y_point += ref_y;
 
-                        // little premature optimisation here
-                        // as we have already the vector of previous points
-                        // we can add the next points to the same vector at the end
                         next_x_vals.push_back(x_point);
                         next_y_vals.push_back(y_point);
                     }
@@ -262,6 +277,7 @@ int main()
                     auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
                     // ws->send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+                    // use broadcast in order to be able to get the data in the dashboard
                     h.Group<true>::broadcast(msg.data(), msg.length(), uWS::OpCode::TEXT);
                 } // end "telemetry" if
             } else {

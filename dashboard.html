@@ -24,7 +24,7 @@
 
                 mapCtx.lineWidth = 5 * mapData.lane_width * mapData.n_of_lanes * 2;//2 directions
                 ctx.strokeStyle = '#355c7d';
-
+                ctx.lineCap = 'round';
                 for (i = 0; i < mapData.map_x.length; i++) {
                     mapCtx.lineTo(mapData.map_x[i], mapData.map_y[i]);
                 }
@@ -34,6 +34,7 @@
                 for (i = 0; i < mapData.map_x.length; i++) {
                     mapCtx.beginPath();
                     mapCtx.lineWidth = 5;
+
                     mapCtx.strokeStyle = '#f8b195';
                     mapCtx.arc(mapData.map_x[i], mapData.map_y[i], 10, 0, Math.PI * 2, true);
                     mapCtx.stroke();
