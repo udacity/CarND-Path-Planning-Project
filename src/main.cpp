@@ -104,6 +104,26 @@ int main() {
             next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
           }
 
+
+          // Set next waypoint
+          // Calculate cost
+
+          // Avoid cars
+          // predict which maneuver a vehicle is in given a single coordinate 
+
+          // Lesson 5: Trajectory Generation
+          // Build trajectory
+          // Hybrid A* is good for unstrcutured enviornments (parking lots or mazes)
+          // Jerk minimization trajectory (quintic polynomial solver)
+          // Just need initial state and goal state
+
+
+          // Costs
+          // Jerk, distance to obstacle, dist to center lane, time to goal
+          // There could be more costs
+          // Tricky to balance costs - optimizing one may break another
+          // Combine all cost functions into one weighted cost function
+
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
