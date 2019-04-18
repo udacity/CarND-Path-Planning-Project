@@ -105,7 +105,7 @@ int main() {
           }
 
 
-          // Set next waypoint
+
           // Calculate cost
 
           // Avoid cars
@@ -116,6 +116,36 @@ int main() {
           // Hybrid A* is good for unstrcutured enviornments (parking lots or mazes)
           // Jerk minimization trajectory (quintic polynomial solver)
           // Just need initial state and goal state
+          //
+          // 1. Get waypoint
+
+          next_waypoint = 
+          map_waypoints_x.
+          map_waypoints_y.
+          map_waypoints_s.
+          map_waypoints_dx.
+          map_waypoints_dy.
+
+          // 2. Consider waypoint to be goal state
+          // 3. Calculate T based on how far waypoint is
+
+          double distance = std:pow(std::pow((next_waypoint_x - car_x), 2) + std::pow((next_waypoint_y - car_y), 2), 0.5); 
+          double T = distance/car_speed;
+
+          // 4. Solve JMT coefficients for s and d for given T
+
+          vector<double> s_coeffs = solveCoeffs(start, end, T);
+          vector<double> d_coeffs = solveCoeffs(start, end, T);
+
+          // 4. Create multiple trajectories by solving trajectory equations from 0 to T
+
+          vector<double> s_point = getTrajectoryPoint(T, s_coeffs);
+          M
+          vector<double> d_point = getTrajectoryPoint(T, d_coeffs);
+
+          // 5. Figure out how to apply costs to each trajctory
+          // 6. Figure out how to add collision avoidance
+          // 7. Choose a trajectory
 
 
           // Costs
@@ -158,4 +188,48 @@ int main() {
   }
   
   h.run();
+}
+
+
+
+
+vector<double> getTrajectoryPoint(double t, vector<double> coeffs&) {
+  double a_0 = coeffs[0];
+  double a_1 = coeffs[1];
+  double a_2 = coeffs[2];
+  double a_3 = coeffs[3];
+  double a_4 = coeffs[4];
+  double a_5 = coeffs[5];
+  double pos = a_0 + a_1 * t + a_2 * t**2 + a_3 * t**3 + a_4 * t**4 + a_5 * t**5;
+  double velocity = a_1 + 2 * a_2 * t + 3 * a_3 * t**2 + 4 * a_4 * t**3 + 5 * a_5 * t**4;
+  double accel = 2 * a_2 + 6 * a_3 * t + 12 * a_4 * t**2 + 20 * a_5 * t**3;
+  return {pos, velocity, accel};
+}
+
+vector<double> solveCoeffs(vector<double> &start, vector<double> &end, double T) {
+  Eigen::MatrixXd m(3,3);
+  m << std::pow(T, 3)  , std::pow(T, 4)   , std::pow(T, 5)  ,
+       3*std::pow(T, 2), 4*std::pow(T, 3) , 5*std::pow(T, 4),
+       6*T             , 12*std::pow(T, 2), 20*std::pow(T, 3);
+  double sf            = end[0];
+  double sf_dot        = end[1];
+  double sf_double_dot = end[2];
+  double si            = start[0];
+  double si_dot        = start[1];
+  double si_double_dot = start[2]; 
+  Eigen::VectorXd right(3);
+  right << sf - (si + si_dot*T + 0.5*si_double_dot*T*T),
+           sf_dot - (si_dot + si_double_dot*T),
+           sf_double_dot - si_double_dot;
+  Eigen::VectorXd coefficients(3);
+  coefficients = m.colPivHouseholderQr().solve(right);
+
+  double a0 = si;
+  double a1 = si_dot;
+  double a2 = 0.5*si_double_dot;
+  double a3 = coefficients[0];
+  double a4 = coefficients[1];
+  double a5 = coefficients[2];
+  
+  return {a0, a1, a2, a3, a4, a5};
 }
