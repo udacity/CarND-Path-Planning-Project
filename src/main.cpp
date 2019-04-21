@@ -15,7 +15,7 @@ using std::vector;
 
 int main() {
   uWS::Hub h;
-  static vector<worldObject> world;
+  static WorldModel world;
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
   vector<double> map_waypoints_x;
   vector<double> map_waypoints_y;
@@ -217,8 +217,9 @@ int main() {
 }
 
 double calculateCosts() {
-  double totalCost = goal_distance_cost() +
-                     ineffieciency_cost();
+  double totalCost = 0; 
+  //totalCost = goal_distance_cost() + ineffieciency_cost();
+  return totalCost;
 }
 
 double goal_distance_cost(int goal_lane, int intended_lane, int final_lane, 
@@ -243,41 +244,6 @@ double inefficiency_cost(int target_speed, int intended_lane, int final_lane,
   return cost;
 }
 
-
-getValidTrajectories(){
-  // 2. Consider waypoint to be goal state
-  // 3. Calculate T based on how far waypoint is
-
-  double distance = std:pow(std::pow((next_waypoint_x - car_x), 2) + std::pow((next_waypoint_y - car_y), 2), 0.5); 
-  double T = distance/car_speed;
-
-  // 4. Solve JMT coefficients for s and d for given T
-
-  vector<double> s_coeffs = solveCoeffs(start, end, T);
-  vector<double> d_coeffs = solveCoeffs(start, end, T);
-
-  // 4. Create multiple trajectories by solving trajectory equations from 0 to T
-
-  vector<double> s_point = getTrajectoryPoint(T, s_coeffs);
-  vector<double> d_point = getTrajectoryPoint(T, d_coeffs);
-
-  // 5. Figure out how to apply costs to each trajctory
-  // 6. Figure out how to add collision avoidance
-  // 7. Choose a trajectory
-}
-
-vector<double> getTrajectoryPoint(double t, vector<double> coeffs&) {
-  double a_0 = coeffs[0];
-  double a_1 = coeffs[1];
-  double a_2 = coeffs[2];
-  double a_3 = coeffs[3];
-  double a_4 = coeffs[4];
-  double a_5 = coeffs[5];
-  double pos = a_0 + a_1 * t + a_2 * t**2 + a_3 * t**3 + a_4 * t**4 + a_5 * t**5;
-  double velocity = a_1 + 2 * a_2 * t + 3 * a_3 * t**2 + 4 * a_4 * t**3 + 5 * a_5 * t**4;
-  double accel = 2 * a_2 + 6 * a_3 * t + 12 * a_4 * t**2 + 20 * a_5 * t**3;
-  return {pos, velocity, accel};
-}
 
 vector<double> solveCoeffs(vector<double> &start, vector<double> &end, double T) {
   Eigen::MatrixXd m(3,3);
@@ -306,3 +272,50 @@ vector<double> solveCoeffs(vector<double> &start, vector<double> &end, double T)
   
   return {a0, a1, a2, a3, a4, a5};
 }
+
+vector<double> getTrajectoryPoint(double t, vector<double> coeffs) {
+  double a_0 = coeffs[0];
+  double a_1 = coeffs[1];
+  double a_2 = coeffs[2];
+  double a_3 = coeffs[3];
+  double a_4 = coeffs[4];
+  double a_5 = coeffs[5];
+  double pos = a_0 + a_1 * t
+                   + a_2 * std::pow(t, 2) 
+                   + a_3 * std::pow(t, 3)
+                   + a_4 * std::pow(t, 4)
+                   + a_5 * std::pow(t, 5);
+  double velocity = a_1 + 2 * a_2 * t
+                        + 3 * a_3 * std::pow(t, 2)
+                        + 4 * a_4 * std::pow(t, 3)
+                        + 5 * a_5 * std::pow(t, 4);
+  double accel = 2 * a_2 + 6 * a_3 * t 
+                         + 12 * a_4 * std::pow(t, 2)
+                         + 20 * a_5 * std::pow(t, 3);
+  return {pos, velocity, accel};
+}
+
+vector<double> getValidTrajectories(){
+  // 2. Consider waypoint to be goal state
+  // 3. Calculate T based on how far waypoint is
+
+//double distance = std:pow(std::pow((next_waypoint_x - car_x), 2) + std::pow((next_waypoint_y - car_y), 2), 0.5); 
+//double T = distance/car_speed;
+
+  // 4. Solve JMT coefficients for s and d for given T
+
+//vector<double> s_coeffs = solveCoeffs(start, end, T);
+//vector<double> d_coeffs = solveCoeffs(start, end, T);
+
+  // 4. Create multiple trajectories by solving trajectory equations from 0 to T
+
+//vector<double> s_point = getTrajectoryPoint(T, s_coeffs);
+//vector<double> d_point = getTrajectoryPoint(T, d_coeffs);
+
+  // 5. Figure out how to apply costs to each trajctory
+  // 6. Figure out how to add collision avoidance
+  // 7. Choose a trajectory
+  return {0.0};
+}
+
+

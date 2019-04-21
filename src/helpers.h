@@ -154,58 +154,29 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x,y};
 }
 
-class WorldModel {
-  public:
-    vector<WorldObject> cars;
-    vector<LaneObject> lanes;
-    void update(vector<double> sensor_fusion) {
-      // Format for each car: [ id, x, y, vx, vy, s, d]
-      for (auto& car:sensor_fusion) {
-        // Copy over the data
-        new WorldObject obj; 
-        obj.id = car.id;
-        obj.x = car.x;
-        obj.y = car.y;
-        obj.vx = car.vx;
-        obj.vy = car.vy;
-        obj.s = car.s;
-        obj.d = car.d;
-    
-        // Assign each car to a lane
-        for (auto laneNum:laneNumbers){
-          if (d < LANE_WIDTH*(laneNum+1) && d > LANE_WIDTH*laneNum) {
-            obj.laneAssignment = LANE_NUM;
-          }
-        }
-        
-        // Update relative properties
-        obj.relativeVx = egocar.vx - car.vx;
-        obj.relativeVy = egocar.vy - car.vy;
-        obj.radialDistance = distance();
-        obj.ttc = obj.radialDistance/car.vy
-        
-        auto matchedCar = getWorldObjById(obj.id);
-        if (matchedCar){
-          matchedCar->update();
-        }
-        else{
-          cars.push_back(obj);
-        }
-      }
-    }
-    
-  private:
-
-    WorldObject* getWorldObjById(double id) {
-      for(auto obj:cars) {
-        if (obj.id == id) {
-          return obj;
-        }
-      }
-      return NULL;
-    }
+namespace Lane {
+    enum laneNumber {
+      LANE_RIGHT,
+      LANE_CENTER,
+      LANE_LEFT
+    };
+    enum laneType {
+      LANE_EGO,
+      LANE_EGO_LEFT,
+      LANE_EGO_LEFT_FAR,
+      LANE_EGO_RIGHT,
+      LANE_EGO_RIGHT_FAR
+    };
+    const double LANE_WIDTH = 4.0;
+    class LaneObject {
+      public:
+        int num;
+        int position;
+        double laneSpeed;
+      //vector<WorldObject> cars;
+        vector<vector<double>> openStretches;
+    };
 }
-
 class WorldObject {
   public:
     int id;
@@ -215,11 +186,13 @@ class WorldObject {
     double vy;
     double s;
     double d;
+    enum Lane::laneNumber laneAssignment;
     double relativeVx;
     double relativeVy;
     double radialDistance;
     double ttc;
-    vector<trajectory> predictedTrajecs;
+  //vector<trajectory> predictedTrajecs;
+
     void update(WorldObject obj) {
       x = obj.x;
       y = obj.y;
@@ -233,25 +206,59 @@ class WorldObject {
       radialDistance = obj.radialDistance;
       ttc = obj.ttc;
     }
-}
+};
 
-class LaneObject {
+class WorldModel {
   public:
-    enum laneNumber {
-      LANE_RIGHT,
-      LANE_CENTER,
-      LANE_LEFT
-    };
-    enum laneType {
-      LANE_EGO,
-      LANE_EGO_LEFT,
-      LANE_EGO_LEFT_FAR,
-      LANE_EGO_RIGHT,
-      LANE_EGO_RIGHT_FAR
-    };
-    int num;
-    int position;
-    double laneSpeed;
     vector<WorldObject> cars;
-    vector<vector<double>> openStretches
-}
+    vector<Lane::LaneObject> lanes;
+    void update(vector<vector<double>> sensor_fusion) {
+      // Format for each car: [ id, x, y, vx, vy, s, d]
+      for (auto& car:sensor_fusion) {
+        // Copy over the data
+        WorldObject obj; 
+        obj.id = car[0];
+        obj.x = car[1];
+        obj.y = car[2];
+        obj.vx = car[3];
+        obj.vy = car[4];
+        obj.s = car[5];
+        obj.d = car[6];
+    
+        // Assign each car to a lane
+        for (int laneNum = 0; laneNum < 4; laneNum++) { 
+          if (obj.d < Lane::LANE_WIDTH*(laneNum+1) && obj.d > Lane::LANE_WIDTH*laneNum) {
+            obj.laneAssignment = static_cast<Lane::laneNumber>(laneNum);
+          }
+        }
+
+        
+        // Update relative properties
+      //obj.relativeVx = egocar.vx - car.vx;
+      //obj.relativeVy = egocar.vy - car.vy;
+      //obj.radialDistance = distance();
+      //obj.ttc = obj.radialDistance/car.vy
+        
+        WorldObject* matchedCar = getWorldObjById(obj.id);
+        if (matchedCar){
+          matchedCar->update(obj);
+        }
+        else{
+          cars.push_back(obj);
+        }
+      }
+    }
+    
+  private:
+
+    WorldObject* getWorldObjById(double id) {
+      for(auto& obj:cars) {
+        if (obj.id == id) {
+          return &obj;
+        }
+      }
+      return NULL;
+    }
+};
+
+#endif  // HELPERS_H
