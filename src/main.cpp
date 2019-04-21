@@ -15,7 +15,7 @@ using std::vector;
 
 int main() {
   uWS::Hub h;
-
+  static vector<worldObject> world;
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
   vector<double> map_waypoints_x;
   vector<double> map_waypoints_y;
@@ -97,6 +97,8 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
+
+          updateWorld(sensor_fusion);
 
           double dist_inc = 0.5;
           for (int i = 0; i < 50; ++i) {
@@ -239,6 +241,50 @@ double inefficiency_cost(int target_speed, int intended_lane, int final_lane,
   double cost = (2.0*target_speed - speed_intended - speed_final)/target_speed;
 
   return cost;
+}
+
+void updateWorld(vector<double> sensor_fusion) {
+  // Format for each car: [ id, x, y, vx, vy, s, d]
+  for (auto& car:sensor_fusion) {
+    // Copy over the data
+    new WorldObject obj; 
+    obj.id = car.id;
+    obj.x = car.x;
+    obj.y = car.y;
+    obj.vx = car.vx;
+    obj.vy = car.vy;
+    obj.s = car.s;
+    obj.d = car.d;
+
+    // Assign each car to a lane
+    for (auto laneNum:laneNumbers){
+      if (d < LANE_WIDTH*(laneNum+1) && d > LANE_WIDTH*laneNum) {
+        obj.laneAssignment = LANE_NUM;
+      }
+    }
+    
+    // Update relative properties
+    obj.relativeVx = egocar.vx - car.vx;
+    obj.relativeVy = egocar.vy - car.vy;
+    obj.radialDistance = distance();
+    obj.ttc = obj.radialDistance/car.vy
+    
+    if (getWorldObjById(obj.id)){
+      updateObj();
+    }
+    else{
+      world.push_back(obj);
+    }
+  }
+}
+
+WorldObject getWorldObjById(double id) {
+  for(auto obj:world) {
+    if (obj.id == id) {
+      return obj;
+    }
+  }
+  return NULL;
 }
 
 getValidTrajectories(){

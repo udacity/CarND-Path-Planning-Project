@@ -154,4 +154,48 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x,y};
 }
 
-#endif  // HELPERS_H
+class WorldModel {
+  public:
+    vector<WorldObject> cars;
+    vector<LaneObject> lanes;
+#endif  // HELPERS_H  private:
+  private:
+    void update();
+}
+
+class WorldObject {
+  public:
+    int id;
+    double x;
+    double y;
+    double vx;
+    double vy;
+    double s;
+    double d;
+    double relativeVx;
+    double relativeVy;
+    double radialDistance;
+    double ttc;
+    vector<trajectory> predictedTrajecs;
+}
+
+class LaneObject {
+  public:
+    enum laneNumber {
+      LANE_RIGHT,
+      LANE_CENTER,
+      LANE_LEFT
+    };
+    enum laneType {
+      LANE_EGO,
+      LANE_EGO_LEFT,
+      LANE_EGO_LEFT_FAR,
+      LANE_EGO_RIGHT,
+      LANE_EGO_RIGHT_FAR
+    };
+    int num;
+    int position;
+    double laneSpeed;
+    vector<WorldObject> cars;
+    vector<vector<double>> openStretches
+}
