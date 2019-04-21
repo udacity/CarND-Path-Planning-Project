@@ -100,11 +100,11 @@ int main() {
 
           world.update(sensor_fusion);
 
-          double dist_inc = 0.5;
-          for (int i = 0; i < 50; ++i) {
-            next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
-            next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
-          }
+        //double dist_inc = 0.5;
+        //for (int i = 0; i < 50; ++i) {
+        //  next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
+        //  next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+        //}
 
 
 
@@ -121,57 +121,57 @@ int main() {
           //
           // 1. Get waypoint
 
-          next_waypoint = 
-          map_waypoints_x.
-          map_waypoints_y.
-          map_waypoints_s.
-          map_waypoints_dx.
-          map_waypoints_dy.
+        //next_waypoint = 
+        //map_waypoints_x.
+        //map_waypoints_y.
+        //map_waypoints_s.
+        //map_waypoints_dx.
+        //map_waypoints_dy.
 
 
-         // FSM
-         // inputs to transition function: predictions, map, speed limit, localization, current state
-         switch (state) {
-           case KEEP:
-             trajectories = generate_valid_trajectories()
-             for (auto& trajectory:trajectories) {
-               calculate_cost(trajectory);
-             }
+        //// FSM
+        //// inputs to transition function: predictions, map, speed limit, localization, current state
+        //switch (state) {
+        //  case KEEP:
+        //    trajectories = generate_valid_trajectories()
+        //    for (auto& trajectory:trajectories) {
+        //      calculate_cost(trajectory);
+        //    }
 
-             // Select state associated with minimum cost
-             state = get_minimum_cost(trajectories);
+        //    // Select state associated with minimum cost
+        //    state = get_minimum_cost(trajectories);
 
-             // If I'm already in target lane and going speed limit, stay here
-             // If I'm already in target lane going too slow, consider passing car
-             //    But only if I have enough time to pull this off smoothly!
-             // If I'm not in target lane, change lanes
-             //    If lane change will make me slow down:
-             //      If I have lots of time, don't change lanes until later
-             //      If I dont have time, change regardless
+        //    // If I'm already in target lane and going speed limit, stay here
+        //    // If I'm already in target lane going too slow, consider passing car
+        //    //    But only if I have enough time to pull this off smoothly!
+        //    // If I'm not in target lane, change lanes
+        //    //    If lane change will make me slow down:
+        //    //      If I have lots of time, don't change lanes until later
+        //    //      If I dont have time, change regardless
 
-             break;
+        //    break;
 
-           case PREP_CHANGE_LEFT:
-             // DO whatever we can 
-             // Adjust speed to match gaps in left lane
-             if (safety_check_lane()) {
-               state = CHANGE_LEFT;
-             }
-             else {
-               state = KEEP;
-             }
-             break;
-           case CHANGE_LEFT:
-             while(!perform_lane_change());
-             state = KEEP;
-             break;
-           case PREP_CHANGE_RIGHT:
-             break;
-           case CHANGE_RIGHT:
-             break;
-           default:
-             break;
-         }
+        //  case PREP_CHANGE_LEFT:
+        //    // DO whatever we can 
+        //    // Adjust speed to match gaps in left lane
+        //    if (safety_check_lane()) {
+        //      state = CHANGE_LEFT;
+        //    }
+        //    else {
+        //      state = KEEP;
+        //    }
+        //    break;
+        //  case CHANGE_LEFT:
+        //    while(!perform_lane_change());
+        //    state = KEEP;
+        //    break;
+        //  case PREP_CHANGE_RIGHT:
+        //    break;
+        //  case CHANGE_RIGHT:
+        //    break;
+        //  default:
+        //    break;
+        //}
 
 
           // Costs
