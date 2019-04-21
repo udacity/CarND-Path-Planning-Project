@@ -243,49 +243,6 @@ double inefficiency_cost(int target_speed, int intended_lane, int final_lane,
   return cost;
 }
 
-void updateWorld(vector<double> sensor_fusion) {
-  // Format for each car: [ id, x, y, vx, vy, s, d]
-  for (auto& car:sensor_fusion) {
-    // Copy over the data
-    new WorldObject obj; 
-    obj.id = car.id;
-    obj.x = car.x;
-    obj.y = car.y;
-    obj.vx = car.vx;
-    obj.vy = car.vy;
-    obj.s = car.s;
-    obj.d = car.d;
-
-    // Assign each car to a lane
-    for (auto laneNum:laneNumbers){
-      if (d < LANE_WIDTH*(laneNum+1) && d > LANE_WIDTH*laneNum) {
-        obj.laneAssignment = LANE_NUM;
-      }
-    }
-    
-    // Update relative properties
-    obj.relativeVx = egocar.vx - car.vx;
-    obj.relativeVy = egocar.vy - car.vy;
-    obj.radialDistance = distance();
-    obj.ttc = obj.radialDistance/car.vy
-    
-    if (getWorldObjById(obj.id)){
-      updateObj();
-    }
-    else{
-      world.push_back(obj);
-    }
-  }
-}
-
-WorldObject getWorldObjById(double id) {
-  for(auto obj:world) {
-    if (obj.id == id) {
-      return obj;
-    }
-  }
-  return NULL;
-}
 
 getValidTrajectories(){
   // 2. Consider waypoint to be goal state
