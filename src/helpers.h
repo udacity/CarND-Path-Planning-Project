@@ -184,8 +184,9 @@ class WorldModel {
         obj.radialDistance = distance();
         obj.ttc = obj.radialDistance/car.vy
         
-        if (getWorldObjById(obj.id)){
-          updateObj();
+        auto matchedCar = getWorldObjById(obj.id);
+        if (matchedCar){
+          matchedCar->update();
         }
         else{
           cars.push_back(obj);
@@ -195,8 +196,8 @@ class WorldModel {
     
   private:
 
-    WorldObject getWorldObjById(double id) {
-      for(auto obj:world) {
+    WorldObject* getWorldObjById(double id) {
+      for(auto obj:cars) {
         if (obj.id == id) {
           return obj;
         }
@@ -219,6 +220,19 @@ class WorldObject {
     double radialDistance;
     double ttc;
     vector<trajectory> predictedTrajecs;
+    void update(WorldObject obj) {
+      x = obj.x;
+      y = obj.y;
+      vx = obj.vx;
+      vy = obj.vy;
+      s = obj.s;
+      d = obj.d;
+      laneAssignment = obj.laneAssignment;
+      relativeVx = obj.relativeVx;
+      relativeVy = obj.relativeVy;
+      radialDistance = obj.radialDistance;
+      ttc = obj.ttc;
+    }
 }
 
 class LaneObject {

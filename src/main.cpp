@@ -98,7 +98,7 @@ int main() {
            *   sequentially every .02 seconds
            */
 
-          updateWorld(sensor_fusion);
+          world.update(sensor_fusion);
 
           double dist_inc = 0.5;
           for (int i = 0; i < 50; ++i) {
