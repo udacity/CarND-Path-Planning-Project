@@ -4,6 +4,9 @@
 #include <math.h>
 #include <string>
 #include <vector>
+#include <iostream>
+#include <chrono>
+#include <ctime>
 
 // for convenience
 using std::string;
@@ -194,6 +197,7 @@ class WorldObject {
   //vector<trajectory> predictedTrajecs;
 
     void update(WorldObject obj) {
+      std::cout << "Updating car " << id << " with new info" << std::endl;
       x = obj.x;
       y = obj.y;
       vx = obj.vx;
@@ -212,26 +216,28 @@ class WorldModel {
   public:
     vector<WorldObject> cars;
     vector<Lane::LaneObject> lanes;
+    
     void update(vector<vector<double>> sensor_fusion) {
+      vector<WorldObject> updatedCars;
       // Format for each car: [ id, x, y, vx, vy, s, d]
-      for (auto& car:sensor_fusion) {
+      for (auto& detection:sensor_fusion) {
         // Copy over the data
         WorldObject obj; 
-        obj.id = car[0];
-        obj.x = car[1];
-        obj.y = car[2];
-        obj.vx = car[3];
-        obj.vy = car[4];
-        obj.s = car[5];
-        obj.d = car[6];
+        obj.id = detection[0];
+        obj.x  = detection[1];
+        obj.y  = detection[2];
+        obj.vx = detection[3];
+        obj.vy = detection[4];
+        obj.s  = detection[5];
+        obj.d  = detection[6];
     
         // Assign each car to a lane
         for (int laneNum = 0; laneNum < 4; laneNum++) { 
-          if (obj.d < Lane::LANE_WIDTH*(laneNum+1) && obj.d > Lane::LANE_WIDTH*laneNum) {
+          if (obj.d < Lane::LANE_WIDTH*(laneNum+1) && 
+              obj.d > Lane::LANE_WIDTH*laneNum) {
             obj.laneAssignment = static_cast<Lane::laneNumber>(laneNum);
           }
         }
-
         
         // Update relative properties
       //obj.relativeVx = egocar.vx - car.vx;
@@ -243,10 +249,26 @@ class WorldModel {
         if (matchedCar){
           matchedCar->update(obj);
         }
-        else{
-          cars.push_back(obj);
+        else {
+          std::cout << "[" << std::time(0) << "] - "
+                    << "New car with id " << obj.id
+                    << " in lane " << obj.laneAssignment << std::endl;
+          updatedCars.push_back(obj);
         }
       }
+      for (int i = 0; i < cars.size(); i++) {
+        bool found = false;
+        for (auto newCar:updatedCars) {
+          if (cars[i].id == newCar.id) {
+            found = true;
+            continue;
+          }
+          if (i == cars.size() && !found) {
+            std::cout<<"Car " << cars[i].id << " has exited." << std::endl;
+          }
+        }
+      }
+      cars = updatedCars;
     }
     
   private:
