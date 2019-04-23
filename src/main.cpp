@@ -15,7 +15,8 @@ using std::vector;
 
 int main() {
   uWS::Hub h;
-  static WorldModel world;
+  static Egocar egocar;
+  static WorldModel world(&egocar);
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
   vector<double> map_waypoints_x;
   vector<double> map_waypoints_y;
@@ -105,7 +106,7 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-
+          egocar.update(car_x, car_y, car_s, car_d, car_yaw, car_speed);
           world.update(sensor_fusion);
 
         //double dist_inc = 0.5;

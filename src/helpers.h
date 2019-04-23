@@ -157,6 +157,28 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x,y};
 }
 
+class Egocar {
+
+  public:
+    double x;
+    double y;
+    double s;
+    double d;
+    double yaw;
+    double speed;
+
+    void update(double car_x, double car_y, double car_s,
+                double car_d, double car_yaw, double car_speed) {
+      x = car_x;
+      y = car_y;
+      s = car_s;
+      d = car_d;
+      yaw = car_yaw;
+      speed = car_speed;
+    }
+
+};
+
 namespace Lane {
     enum laneNumber {
       LANE_RIGHT,
@@ -192,7 +214,8 @@ class WorldObject {
     enum Lane::laneNumber laneAssignment;
     double relativeVx;
     double relativeVy;
-    double radialDistance;
+    double relativeVel;
+    double distance;
     double ttc;
   //vector<trajectory> predictedTrajecs;
 
@@ -212,7 +235,7 @@ class WorldObject {
       laneAssignment = obj.laneAssignment;
       relativeVx = obj.relativeVx;
       relativeVy = obj.relativeVy;
-      radialDistance = obj.radialDistance;
+      distance = obj.distance;
       ttc = obj.ttc;
     }
 };
@@ -221,6 +244,11 @@ class WorldModel {
   public:
     vector<WorldObject> cars;
     vector<Lane::LaneObject> lanes;
+    Egocar* egocar;
+
+    WorldModel (Egocar* pointer) {
+      egocar = pointer;
+    }
     
     void update(vector<vector<double>> sensor_fusion) {
       vector<WorldObject> updatedCars;
@@ -245,10 +273,9 @@ class WorldModel {
         }
         
         // Update relative properties
-      //obj.relativeVx = egocar.vx - car.vx;
-      //obj.relativeVy = egocar.vy - car.vy;
-      //obj.radialDistance = distance();
-      //obj.ttc = obj.radialDistance/car.vy
+        obj.relativeVel = egocar->speed - obj.speed;
+        obj.distance = distance(egocar->x, egocar->y, obj.x, obj.y);
+        obj.ttc = obj.distance/obj.relativeVel;
         
         WorldObject* matchedCar = getWorldObjById(obj.id);
         if (matchedCar){
