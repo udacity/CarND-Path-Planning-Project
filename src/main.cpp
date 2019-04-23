@@ -86,7 +86,15 @@ int main() {
 
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
+
+          // Looks like the simulator has hardcoded 12 cars
+          // and they never go out of view of the ego-car
           auto sensor_fusion = j[1]["sensor_fusion"];
+          std::cout << "[" << std::time(0) << "] - ";
+          for (auto meas:sensor_fusion) {
+            std::cout << meas[0] << " ";
+          }
+          std::cout << std::endl;
 
           json msgJson;
 

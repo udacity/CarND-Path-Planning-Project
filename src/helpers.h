@@ -253,22 +253,22 @@ class WorldModel {
           std::cout << "[" << std::time(0) << "] - "
                     << "New car with id " << obj.id
                     << " in lane " << obj.laneAssignment << std::endl;
-          updatedCars.push_back(obj);
+          cars.push_back(obj);
         }
       }
-      for (int i = 0; i < cars.size(); i++) {
-        bool found = false;
-        for (auto newCar:updatedCars) {
-          if (cars[i].id == newCar.id) {
-            found = true;
-            continue;
-          }
-          if (i == cars.size() && !found) {
-            std::cout<<"Car " << cars[i].id << " has exited." << std::endl;
-          }
-        }
-      }
-      cars = updatedCars;
+    //for (int i = 0; i < cars.size(); i++) {
+    //  bool found = false;
+    //  for (auto newCar:updatedCars) {
+    //    if (cars[i].id == newCar.id) {
+    //      found = true;
+    //      continue;
+    //    }
+    //    if (i == cars.size() && !found) {
+    //      std::cout<<"Car " << cars[i].id << " has exited." << std::endl;
+    //    }
+    //  }
+    //}
+    //cars = updatedCars;
     }
     
   private:
