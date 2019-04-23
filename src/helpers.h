@@ -217,6 +217,7 @@ class WorldObject {
     double relativeVel;
     double distance;
     double ttc;
+    double speed;
   //vector<trajectory> predictedTrajecs;
 
     void update(WorldObject obj) {
@@ -273,6 +274,7 @@ class WorldModel {
         }
         
         // Update relative properties
+        obj.speed = std::pow((obj.vx * obj.vx) + (obj.vy * obj.vy), 0.5);
         obj.relativeVel = egocar->speed - obj.speed;
         obj.distance = distance(egocar->x, egocar->y, obj.x, obj.y);
         obj.ttc = obj.distance/obj.relativeVel;
