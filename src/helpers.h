@@ -218,7 +218,7 @@ class WorldObject {
     double distance;
     double ttc;
     double speed;
-  //vector<trajectory> predictedTrajecs;
+    vector<vector<double>> prediction;
 
     void update(WorldObject obj) {
       std::cout << "Updating car " << id << " with new info" << std::endl;
@@ -238,6 +238,17 @@ class WorldObject {
       relativeVy = obj.relativeVy;
       distance = obj.distance;
       ttc = obj.ttc;
+
+      prediction = {};
+      for (int i = 0; i < 500; i++) {
+        prediction.push_back(predict(i*.02));
+      }
+    }
+
+  private:
+
+    vector<double> predict(double time) {
+      return {s + time * std::max(vx, vy), d + time * std::min(vx, vy)};
     }
 };
 
