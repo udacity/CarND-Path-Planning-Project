@@ -204,6 +204,11 @@ class WorldObject {
       vy = obj.vy;
       s = obj.s;
       d = obj.d;
+      if (laneAssignment != obj.laneAssignment) {
+        std::cout << "Car "<< id << " has changed lanes from lane "
+                  << laneAssignment << " to lane "
+                  << obj.laneAssignment << std::endl;;
+      }
       laneAssignment = obj.laneAssignment;
       relativeVx = obj.relativeVx;
       relativeVy = obj.relativeVy;
