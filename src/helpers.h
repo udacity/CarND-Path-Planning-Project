@@ -157,6 +157,21 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x,y};
 }
 
+// Borrowed from: https://knowledge.udacity.com/questions/9577
+// Return velocity along s and d in frenet coordinates
+vector<double> getFrenetVelocity(double x, double y,
+                                 const vector<double> &maps_x, 
+                                 const vector<double> &maps_y,
+                                 const vector<double> &maps_dx, 
+                                 const vector<double> &maps_dy) {
+  int wp = ClosestWaypoint(x, y, maps_x, maps_y);
+  double dx = maps_dx[wp];
+  double dy = maps_dy[wp];
+  double vd = vx*dx + vy*dy;
+  double vs = -vx*dy + vy*dx;
+  return {vs, vd};
+}
+
 class Egocar {
 
   public:
