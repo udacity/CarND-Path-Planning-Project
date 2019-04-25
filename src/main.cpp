@@ -15,8 +15,6 @@ using std::vector;
 
 int main() {
   uWS::Hub h;
-  static Egocar egocar;
-  static WorldModel world(&egocar);
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
   vector<double> map_waypoints_x;
   vector<double> map_waypoints_y;
@@ -58,6 +56,10 @@ int main() {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
+    static Egocar egocar;
+    static WorldModel world(&egocar, map_waypoints_x, map_waypoints_y,
+                                     map_waypoints_s, map_waypoints_dx,
+                                     map_waypoints_dy);
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
