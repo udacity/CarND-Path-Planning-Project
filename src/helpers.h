@@ -278,15 +278,24 @@ class WorldObject {
       ttc = obj.ttc;
 
       prediction = {};
-      for (int i = 0; i < 500; i++) {
-        prediction.push_back(predict(i*.02));
+    //for (int i = 0; i < 200; i++) {
+    //  prediction.push_back(predict(i*.02));
+    //}
+      predict(5, prediction);
+      std::cout<<"lane: " <<laneAssignment<<" vs: "<< vs << " vd: " << vd << " curr d:" << d << " predicted d: " << prediction[prediction.size()-1][1]<< std::endl;
+      if ((std::abs(prediction[prediction.size()-1][1]) - d) > 4.0) {
+        
+        std::cout << "predicting that car "<<id<<" will change lanes"<<std::endl;
+
       }
     }
 
   private:
 
-    vector<double> predict(double time) {
-      return {s + time * vs, d + time * vd};
+    void predict(uint8_t duration, vector<vector<double>>& prediction) {
+      for (int i = 0; i < duration; i++) {
+        prediction.push_back({s + i * vs, d + i * vd});
+      }
     }
 };
 
