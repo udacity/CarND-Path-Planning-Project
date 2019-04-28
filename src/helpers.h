@@ -245,7 +245,8 @@ class WorldObject {
     }
 
     void update(WorldObject obj) {
-      std::cout << "Updating car " << id << " with new info" << std::endl;
+
+    //std::cout << "Updating car " << id << " with new info" << std::endl;
       x = obj.x;
       y = obj.y;
       vx = obj.vx;
