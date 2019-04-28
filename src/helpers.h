@@ -350,6 +350,7 @@ class WorldModel {
           if (obj.d < Lane::LANE_WIDTH*(laneNum+1) && 
               obj.d > Lane::LANE_WIDTH*laneNum) {
             obj.laneAssignment = static_cast<Lane::laneNumber>(laneNum);
+            break;
           }
         }
         
