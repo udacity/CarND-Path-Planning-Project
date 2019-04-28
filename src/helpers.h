@@ -214,7 +214,6 @@ namespace Lane {
         int num;
         int position;
         double laneSpeed;
-      //vector<WorldObject> cars;
         vector<vector<double>> openStretches;
     };
 }
@@ -238,7 +237,6 @@ class WorldObject {
     double distance;
     double ttc;
     double speed;
-  //WorldModel world;
     vector<vector<double>> prediction;
     vector<vector<double>*> maps;
 
@@ -254,25 +252,15 @@ class WorldObject {
       vy = obj.vy;
       s = obj.s;
       d = obj.d;
-      vector<double> frenetVelocities = getFrenetVelocity(x, y, vx, vy,
-                                                               *maps[0],
-                                                               *maps[1],
-                                                               *maps[2],
-                                                               *maps[3]);
-      vs = frenetVelocities[0];
-      vd = frenetVelocities[1];
-    //vector<double> frenetVelocities = getFrenetVelocity(x, y, world->maps_x,
-    //                                                          world->maps_y,
-    //                                                          world->maps_s,
-    //                                                          world->maps_dx,
-    //                                                          world->maps_dy);
+
       if (distance < 10.0){
-      if (laneAssignment != obj.laneAssignment) {
-        std::cout << "Car "<< id << " has changed lanes from lane "
-                  << laneAssignment << " to lane "
-                  << obj.laneAssignment << std::endl;;
+        if (laneAssignment != obj.laneAssignment) {
+          std::cout << "Car "<< id << " has changed lanes from lane "
+                    << laneAssignment << " to lane "
+                    << obj.laneAssignment << std::endl;;
+        }
       }
-      }
+
       laneAssignment = obj.laneAssignment;
       relativeVx = obj.relativeVx;
       relativeVy = obj.relativeVy;
@@ -280,17 +268,24 @@ class WorldObject {
       ttc = obj.ttc;
       
       if (distance < 10.0){
-      prediction = {};
-    //for (int i = 0; i < 200; i++) {
-    //  prediction.push_back(predict(i*.02));
-    //}
-      predict(5, prediction);
-      std::cout<<"lane: " <<laneAssignment<<" vs: "<< vs << " vd: " << vd << " curr d:" << d << " predicted d: " << prediction[prediction.size()-1][1]<< std::endl;
-      if ((std::abs(prediction[prediction.size()-1][1]) - d) > 4.0) {
-        
-        std::cout << "predicting that car "<<id<<" will change lanes"<<std::endl;
+        vector<double> frenetVelocities = getFrenetVelocity(x, y, vx, vy,
+                                                            *maps[0],
+                                                            *maps[1],
+                                                            *maps[2],
+                                                            *maps[3]);
+        vs = frenetVelocities[0];
+        vd = frenetVelocities[1];
 
-      }
+        prediction = {};
+        predict(5, prediction);
+        double predictedD = prediction[prediction.size()-1][1];
+        std::cout << "lane: " << laneAssignment << " vs: " << vs
+                  << " vd: " << vd << " curr d:" << d
+                  << " predicted d: " << predictedD
+                  << std::endl;
+        if ((std::abs(predictedD - d) > 4.0) {
+          std::cout << "predicting that car "<<id<<" will change lanes"<<std::endl;
+        }
       }
     }
 
