@@ -160,6 +160,7 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
 // Borrowed from: https://knowledge.udacity.com/questions/9577
 // Return velocity along s and d in frenet coordinates
 vector<double> getFrenetVelocity(double x, double y,
+                                 double vx, double vy,
                                  const vector<double> &maps_x, 
                                  const vector<double> &maps_y,
                                  const vector<double> &maps_dx, 
@@ -224,6 +225,8 @@ class WorldObject {
     double y;
     double vx;
     double vy;
+    double vs;
+    double vd;
     double s;
     double d;
     double d_prev;
@@ -251,11 +254,18 @@ class WorldObject {
       vy = obj.vy;
       s = obj.s;
       d = obj.d;
-      vector<double> frenetVelocities = getFrenetVelocity(x, y, world->maps_x,
-                                                                world->maps_y,
-                                                                world->maps_s,
-                                                                world->maps_dx,
-                                                                world->maps_dy);
+      vector<double> frenetVelocities = getFrenetVelocity(x, y, vx, vy,
+                                                               *maps[0],
+                                                               *maps[1],
+                                                               *maps[2],
+                                                               *maps[3]);
+      vs = frenetVelocities[0];
+      vd = frenetVelocities[1];
+    //vector<double> frenetVelocities = getFrenetVelocity(x, y, world->maps_x,
+    //                                                          world->maps_y,
+    //                                                          world->maps_s,
+    //                                                          world->maps_dx,
+    //                                                          world->maps_dy);
       if (laneAssignment != obj.laneAssignment) {
         std::cout << "Car "<< id << " has changed lanes from lane "
                   << laneAssignment << " to lane "
