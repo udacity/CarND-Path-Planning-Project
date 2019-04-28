@@ -266,17 +266,20 @@ class WorldObject {
     //                                                          world->maps_s,
     //                                                          world->maps_dx,
     //                                                          world->maps_dy);
+      if (distance < 10.0){
       if (laneAssignment != obj.laneAssignment) {
         std::cout << "Car "<< id << " has changed lanes from lane "
                   << laneAssignment << " to lane "
                   << obj.laneAssignment << std::endl;;
+      }
       }
       laneAssignment = obj.laneAssignment;
       relativeVx = obj.relativeVx;
       relativeVy = obj.relativeVy;
       distance = obj.distance;
       ttc = obj.ttc;
-
+      
+      if (distance < 10.0){
       prediction = {};
     //for (int i = 0; i < 200; i++) {
     //  prediction.push_back(predict(i*.02));
@@ -287,6 +290,7 @@ class WorldObject {
         
         std::cout << "predicting that car "<<id<<" will change lanes"<<std::endl;
 
+      }
       }
     }
 
