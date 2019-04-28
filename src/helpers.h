@@ -235,11 +235,12 @@ class WorldObject {
     double distance;
     double ttc;
     double speed;
-    WorldModel world;
+  //WorldModel world;
     vector<vector<double>> prediction;
+    vector<vector<double>*> maps;
 
-    WorldObject (WorldModel wm) {
-      world = wm;
+    WorldObject (vector<vector<double>*> worldMaps) {
+      maps = worldMaps;
     }
 
     void update(WorldObject obj) {
@@ -289,6 +290,7 @@ class WorldModel {
     vector<double>maps_s;
     vector<double>maps_dx;
     vector<double>maps_dy;
+    vector<vector<double>*> maps;
 
     WorldModel (Egocar* pointer, const vector<double>maps_x_in,
                                  const vector<double>maps_y_in,
@@ -301,14 +303,17 @@ class WorldModel {
       maps_s = maps_s_in;
       maps_dx = maps_dx_in;
       maps_dy = maps_dy_in;
+      maps.push_back(&maps_x);
+      maps.push_back(&maps_y);
+      maps.push_back(&maps_dx);
+      maps.push_back(&maps_dy);
     }
     
-    void update(vector<vector<double>> sensor_fusion) {
-      vector<WorldObject> updatedCars;
+    void update(const vector<vector<double>> sensor_fusion) {
       // Format for each car: [ id, x, y, vx, vy, s, d]
       for (auto& detection:sensor_fusion) {
         // Copy over the data
-        WorldObject obj(&this); 
+        WorldObject obj(maps); 
         obj.id = detection[0];
         obj.x  = detection[1];
         obj.y  = detection[2];
