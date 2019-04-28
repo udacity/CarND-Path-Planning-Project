@@ -283,8 +283,13 @@ class WorldObject {
                   << " vd: " << vd << " curr d:" << d
                   << " predicted d: " << predictedD
                   << std::endl;
-        if ((std::abs(predictedD - d) > 4.0) {
-          std::cout << "predicting that car "<<id<<" will change lanes"<<std::endl;
+        for (uint8_t secs; secs < prediction.size(); secs++) {
+          if ((std::abs(prediction[secs][1] - d) > 4.0) {
+            std::cout << "predicting that car " << id
+                      << " will change lanes in "
+                      << secs << " seconds." << std::endl;
+            break;
+          }
         }
       }
     }
