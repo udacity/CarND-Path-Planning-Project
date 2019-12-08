@@ -1,12 +1,12 @@
 #include <uWS/uWS.h>
-#include <fstream>
 #include <iostream>
+#include "json.hpp"
+#include <fstream>
 #include <string>
 #include <vector>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
-#include "json.hpp"
 
 // for convenience
 using nlohmann::json;
@@ -97,6 +97,11 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
+          double dist_inc = 0.5;
+          for (int i = 0; i < 50; ++i) {
+            next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
+            next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+          }
 
 
           msgJson["next_x"] = next_x_vals;
