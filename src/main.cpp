@@ -102,12 +102,14 @@ int main() {
           }
 
           bool too_close = false;
+          bool lcl = false;
+          bool lcr = false;
           // Use sensor fusion to find reference velocity to move at by looping through all the cars on the road
           // sensor_fusion vector [ id, x, y, vx, vy, s, d]
           for(int i = 0; i < sensor_fusion.size(); i++){
             // find out if another car is in the same lane as our ego car
             float d = sensor_fusion[i][6];
-            if(d < 2+4*lane+2 && d > 2+4*lane-2) {  // if our car is in lane 1, this checks if another car is between 4 and 8 meters in frenet coord. (aka within our 4m wide lane)
+            if(d < 2+4*lane+2 && d > 2+4*lane-2) {  // check current lane (2m left and right from the lane center)
               // speed of car in our lane
               double vx = sensor_fusion[i][3];
               double vy = sensor_fusion[i][4];
@@ -122,41 +124,51 @@ int main() {
 
                 // set flag to indicate that our car is too close to car in front of us
                 too_close = true;
-                
-
               }
             }
           }
-
+          
           // Setting reference velocity to avoid collision
           if(too_close){
-            // lane change logic
-            if(lane == 1){
-              // check if car on the left lane in front
-              for(int i=0; i<sensor_fusion.size(); i++){
-                float d = sensor_fusion[i][6];
-                if(d < 2+4*(lane-1)+2 && d > 2+4*(lane-1)-2){
-                  // std::cout<<"Car with id "<<sensor_fusion[i][0]<<" in the left lane with s = "<<sensor_fusion[i][5]<<" and d = "<<sensor_fusion[i][6]<<std::endl;
-                  double vx = sensor_fusion[i][3];
-                  double vy = sensor_fusion[i][4];
-                  double check_speed = sqrt(pow(vx,2)+pow(vy,2));  // speed magn.
-
-                  double check_car_s = sensor_fusion[i][5];
-
-                  check_car_s += (double)prev_size * 0.02 * check_speed;
-                  std::cout<<"Car with id = "<<sensor_fusion[i][0]<<" Check_car_s = "<<check_car_s<<"\t car_s = "<<car_s<<"\t with distance = "<<check_car_s - car_s<<"; lane change would be unsafe"<<std::endl;
-                  if(car_s < check_car_s && check_car_s - car_s < 30) {  // todo: add check for if car is behind
-                    ref_vel -= 0.224; // decrease speed by 0.1 meters/sec
-                  }
-                  // todo: add check for right lane;
-                  else{
-                    lane = 0;
-                  }
+            // see if lane change is safe by checking cars on the adjacent lanes
+            for(int i=0; i<sensor_fusion.size(); i++){
+              float d = sensor_fusion[i][6];
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double check_speed = sqrt(pow(vx,2)+pow(vy,2));  // speed magn.
+              double check_car_s = sensor_fusion[i][5];
+              check_car_s += (double)prev_size * 0.02 * check_speed;
+              // check lane left
+              if(lane > 0 && d < 2+4*(lane-1)+2 && d > 2+4*(lane-1)-2){
+                if(car_s < check_car_s && check_car_s - car_s < 30){ //todo: add check for car behind us
+                  lcl = false;
+                }
+                else{  // lane change left would be safe
+                  lcl = true;
+                }
+              }
+              // check lane right
+              if(lane < 2 && d < 2+4*(lane+1)+2 && d > 2+4*(lane+1)-2){
+                if(car_s < check_car_s && check_car_s - car_s < 30){  // todo: add look behind condition
+                  lcr = false;
+                }
+                else{
+                  lcr = true;
                 }
               }
             }
+            if(lcl){
+              --lane;  // prefer a lane change left
+            }
+            else{
+              if(lcr){  // if lane change left not possible, perform lane change right
+                ++lane;
+              }
+              else{  // if lane change right also not possible, slow down
+                ref_vel -= 0.224;
+              }
+            }
           }
-
           
           else if(ref_vel<49.5){
             ref_vel += 0.224;  // if terminal velocity not reached, increase speed
