@@ -145,7 +145,7 @@ int main() {
               // check lane left
               if(lane > 0 && d < 2+4*(lane-1)+2 && d > 2+4*(lane-1)-2){
                 dist_left = check_car_s - car_s;
-                if(car_s < check_car_s && dist_left < safe_dist){ //todo: add check for car behind us and only use positive condition
+                if((car_s < check_car_s && dist_left < safe_dist) || (car_s > check_car && check_car - car_s > -safe_dist)){
                   lcl = false;
                 }
                 else{  // lane change left would be safe
@@ -155,7 +155,7 @@ int main() {
               // check lane right
               if(lane < 2 && d < 2+4*(lane+1)+2 && d > 2+4*(lane+1)-2){
                 dist_right = check_car_s - car_s;
-                if(car_s < check_car_s && dist_right < safe_dist){  // todo: add look behind condition
+                if((car_s < check_car_s && dist_left < safe_dist) || (car_s > check_car && check_car - car_s > -safe_dist))){
                   lcr = false;
                 }
                 else{
