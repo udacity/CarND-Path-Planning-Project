@@ -16,6 +16,7 @@ using std::vector;
 
 int lane = 1;
 double ref_vel = 0.0;
+double safe_dist = 50.0;
 
 int main() {
   uWS::Hub h;
@@ -119,7 +120,7 @@ int main() {
 
               check_car_s += (double)prev_size * 0.02 * check_speed; // projecting the cars position into the future by using previous points
 
-              if(car_s < check_car_s && check_car_s - car_s < 30) {  // if car is in front of us and the other cars future position is smaller than 30m in front of our car
+              if(car_s < check_car_s && check_car_s - car_s < safe_dist) {  // if car is in front of us and the other cars future position is smaller than 30m in front of our car
                 // change lane flag would go here
 
                 // set flag to indicate that our car is too close to car in front of us
@@ -140,7 +141,7 @@ int main() {
               check_car_s += (double)prev_size * 0.02 * check_speed;
               // check lane left
               if(lane > 0 && d < 2+4*(lane-1)+2 && d > 2+4*(lane-1)-2){
-                if(car_s < check_car_s && check_car_s - car_s < 30){ //todo: add check for car behind us
+                if(car_s < check_car_s && check_car_s - car_s < safe_dist){ //todo: add check for car behind us and only use positive condition
                   lcl = false;
                 }
                 else{  // lane change left would be safe
@@ -149,7 +150,7 @@ int main() {
               }
               // check lane right
               if(lane < 2 && d < 2+4*(lane+1)+2 && d > 2+4*(lane+1)-2){
-                if(car_s < check_car_s && check_car_s - car_s < 30){  // todo: add look behind condition
+                if(car_s < check_car_s && check_car_s - car_s < safe_dist){  // todo: add look behind condition
                   lcr = false;
                 }
                 else{
@@ -225,9 +226,9 @@ int main() {
           }
 
           // create evenly spaced points e.g. 30m apart starting from the reference points (can be defined using variable int apart = 30)
-          vector<double> next_wp0 = getXY(car_s+30, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp1 = getXY(car_s+60, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp2 = getXY(car_s+90, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp0 = getXY(car_s+safe_dist, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp1 = getXY(car_s+safe_dist*2, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp2 = getXY(car_s+safe_dist*3, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
           ptsx.push_back(next_wp0[0]);
           ptsx.push_back(next_wp1[0]);
@@ -261,7 +262,7 @@ int main() {
           }
 
           // Spacing points of generated spline in order to keep desired speed
-          double target_x = 30.0;
+          double target_x = safe_dist;
           double target_y = s(target_x);  // what is y for given x according to spline function
           double target_dist = sqrt(pow(target_x, 2) + pow(target_y, 2));
 
