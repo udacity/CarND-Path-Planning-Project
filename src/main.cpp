@@ -104,7 +104,7 @@ int main() {
           if(prev_size > 0){
             car_s = end_path_s;
           }
-
+          // todo: set to positive conditions
           bool too_close = false;
           bool no_lcl = false;
           bool no_lcr = false;
@@ -140,7 +140,7 @@ int main() {
           
           // setting flags
           if(lane == lane_other_car){  // if car is in same lane
-            too_close = too_close | (check_car_s > car_s && dist2othercar < safe_dist_front);
+            too_close = too_close | (check_car_s > car_s && dist2othercar < safe_dist_front);  // todo: check if removing too_close |  works too
           }
           else if(lane-lane_other_car == 1){  // if car is on the left lane of us
             no_lcl = no_lcl | (dist2othercar < safe_dist_front && dist2othercar > safe_dist_back);
@@ -166,10 +166,14 @@ int main() {
           // set actions for free driving (aka no car in front) -> keep right as possible
           else{
             if(lane==0 && !no_lcr){  // if on left lane, go back to middle lane
-              lane = 1; 
+              std::cout<<"Currently on lane "<<lane<<", there are " << too_close<<" cars in front and the lcr flag is "<<no_lcr<<"; that means it is possible to change to middle lane"<<std::endl;
+              //lane = 1; 
+              ++lane;
             }
             else if(lane==1 && !no_lcr){  // if on middle lane, go back to right lane
-              lane = 2;
+              // lane = 2;
+              std::cout<<"Currently on lane "<<lane<<", there are " << too_close<<" cars in front and the lcr flag is "<<no_lcr<<"; that means it is possible to change to right lane"<<std::endl;
+              ++lane;
             }
             if(ref_vel < 49.5){
               speed_diff += 0.224;
