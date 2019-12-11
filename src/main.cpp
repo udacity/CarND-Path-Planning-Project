@@ -106,8 +106,8 @@ int main() {
           }
 
           bool too_close = false;
-          bool lcl = false;
-          bool lcr = false;
+          bool no_lcl = false;
+          bool no_lcr = false;
           double dist_left = 0.0;
           double dist_right = 0.0;
           // Use sensor fusion to find reference velocity to move at by looping through all the cars on the road
@@ -115,93 +115,65 @@ int main() {
           for(int i = 0; i < sensor_fusion.size(); i++){
             // find out if another car is in the same lane as our ego car
             float d = sensor_fusion[i][6];
-            if(d < 2+4*lane+2 && d > 2+4*lane-2) {  // check current lane (2m left and right from the lane center)
-              // speed of car in our lane
-              double vx = sensor_fusion[i][3];
-              double vy = sensor_fusion[i][4];
-              double check_speed = sqrt(pow(vx,2)+pow(vy,2));  // speed magn.
+            double vx = sensor_fusion[i][3];
+            double vy = sensor_fusion[i][4];
+            double check_speed = sqrt(pow(vx,2)+pow(vy,2));  // speed magn.
 
-              double check_car_s = sensor_fusion[i][5];
+            double check_car_s = sensor_fusion[i][5];
 
-              check_car_s += (double)prev_size * 0.02 * check_speed; // projecting the cars position into the future by using previous points
-
-              if(car_s < check_car_s && check_car_s - car_s < safe_dist_front) {  // if car is in front of us and the other cars future position is smaller than 30m in front of our car
-                // change lane flag would go here
-
-                // set flag to indicate that our car is too close to car in front of us
-                too_close = true;
-              }
+            check_car_s += (double)prev_size * 0.02 * check_speed; // prediction: projecting the cars position into the future by using previous points
+            
+            double dist2othercar = check_car_s - car_s;
+            int lane_other_car;
+            // find lanes of other cars
+            if(d>0 && d<=4){
+              lane_other_car = 0;  // left lane
             }
-          }
+            else if(d>4 && d<=8){
+              lane_other_car = 1;  // middle lane
+            }
+            else if(d>8 && d<=12){
+              lane_other_car = 2;  // right lane
+            }
+            // todo: add check for lane_other_car < 0 if initialized to -1
           
-          // Setting reference velocity to avoid collision
-          if(too_close){
-            // see if lane change is safe by checking cars on the adjacent lanes
-            for(int i=0; i<sensor_fusion.size(); i++){
-              float d = sensor_fusion[i][6];
-              double vx = sensor_fusion[i][3];
-              double vy = sensor_fusion[i][4];
-              double check_speed = sqrt(pow(vx,2)+pow(vy,2));  // speed magn.
-              double check_car_s = sensor_fusion[i][5];
-              check_car_s += (double)prev_size * 0.02 * check_speed;
-              // check lane left
-              if(lane > 0 && d < 2+4*(lane-1)+2 && d > 2+4*(lane-1)-2){
-                dist_left = check_car_s - car_s;
-                if((car_s < check_car_s && dist_left < safe_dist_front) || (car_s > check_car_s && dist_left > safe_dist_back)){
-                  lcl = false;
-                }
-                else{  // lane change left would be safe
-                  lcl = true;
-                }
-              }
-              // check lane right
-              if(lane < 2 && d < 2+4*(lane+1)+2 && d > 2+4*(lane+1)-2){
-                dist_right = check_car_s - car_s;
-                if((car_s < check_car_s && dist_right < safe_dist_front) || (car_s > check_car_s && dist_right > safe_dist_back)){
-                  lcr = false;
-                }
-                else{
-                  lcr = true;
-                }
-              }
-            }
-            if(lcl && lcr){  // both types of lane changes are possible
-              // if that's the case change to the lane where the distance to the front car is larger
-              if(dist_left>=dist_right){
-                --lane;
-              }
-              else{
-                ++lane;
-              }
-            }
+          
+          // setting flags
+          if(lane == lane_other_car){  // if car is in same lane
+            too_close = too_close | (check_car_s > car_s && dist2othercar < safe_dist_front);
+          }
+          else if(lane-lane_other_car == 1){  // if car is on the left lane of us
+            no_lcl = no_lcl | (dist2othercar < safe_dist_front && dist2othercar > safe_dist_back);
+          }
+          else if(lane-lane_other_car == -1){ // if car is on the right lane of us
+            no_lcr = no_lcr | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
+          }
+        }
 
-            else if(lcl and !lcr){  // only left lane change possible
+          // take actions
+          double speed_diff = 0;
+          if(too_close){
+            if(!no_lcl && lane > 0){  //no car on left lane and we are on middle lane or right lane
               --lane;
             }
-            else if(!lcl and lcr){  // only right lane change possible
+            else if(!no_lcr && lane!=2){  //no car on right lane and we are on middle lane or left lane
               ++lane;
             }
-            else{  // lane change not possible -> slow down
-              ref_vel -= 0.224;
+            else {
+              speed_diff -= 0.224;  // slow down
             }
-            /*
-            if(lcl){
-              --lane;  // prefer a lane change left
-            }
-            else{
-              if(lcr){  // if lane change left not possible, perform lane change right
-                ++lane;
-              }
-              else{  // if lane change right also not possible, slow down
-                ref_vel -= 0.224;
-              }
-            }
-            */
           }
-          
-          else if(ref_vel<49.5){
-            ref_vel += 0.224;  // if terminal velocity not reached, increase speed
-            // can be outsourced into the loop further below where N is set
+          // set actions for free driving (aka no car in front) -> keep right as possible
+          else{
+            if(lane==0 && !no_lcr){  // if on left lane, go back to middle lane
+              lane = 1; 
+            }
+            else if(lane==1 && !no_lcr){  // if on middle lane, go back to right lane
+              lane = 2;
+            }
+            if(ref_vel < 49.5){
+              speed_diff += 0.224;
+            }
           }
           
           json msgJson;
@@ -298,6 +270,13 @@ int main() {
 
           // Add points of Spline to new path to fill up remaining points of the path (previous path + new path generated by spline)
           for(int i = 0; i < path_size-previous_path_x.size(); i++){  // assuming the path always consists of path_size points
+            ref_vel += speed_diff;
+            if(ref_vel > 49.5){
+              ref_vel = 49.5;
+            }
+            else if(ref_vel < 0.224){
+              ref_vel = 0.224;
+            }
             double N = target_dist/(0.02*ref_vel/2.24); // Number of points for splitting up the trajectory along the target distance; converting from mph to m/sec, evaluating new point every 20 ms
             double x_point = x_add_on + target_x / N;  // next x point
             double y_point = s(x_point);  // evaluating y point along the spline
