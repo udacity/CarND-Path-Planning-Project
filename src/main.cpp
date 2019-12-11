@@ -14,6 +14,9 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
+int lane = 1;
+double ref_vel = 0.0;
+
 int main() {
   uWS::Hub h;
 
@@ -59,8 +62,6 @@ int main() {
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     // define lane and reference velocity slightly below speed limit
-    int lane = 1;
-    double ref_vel = 0.0;
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
@@ -116,7 +117,7 @@ int main() {
 
               check_car_s += (double)prev_size * 0.02 * check_speed; // projecting the cars position into the future by using previous points
 
-              if(car_s < check_car_s && car_s > check_car_s - 30) {  // if car is in front of us and the other cars future position is smaller than 30m in front of our car
+              if(car_s < check_car_s && check_car_s - car_s < 30) {  // if car is in front of us and the other cars future position is smaller than 30m in front of our car
                 // change lane flag would go here
 
                 // set flag to indicate that our car is too close to car in front of us
@@ -131,10 +132,12 @@ int main() {
             ref_vel -= 0.224; // decrease speed by 0.1 meters/sec
           }
 
+          
           else if(ref_vel<49.5){
             ref_vel += 0.224;  // if terminal velocity not reached, increase speed
             // can be outsourced into the loop further below where N is set
           }
+          
           json msgJson;
 
           vector<double> next_x_vals;
