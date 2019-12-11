@@ -16,10 +16,10 @@ using std::vector;
 
 int lane = 1;
 double ref_vel = 0.0;
-double safe_dist_front = 40.0;
+double safe_dist_front = 30.0;
 double safe_dist_back = -30.0;
 double target_spacing = 30.0;
-int path_size = 30;
+int path_size = 50;
 
 int main() {
   uWS::Hub h;
@@ -334,6 +334,20 @@ int main() {
       }
     }  // end websocket if
   }); // end h.onMessage
+
+  // We don't need this since we're not using HTTP but if it's removed the
+  // program
+  // doesn't compile :-(
+  h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data,
+                     size_t, size_t) {
+    const std::string s = "<h1>Hello world!</h1>";
+    if (req.getUrl().valueLength == 1) {
+      res->end(s.data(), s.length());
+    } else {
+      // i guess this should be done more gracefully?
+      res->end(nullptr, 0);
+    }
+  });
 
   h.onConnection([&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
     std::cout << "Connected!!!" << std::endl;
