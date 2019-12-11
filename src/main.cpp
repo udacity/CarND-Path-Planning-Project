@@ -58,6 +58,9 @@ int main() {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
+    // define lane and reference velocity slightly below speed limit
+    int lane = 1;
+    double ref_vel = 49.5;
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
@@ -88,6 +91,9 @@ int main() {
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
+          
+          // the size of the previous path
+          int prev_size = previous_path_x.size();
 
           json msgJson;
 
@@ -98,18 +104,110 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-          /* Create widely spaced waypoints which are e.g. 30m apart and fit spline */
-          double dist_inc = 0.3;  // distance increment
-          for (int i = 0; i < 50; ++i) {
-            double next_s = car_s + dist_inc*(i+1);
-            double next_d = 6;  // a lane is 4 meters wide, the origin of the d coordinate is in the left most lane of the right hand side -> 6 = middle of 			middle lane
-            
-            vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            // next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
-            // next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+          // Generate a smooth trajectory by creating a couple of widely spaced waypoints which are e.g. 30m apart and then fit spline through those points
+          vector <double> ptsx;
+          vector <double> ptsy;
 
-            next_x_vals.push_back(next_xy[0]);
-            next_y_vals.push_back(next_xy[1]);
+          // Create reference x, y, yaw points; either where car is at or where previous path ends
+          double ref_x = car_x;
+          double ref_y = car_y;
+          double ref_yaw = car_yaw;
+
+          // if previous path almost empty, use state of car
+          if(prev_size < 2){
+            // Generate two points to make path that's tangent to car's state
+            double prev_car_x = car_x - cos(car_yaw);  
+            double prev_car_y = car_y - sin(car_yaw);
+
+            ptsx.push_back(prev_car_x);  //first point
+            ptsx.push_back(car_x);  //second point
+
+            ptsy.push_back(prev_car_y);
+            ptsy.push_back(car_y);
+
+          }
+
+          // if we can build upon previous path
+          else{
+            // set reference state as previous path endpoints
+            ref_x = previous_path_x[prev_size-1];  // last point
+            ref_y = previous_path_y[prev_size-1];
+
+            double prev_ref_x = previous_path_x[prev_size-2]; // penultimate point
+            double prev_ref_y = previous_path_y[prev_size-2];
+            ref_yaw = atan2(ref_y-prev_ref_y, ref_x-prev_ref_x);
+
+            ptsx.push_back(prev_ref_x);
+            ptsx.push_back(ref_x);
+
+            ptsy.push_back(prev_ref_y);
+            ptsy.push_back(ref_y);
+          }
+
+          // create evenly spaced points e.g. 30m apart starting from the reference points (can be defined using variable int apart = 30)
+          vector<double> next_wp0 = getXY(car_s+30, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp1 = getXY(car_s+60, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp2 = getXY(car_s+90, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+          ptsx.push_back(next_wp0[0]);
+          ptsx.push_back(next_wp1[0]);
+          ptsx.push_back(next_wp2[0]);
+
+          ptsy.push_back(next_wp0[1]);
+          ptsy.push_back(next_wp1[1]);
+          ptsy.push_back(next_wp2[1]);
+
+          // now there are five points which define the trajectory of the next cycle
+
+          // transformation into the car's coordinates / point of view
+          for(int i = 0; i<ptsx.size(); i++){
+            // translation
+            double shift_x = ptsx[i]-ref_x;
+            double shift_y = ptsy[i]-ref_y;
+
+            // ... plus rotation
+            ptsx[i] = shift_x * cos(-ref_yaw) - shift_y * sin(-ref_yaw);
+            ptsy[i] = shift_x * sin(-ref_yaw) + shift_y * cos(-ref_yaw);
+          }
+
+          // now fitting points by creating spline
+          tk::spline s;
+          s.set_points(ptsx, ptsy);
+
+          // Build new path by starting with previous path
+          for(int i = 0; i<previous_path_x.size(); i++){
+            next_x_vals.push_back(previous_path_x[i]);
+            next_y_vals.push_back(previous_path_y[i]);
+          }
+
+          // Spacing points of generated spline in order to keep desired speed
+          double target_x = 30.0;
+          double target_y = s(target_x);  // what is y for given x according to spline function
+          double target_dist = sqrt(pow(target_x, 2) + pow(target_y, 2));
+
+          double x_add_on = 0.0;
+
+          // Add points of Spline to new path to fill up remaining points of the path (previous path + new path generated by spline)
+          for(int i = 0; i < 50-previous_path_x.size(); i++){  // assuming the path always consists of 50 points
+            double N = target_dist/(0.02*ref_vel/2.24); // Number of points for splitting up the trajectory along the target distance; converting from mph to m/sec, evaluating new point every 20 ms
+            double x_point = x_add_on + target_x / N;  // next x point
+            double y_point = s(x_point);  // evaluating y point along the spline
+
+            x_add_on = x_point;
+            double x_ref = x_point;
+            double y_ref = y_point;
+
+            // transform back to global coordinate from car coordinates
+            x_point = x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
+            y_point = x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
+
+            x_point += ref_x;
+            y_point += ref_y;
+
+            next_x_vals.push_back(x_point);
+            next_y_vals.push_back(y_point);
+
+
           }
 
 
