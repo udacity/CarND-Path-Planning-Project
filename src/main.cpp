@@ -16,7 +16,7 @@ using std::vector;
 
 int lane = 1;
 double ref_vel = 0.0;
-double safe_dist = 40.0;
+double safe_dist = 50.0;
 double target_spacing = 50.0;
 
 int main() {
@@ -106,6 +106,8 @@ int main() {
           bool too_close = false;
           bool lcl = false;
           bool lcr = false;
+          double dist_left = 0.0;
+          double dist_right = 0.0;
           // Use sensor fusion to find reference velocity to move at by looping through all the cars on the road
           // sensor_fusion vector [ id, x, y, vx, vy, s, d]
           for(int i = 0; i < sensor_fusion.size(); i++){
@@ -142,7 +144,8 @@ int main() {
               check_car_s += (double)prev_size * 0.02 * check_speed;
               // check lane left
               if(lane > 0 && d < 2+4*(lane-1)+2 && d > 2+4*(lane-1)-2){
-                if(car_s < check_car_s && check_car_s - car_s < safe_dist){ //todo: add check for car behind us and only use positive condition
+                dist_left = check_car_s - car_s;
+                if(car_s < check_car_s && dist_left < safe_dist){ //todo: add check for car behind us and only use positive condition
                   lcl = false;
                 }
                 else{  // lane change left would be safe
@@ -151,7 +154,8 @@ int main() {
               }
               // check lane right
               if(lane < 2 && d < 2+4*(lane+1)+2 && d > 2+4*(lane+1)-2){
-                if(car_s < check_car_s && check_car_s - car_s < safe_dist){  // todo: add look behind condition
+                dist_right = check_car_s - car_s;
+                if(car_s < check_car_s && dist_right < safe_dist){  // todo: add look behind condition
                   lcr = false;
                 }
                 else{
@@ -159,6 +163,26 @@ int main() {
                 }
               }
             }
+            if(lcl && lcr){  // both types of lane changes are possible
+              // if that's the case change to the lane where the distance to the front car is larger
+              if(dist_left>=dist_right){
+                --lane;
+              }
+              else{
+                ++lane;
+              }
+            }
+
+            else if(lcl and !lcr){  // only left lane change possible
+              --lane;
+            }
+            else if(!lcl and lcr){  // only right lane change possible
+              ++lane;
+            }
+            else{  // lane change not possible -> slow down
+              ref_vel -= 0.224;
+            }
+            /*
             if(lcl){
               --lane;  // prefer a lane change left
             }
@@ -170,6 +194,7 @@ int main() {
                 ref_vel -= 0.224;
               }
             }
+            */
           }
           
           else if(ref_vel<49.5){
