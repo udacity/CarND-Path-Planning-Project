@@ -16,7 +16,8 @@ using std::vector;
 
 int lane = 1;
 double ref_vel = 0.0;
-double safe_dist = 50.0;
+double safe_dist = 30.0;
+double target_spacing = 50.0;
 
 int main() {
   uWS::Hub h;
@@ -262,7 +263,7 @@ int main() {
           }
 
           // Spacing points of generated spline in order to keep desired speed
-          double target_x = safe_dist;
+          double target_x = target_spacing;
           double target_y = s(target_x);  // what is y for given x according to spline function
           double target_dist = sqrt(pow(target_x, 2) + pow(target_y, 2));
 
