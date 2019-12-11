@@ -122,6 +122,7 @@ int main() {
 
                 // set flag to indicate that our car is too close to car in front of us
                 too_close = true;
+                
 
               }
             }
@@ -129,7 +130,31 @@ int main() {
 
           // Setting reference velocity to avoid collision
           if(too_close){
-            ref_vel -= 0.224; // decrease speed by 0.1 meters/sec
+            // lane change logic
+            if(lane == 1){
+              // check if car on the left lane in front
+              for(int i=0; i<sensor_fusion.size(); i++){
+                float d = sensor_fusion[i][6];
+                if(d < 2+4*(lane-1)+2 && d > 2+4*(lane-1)-2){
+                  // std::cout<<"Car with id "<<sensor_fusion[i][0]<<" in the left lane with s = "<<sensor_fusion[i][5]<<" and d = "<<sensor_fusion[i][6]<<std::endl;
+                  double vx = sensor_fusion[i][3];
+                  double vy = sensor_fusion[i][4];
+                  double check_speed = sqrt(pow(vx,2)+pow(vy,2));  // speed magn.
+
+                  double check_car_s = sensor_fusion[i][5];
+
+                  check_car_s += (double)prev_size * 0.02 * check_speed;
+                  std::cout<<"Car with id = "<<sensor_fusion[i][0]<<" Check_car_s = "<<check_car_s<<"\t car_s = "<<car_s<<"\t with distance = "<<check_car_s - car_s<<"; lane change would be unsafe"<<std::endl;
+                  if(car_s < check_car_s && check_car_s - car_s < 30) {  // todo: add check for if car is behind
+                    ref_vel -= 0.224; // decrease speed by 0.1 meters/sec
+                  }
+                  // todo: add check for right lane;
+                  else{
+                    lane = 0;
+                  }
+                }
+              }
+            }
           }
 
           
