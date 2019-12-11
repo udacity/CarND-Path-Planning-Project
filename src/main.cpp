@@ -7,6 +7,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
+#include "spline.h"
 
 // for convenience
 using nlohmann::json;
@@ -97,10 +98,18 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-          double dist_inc = 0.5;
+          /* Create widely spaced waypoints which are e.g. 30m apart and fit spline */
+          double dist_inc = 0.3;  // distance increment
           for (int i = 0; i < 50; ++i) {
-            next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
-            next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+            double next_s = car_s + dist_inc*(i+1);
+            double next_d = 6;  // a lane is 4 meters wide, the origin of the d coordinate is in the left most lane of the right hand side -> 6 = middle of 			middle lane
+            
+            vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            // next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
+            // next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+
+            next_x_vals.push_back(next_xy[0]);
+            next_y_vals.push_back(next_xy[1]);
           }
 
 
