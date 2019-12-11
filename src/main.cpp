@@ -18,7 +18,7 @@ int lane = 1;
 double ref_vel = 0.0;
 double safe_dist_front = 40.0;
 double safe_dist_back = -30.0;
-double target_spacing = 40.0;
+double target_spacing = 30.0;
 int path_size = 30;
 
 int main() {
