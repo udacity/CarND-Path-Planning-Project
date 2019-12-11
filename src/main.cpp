@@ -60,7 +60,7 @@ int main() {
     // The 2 signifies a websocket event
     // define lane and reference velocity slightly below speed limit
     int lane = 1;
-    double ref_vel = 49.5;
+    double ref_vel = 0.0;
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
@@ -95,6 +95,46 @@ int main() {
           // the size of the previous path
           int prev_size = previous_path_x.size();
 
+          /* Collision avoidance */
+          if(prev_size > 0){
+            car_s = end_path_s;
+          }
+
+          bool too_close = false;
+          // Use sensor fusion to find reference velocity to move at by looping through all the cars on the road
+          // sensor_fusion vector [ id, x, y, vx, vy, s, d]
+          for(int i = 0; i < sensor_fusion.size(); i++){
+            // find out if another car is in the same lane as our ego car
+            float d = sensor_fusion[i][6];
+            if(d < 2+4*lane+2 && d > 2+4*lane-2) {  // if our car is in lane 1, this checks if another car is between 4 and 8 meters in frenet coord. (aka within our 4m wide lane)
+              // speed of car in our lane
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double check_speed = sqrt(pow(vx,2)+pow(vy,2));  // speed magn.
+
+              double check_car_s = sensor_fusion[i][5];
+
+              check_car_s += (double)prev_size * 0.02 * check_speed; // projecting the cars position into the future by using previous points
+
+              if(car_s < check_car_s && car_s > check_car_s - 30) {  // if car is in front of us and the other cars future position is smaller than 30m in front of our car
+                // change lane flag would go here
+
+                // set flag to indicate that our car is too close to car in front of us
+                too_close = true;
+
+              }
+            }
+          }
+
+          // Setting reference velocity to avoid collision
+          if(too_close){
+            ref_vel -= 0.224; // decrease speed by 0.1 meters/sec
+          }
+
+          else if(ref_vel<49.5){
+            ref_vel += 0.224;  // if terminal velocity not reached, increase speed
+            // can be outsourced into the loop further below where N is set
+          }
           json msgJson;
 
           vector<double> next_x_vals;
