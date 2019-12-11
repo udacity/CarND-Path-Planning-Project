@@ -152,6 +152,7 @@ int main() {
 
           // take actions
           double speed_diff = 0;
+          std::cout<<"too close is "<<too_close<<std::endl;
           if(too_close){
             if(!no_lcl && lane > 0){  //no car on left lane and we are on middle lane or right lane
               --lane;
@@ -165,14 +166,7 @@ int main() {
           }
           // set actions for free driving (aka no car in front) -> keep right as possible
           else{
-            if(lane==0 && !no_lcr){  // if on left lane, go back to middle lane
-              std::cout<<"Currently on lane "<<lane<<", there are " << too_close<<" cars in front and the lcr flag is "<<no_lcr<<"; that means it is possible to change to middle lane"<<std::endl;
-              //lane = 1; 
-              ++lane;
-            }
-            else if(lane==1 && !no_lcr){  // if on middle lane, go back to right lane
-              // lane = 2;
-              std::cout<<"Currently on lane "<<lane<<", there are " << too_close<<" cars in front and the lcr flag is "<<no_lcr<<"; that means it is possible to change to right lane"<<std::endl;
+            if(lane<2 && !no_lcr){  // if on left lane, go back to middle lane
               ++lane;
             }
             if(ref_vel < 49.5){
