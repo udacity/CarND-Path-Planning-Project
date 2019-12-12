@@ -115,8 +115,15 @@ int main() {
           
           // Use sensor fusion to find reference velocity to move at by looping through all the cars on the road
           // sensor_fusion vector [ id, x, y, vx, vy, s, d]
+
+          // Dealing with speed keeping; first get average speed of all vehicles on the same lane as our ego vehicle
+          vector<double> car_speeds;
+          vector<int> car_ids;
+          vector<double> car_dists;
+
           for(int i = 0; i < sensor_fusion.size(); i++){
             // find out if another car is in the same lane as our ego car
+            int car_id = sensor_fusion[i][0];
             float d = sensor_fusion[i][6];
             double vx = sensor_fusion[i][3];
             double vy = sensor_fusion[i][4];
@@ -140,10 +147,15 @@ int main() {
             }
             // todo: add check for lane_other_car < 0 if initialized to -1
           
-          
             // setting flags
             if(lane == lane_other_car){  // if car is in same lane
               too_close = too_close | (check_car_s > car_s && dist2othercar < safe_dist_front);  // todo: check if removing too_close |  works too
+              // add info about cars in front on our lane
+              if(check_car_s > car_s){
+                car_ids.push_back(car_id);
+                car_dists.push_back(dist2othercar);
+                car_speeds.push_back(check_speed);
+              }
             }
             else if(lane-lane_other_car == 1){  // if car is on the left lane of us
               car_left = car_left | (dist2othercar < safe_dist_front && dist2othercar > safe_dist_back);
@@ -151,14 +163,15 @@ int main() {
             else if(lane-lane_other_car == -1){ // if car is on the right lane of us
               car_right = car_right | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
             }
-          // This flag actually forces the car to drive right but it leads to unwanted behavior where the car sometimes
-          // immediately swerves right after an overtaking maneuvre
-          /*
-          else {
-            car_right = false;
           }
-          */
-        }
+
+          // DEBUG: print out infos about cars in front of us
+          for(int i=0; i<car_ids.size(); i++){
+            std::cout<<"Car with id = "<<car_ids[i]<<"\t distance = "<<car_dists[i]<<"\t speed = "<<car_speeds[i]<<std::endl;
+          }
+
+          std::cout<<"Ego vehicle speed is "<<car_speed<<std::endl;
+
           // take actions
           double speed_diff = 0;
           if(too_close){
@@ -174,14 +187,6 @@ int main() {
           }
           // set actions for free driving (aka no car in front) -> keep right as possible
           else{
-            // also unpredictable behavior! best solution would be to disable that or switch middle lane driving
-            if (lane!= 2) { // if we are not on the center lane.
-                //if ((lane == 0 && !car_righ ) || ( lane == 2 && !car_left ) ) {
-                if((lane==0 || lane==1) && !car_right)
-                  lane = 2; // Back to right.
-                }
-            }
-
             if(ref_vel < 49.5){
               speed_diff += 0.224;
             }
