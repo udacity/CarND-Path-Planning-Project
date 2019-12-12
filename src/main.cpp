@@ -202,6 +202,12 @@ int main() {
               if(lane-lane_other_car == -1){ // if car is on the right lane of us
                 car_right_fd = car_right_fd | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
               }
+              // does not help
+              /*
+              else{
+                car_right_fd = false;
+              }
+              */
             }
 
             if (lane !=1) { // if we are not on the center lane.
