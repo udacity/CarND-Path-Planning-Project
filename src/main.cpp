@@ -107,8 +107,8 @@ int main() {
           // todo: set to positive conditions
           // these are evaluated at each time instance
           bool too_close = false;
-          bool no_lcl = false;
-          bool no_lcr = false;
+          bool car_left = false;
+          bool car_right = false;
           double dist_left = 0.0;
           double dist_right = 0.0;
           
@@ -146,25 +146,25 @@ int main() {
             too_close = too_close | (check_car_s > car_s && dist2othercar < safe_dist_front);  // todo: check if removing too_close |  works too
           }
           else if(lane-lane_other_car == 1){  // if car is on the left lane of us
-            no_lcl = no_lcl | (dist2othercar < safe_dist_front && dist2othercar > safe_dist_back);
+            car_left = car_left | (dist2othercar < safe_dist_front && dist2othercar > safe_dist_back);
           }
           else if(lane-lane_other_car == -1){ // if car is on the right lane of us
-            no_lcr = no_lcr | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
+            car_right = car_right | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
           }
           // testing this setup
           else {
-            no_lcr = false;
+            car_right = false;
           }
         }
 
           // take actions
           double speed_diff = 0;
-          // std::cout<<"too close is "<<too_close<<" \t lane is " << lane << "\t lcr flag is "<<!no_lcr<<std::endl;
+          // std::cout<<"too close is "<<too_close<<" \t lane is " << lane << "\t lcr flag is "<<!car_right<<std::endl;
           if(too_close){
-            if(!no_lcl && lane > 0){  //no car on left lane and we are on middle lane or right lane
+            if(!car_left && lane > 0){  //no car on left lane and we are on middle lane or right lane
               --lane;
             }
-            else if(!no_lcr && lane!=2){  //no car on right lane and we are on middle lane or left lane
+            else if(!car_right && lane!=2){  //no car on right lane and we are on middle lane or left lane
               ++lane;
             }
             else {
@@ -174,19 +174,20 @@ int main() {
           // set actions for free driving (aka no car in front) -> keep right as possible
           else{
             /*
-            if(lane<2 && !no_lcr){  // if on left lane, go back to middle lane
-              std::cout<<"condition for free road is "<<(lane<2&&!no_lcr)<<std::endl;
+            if(lane<2 && !car_right){  // if on left lane, go back to middle lane
+              std::cout<<"condition for free road is "<<(lane<2&&!car_right)<<std::endl;
               ++lane;
             }
             */
+            std::cout<<"Car right flag is "<<car_right<<std::endl;
             if (lane !=1) { // if we are not on the center lane.
-              if((lane == 0 && !no_lcr )) {
+              if((lane == 0 && !car_right )) {
                 lane = 1; // Back to center.
                 std::cout<<"No car in front and I'm in lane "<<lane<<" going back to center"<<std::endl;
               }
             }
             if (lane !=2) { // if we are not on the center lane.
-              if((lane == 1 && !no_lcr )) {
+              if((lane == 1 && !car_right )) {
                 lane = 2; // Back to center.
                 std::cout<<"No car in front and I'm in lane "<<lane<<" going back to right"<<std::endl;
               }
