@@ -154,7 +154,7 @@ int main() {
           
             // setting flags
             if(lane == lane_other_car){  // if car is in same lane
-              if(dist2othercar < min_dist){
+              if(check_car_s > car_s && dist2othercar < min_dist && dist2othercar > 0){
                 car_id_in_front = car_id;
                 car_speed_in_front = check_speed;
                 min_dist = dist2othercar;
@@ -192,7 +192,8 @@ int main() {
               ++lane;
             }
             else {
-              speed_diff -= 0.224;  // slow down
+              //speed_diff -= 0.224;  // slow down
+              speed_diff -= 0.112;
             }
           }
           // set actions for free driving (aka no car in front) -> keep right as possible
