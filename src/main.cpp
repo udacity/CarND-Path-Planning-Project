@@ -174,8 +174,8 @@ int main() {
           }
           // set actions for free driving (aka no car in front) -> keep right as possible
           else{
-            bool car_right = false;
-            std::cout<<"Searching for cars no the right lane since the view is clear"<<std::endl;
+            bool car_right_fd = false;
+            //std::cout<<"Searching for cars no the right lane since the view is clear"<<std::endl;
             for(int i=0; i<sensor_fusion.size();i++){
               float d = sensor_fusion[i][6];
               double vx = sensor_fusion[i][3];
@@ -200,18 +200,20 @@ int main() {
               }
               // setting flags
               if(lane-lane_other_car == -1){ // if car is on the right lane of us
-                car_right = car_right | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
+                car_right_fd = (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
               }
             }
 
+            std::cout<<"There is a car on the lane right of us: "<<car_right_fd<<std::endl;
+
             if (lane !=1) { // if we are not on the center lane.
-              if((lane == 0 && !car_right )) {
+              if((lane == 0 && !car_right_fd )) {
                 lane = 1; // Back to center.
                 std::cout<<"No car on the center lane, swerving back"<<std::endl;
               }
             }
             if (lane !=2) { // if we are not on the center lane.
-              if((lane == 1 && !car_right )) {
+              if((lane == 1 && !car_right_fd )) {
                 lane = 2; // Back to center
                 std::cout<<"No car on the right lane, swerving back"<<std::endl;
               }
