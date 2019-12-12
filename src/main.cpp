@@ -121,6 +121,11 @@ int main() {
           vector<int> car_ids;
           vector<double> car_dists;
 
+          // Information of car directly in front;
+          int car_id_in_front;
+          double min_dist = 999999;
+          double car_speed_in_front;
+
           for(int i = 0; i < sensor_fusion.size(); i++){
             // find out if another car is in the same lane as our ego car
             int car_id = sensor_fusion[i][0];
@@ -149,13 +154,20 @@ int main() {
           
             // setting flags
             if(lane == lane_other_car){  // if car is in same lane
+              if(dist2othercar < min_dist){
+                car_id_in_front = car_id;
+                car_speed_in_front = check_speed;
+                min_dist = dist2othercar;
+              }
               too_close = too_close | (check_car_s > car_s && dist2othercar < safe_dist_front);  // todo: check if removing too_close |  works too
               // add info about cars in front on our lane ! speed from data from sensor_fusion is in m/s, speed of ego vehicle is in mph!
+              /*
               if(check_car_s > car_s && dist2othercar < safe_dist_front){
                 //car_ids.push_back(car_id);
                 //car_dists.push_back(dist2othercar);
                 car_speeds.push_back(check_speed*2.24);
               }
+              */
             }
             else if(lane-lane_other_car == 1){  // if car is on the left lane of us
               car_left = car_left | (dist2othercar < safe_dist_front && dist2othercar > safe_dist_back);
@@ -165,11 +177,10 @@ int main() {
             }
           }
 
-          for(int i=0; i<car_speeds.size();i++){
-            std::cout<<"Speed of cars in front of us within safety distance = "<<car_speeds[i]<<std::endl;
-          }
-          float avg_speed = accumulate( car_speeds.begin(), car_speeds.end(), 0.0)/car_speeds.size();
-          std::cout<<"Their average speed = "<<avg_speed<<" mph while our ego vehicle moves at "<<car_speed<<" mph"<<std::endl;
+          // Let's not use average speed but the speed of the car directly in front
+          std::cout<<"Speed of car with id = "<<car_id_in_front<<" in distance = "<<min_dist<<" with speed "<<check_speed*2.24<<std::endl;
+          // float avg_speed = accumulate( car_speeds.begin(), car_speeds.end(), 0.0)/car_speeds.size();
+          // std::cout<<"Their average speed = "<<avg_speed<<" mph while our ego vehicle moves at "<<car_speed<<" mph"<<std::endl;
 
           // take actions
           double speed_diff = 0;
