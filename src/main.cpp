@@ -20,6 +20,7 @@ double safe_dist_front = 30.0;
 double safe_dist_back = -30.0;
 double target_spacing = 30.0;
 int path_size = 50;
+int decel_counter = 0;
 
 int main() {
   uWS::Hub h;
@@ -123,7 +124,7 @@ int main() {
 
           // Information of car directly in front;
           int car_id_in_front;
-          double min_dist = 999999;
+          double min_dist = 99999;
           double car_speed_in_front;
 
           for(int i = 0; i < sensor_fusion.size(); i++){
@@ -193,7 +194,13 @@ int main() {
             }
             else {
               //speed_diff -= 0.224;  // slow down
-              speed_diff -= 0.112;
+              speed_diff -= 0.056;
+              decel_counter++;
+              std::cout<<"Decelerating due to car in front; decel_counter = "<<decel_counter<<std::endl; 
+              if(decel_counter>3){
+                ref_vel = car_speed_in_front;
+                decel_counter = 0;
+              }
             }
           }
           // set actions for free driving (aka no car in front) -> keep right as possible
