@@ -178,7 +178,7 @@ int main() {
           }
 
           // Let's not use average speed but the speed of the car directly in front
-          std::cout<<"Speed of car with id = "<<car_id_in_front<<" in distance = "<<min_dist<<" with speed "<<check_speed*2.24<<std::endl;
+          std::cout<<"Speed of car with id = "<<car_id_in_front<<" in distance = "<<min_dist<<" with speed "<<car_speed_in_front*2.24<<std::endl;
           // float avg_speed = accumulate( car_speeds.begin(), car_speeds.end(), 0.0)/car_speeds.size();
           // std::cout<<"Their average speed = "<<avg_speed<<" mph while our ego vehicle moves at "<<car_speed<<" mph"<<std::endl;
 
