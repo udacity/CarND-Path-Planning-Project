@@ -150,11 +150,11 @@ int main() {
             // setting flags
             if(lane == lane_other_car){  // if car is in same lane
               too_close = too_close | (check_car_s > car_s && dist2othercar < safe_dist_front);  // todo: check if removing too_close |  works too
-              // add info about cars in front on our lane
-              if(check_car_s > car_s){
-                car_ids.push_back(car_id);
-                car_dists.push_back(dist2othercar);
-                car_speeds.push_back(check_speed);
+              // add info about cars in front on our lane ! speed from data from sensor_fusion is in m/s, speed of ego vehicle is in mph!
+              if(check_car_s > car_s && dist2othercar < safe_dist_front){
+                //car_ids.push_back(car_id);
+                //car_dists.push_back(dist2othercar);
+                car_speeds.push_back(check_speed*2.24);
               }
             }
             else if(lane-lane_other_car == 1){  // if car is on the left lane of us
@@ -165,12 +165,11 @@ int main() {
             }
           }
 
-          // DEBUG: print out infos about cars in front of us
-          for(int i=0; i<car_ids.size(); i++){
-            std::cout<<"Car with id = "<<car_ids[i]<<"\t distance = "<<car_dists[i]<<"\t speed = "<<car_speeds[i]<<std::endl;
+          for(int i=0; i<car_speeds.size();i++){
+            std::cout<<"Speed of cars in front of us within safety distance = "<<car_speeds[i]<<std::endl;
           }
-
-          std::cout<<"Ego vehicle speed is "<<car_speed<<std::endl;
+          float avg_speed = accumulate( car_speeds.begin(), car_speeds.end(), 0.0)/car_speeds.size();
+          std::cout<<"Their average speed = "<<avg_speed<<" mph while our ego vehicle moves at "<<car_speed<<" mph"<<std::endl;
 
           // take actions
           double speed_diff = 0;
