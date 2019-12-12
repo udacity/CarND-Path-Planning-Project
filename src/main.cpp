@@ -141,25 +141,26 @@ int main() {
             // todo: add check for lane_other_car < 0 if initialized to -1
           
           
-          // setting flags
-          if(lane == lane_other_car){  // if car is in same lane
-            too_close = too_close | (check_car_s > car_s && dist2othercar < safe_dist_front);  // todo: check if removing too_close |  works too
-          }
-          else if(lane-lane_other_car == 1){  // if car is on the left lane of us
-            car_left = car_left | (dist2othercar < safe_dist_front && dist2othercar > safe_dist_back);
-          }
-          else if(lane-lane_other_car == -1){ // if car is on the right lane of us
-            car_right = car_right | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
-          }
-          // testing this setup
+            // setting flags
+            if(lane == lane_other_car){  // if car is in same lane
+              too_close = too_close | (check_car_s > car_s && dist2othercar < safe_dist_front);  // todo: check if removing too_close |  works too
+            }
+            else if(lane-lane_other_car == 1){  // if car is on the left lane of us
+              car_left = car_left | (dist2othercar < safe_dist_front && dist2othercar > safe_dist_back);
+            }
+            else if(lane-lane_other_car == -1){ // if car is on the right lane of us
+              car_right = car_right | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
+            }
+          // This flag actually forces the car to drive right but it leads to unwanted behavior where the car sometimes
+          // immediately swerves right after an overtaking maneuvre
+          /*
           else {
             car_right = false;
           }
+          */
         }
-
           // take actions
           double speed_diff = 0;
-          // std::cout<<"too close is "<<too_close<<" \t lane is " << lane << "\t lcr flag is "<<!car_right<<std::endl;
           if(too_close){
             if(!car_left && lane > 0){  //no car on left lane and we are on middle lane or right lane
               --lane;
@@ -173,29 +174,54 @@ int main() {
           }
           // set actions for free driving (aka no car in front) -> keep right as possible
           else{
-            /*
-            if(lane<2 && !car_right){  // if on left lane, go back to middle lane
-              std::cout<<"condition for free road is "<<(lane<2&&!car_right)<<std::endl;
-              ++lane;
+            bool car_right = false;
+            std::cout<<"Searching for cars no the right lane since the view is clear"<<std::endl;
+            for(int i=0; i<sensor_fusion.size();i++){
+              float d = sensor_fusion[i][6];
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double check_speed = sqrt(pow(vx,2)+pow(vy,2));  // speed magn.
+
+              double check_car_s = sensor_fusion[i][5];
+
+              check_car_s += (double)prev_size * 0.02 * check_speed; // prediction: projecting the cars position into the future by using previous points
+              
+              double dist2othercar = check_car_s - car_s;
+              int lane_other_car;
+              // find lanes of other cars
+              if(d>0 && d<=4){
+                lane_other_car = 0;  // left lane
+              }
+              else if(d>4 && d<=8){
+                lane_other_car = 1;  // middle lane
+              }
+              else if(d>8 && d<=12){
+                lane_other_car = 2;  // right lane
+              }
+              // setting flags
+              if(lane-lane_other_car == -1){ // if car is on the right lane of us
+                car_right = car_right | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
+              }
             }
-            */
-            std::cout<<"Car right flag is "<<car_right<<std::endl;
+
             if (lane !=1) { // if we are not on the center lane.
               if((lane == 0 && !car_right )) {
                 lane = 1; // Back to center.
-                std::cout<<"No car in front and I'm in lane "<<lane<<" going back to center"<<std::endl;
+                std::cout<<"No car on the center lane, swerving back"<<std::endl;
               }
             }
             if (lane !=2) { // if we are not on the center lane.
               if((lane == 1 && !car_right )) {
-                lane = 2; // Back to center.
-                std::cout<<"No car in front and I'm in lane "<<lane<<" going back to right"<<std::endl;
+                lane = 2; // Back to center
+                std::cout<<"No car on the right lane, swerving back"<<std::endl;
               }
             }
+
             if(ref_vel < 49.5){
               speed_diff += 0.224;
             }
           }
+      
           
           json msgJson;
 
