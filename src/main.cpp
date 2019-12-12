@@ -105,11 +105,14 @@ int main() {
             car_s = end_path_s;
           }
           // todo: set to positive conditions
+          // these are evaluated at each time instance
           bool too_close = false;
           bool no_lcl = false;
           bool no_lcr = false;
           double dist_left = 0.0;
           double dist_right = 0.0;
+          
+          
           // Use sensor fusion to find reference velocity to move at by looping through all the cars on the road
           // sensor_fusion vector [ id, x, y, vx, vy, s, d]
           for(int i = 0; i < sensor_fusion.size(); i++){
@@ -148,11 +151,15 @@ int main() {
           else if(lane-lane_other_car == -1){ // if car is on the right lane of us
             no_lcr = no_lcr | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
           }
+          // testing this setup
+          else {
+            no_lcr = false;
+          }
         }
 
           // take actions
           double speed_diff = 0;
-          std::cout<<"too close is "<<too_close<<std::endl;
+          // std::cout<<"too close is "<<too_close<<" \t lane is " << lane << "\t lcr flag is "<<!no_lcr<<std::endl;
           if(too_close){
             if(!no_lcl && lane > 0){  //no car on left lane and we are on middle lane or right lane
               --lane;
@@ -166,8 +173,23 @@ int main() {
           }
           // set actions for free driving (aka no car in front) -> keep right as possible
           else{
+            /*
             if(lane<2 && !no_lcr){  // if on left lane, go back to middle lane
+              std::cout<<"condition for free road is "<<(lane<2&&!no_lcr)<<std::endl;
               ++lane;
+            }
+            */
+            if (lane !=1) { // if we are not on the center lane.
+              if((lane == 0 && !no_lcr )) {
+                lane = 1; // Back to center.
+                std::cout<<"No car in front and I'm in lane "<<lane<<" going back to center"<<std::endl;
+              }
+            }
+            if (lane !=2) { // if we are not on the center lane.
+              if((lane == 1 && !no_lcr )) {
+                lane = 2; // Back to center.
+                std::cout<<"No car in front and I'm in lane "<<lane<<" going back to right"<<std::endl;
+              }
             }
             if(ref_vel < 49.5){
               speed_diff += 0.224;
