@@ -199,7 +199,7 @@ int main() {
               std::cout<<"Decelerating due to car in front; decel_counter = "<<decel_counter<<std::endl; 
               if(decel_counter>3){
                 std::cout<<"Slowed down more than 3 times; setting speed to "<<car_speed_in_front<<std::endl;
-                ref_vel = car_speed_in_front;
+                ref_vel = car_speed_in_front*2.24;
                 if(ref_vel > 49.5){
                   ref_vel = 49.5;
                 }
