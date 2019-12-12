@@ -174,51 +174,11 @@ int main() {
           }
           // set actions for free driving (aka no car in front) -> keep right as possible
           else{
-            bool car_right_fd = false;
-            //std::cout<<"Searching for cars no the right lane since the view is clear"<<std::endl;
-            for(int i=0; i<sensor_fusion.size();i++){
-              float d = sensor_fusion[i][6];
-              double vx = sensor_fusion[i][3];
-              double vy = sensor_fusion[i][4];
-              double check_speed = sqrt(pow(vx,2)+pow(vy,2));  // speed magn.
-
-              double check_car_s = sensor_fusion[i][5];
-
-              check_car_s += (double)prev_size * 0.02 * check_speed; // prediction: projecting the cars position into the future by using previous points
-              
-              double dist2othercar = check_car_s - car_s;
-              int lane_other_car;
-              // find lanes of other cars
-              if(d>0 && d<=4){
-                lane_other_car = 0;  // left lane
-              }
-              else if(d>4 && d<=8){
-                lane_other_car = 1;  // middle lane
-              }
-              else if(d>8 && d<=12){
-                lane_other_car = 2;  // right lane
-              }
-              // setting flags
-              if(lane-lane_other_car == -1){ // if car is on the right lane of us
-                car_right_fd = car_right_fd | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
-              }
-              // does not help
-              /*
-              else{
-                car_right_fd = false;
-              }
-              */
-            }
-
-            if (lane !=1) { // if we are not on the center lane.
-              if((lane == 0 && !car_right_fd )) {
-                lane = 1; // Back to center.
-              }
-            }
-            if (lane !=2) { // if we are not on the center lane.
-              if((lane == 1 && !car_right_fd )) {
-                lane = 2; // Back to center
-              }
+            if (lane!= 2) { // if we are not on the center lane.
+                //if ((lane == 0 && !car_righ ) || ( lane == 2 && !car_left ) ) {
+                if((lane==0 || lane==1) && !car_right)
+                  lane = 2; // Back to right.
+                }
             }
 
             if(ref_vel < 49.5){
