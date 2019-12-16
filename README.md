@@ -2,10 +2,33 @@
 Self-Driving Car Engineer Nanodegree Program
 
 ## Description
+
+### Goal
 In this project a path planner is implemented for a vehicle. The path planner should ensure that the vehicle can navigate safely around the track while being able to keep the lane, perform lane changes and avoid collisions with other vehicles. For this, localization, sensor fusion and map data are used. 
 
 ### Files
 The path planner is implemented in the following files
+```
+.
+├── Eigen-3.3
+├── helpers.h
+├── json.hpp
+├── main.cpp
+└── spline.h
+```
+All components of the path planner are included in the `main.cpp`.
+The `spline.h` is used to generate smooth path trajectories. 
+Because of using the spline library and not the quintic polynomial solver for path generation,
+the Eigen-3.3 library is not used.
+
+### Components of the path planner
+The path planner consists of the following components
+1. **Trajectory generation**: generate a smooth path for the car to follow
+2. **Speed control and collision avoidance**: acceleration and deceleration 
+3. **Lane switching/keeping**: 
+4. **Behavior planning (especially lane choosing)**:
+
+
 
 ### Improvements
 Use lookbehind

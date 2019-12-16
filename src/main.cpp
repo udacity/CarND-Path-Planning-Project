@@ -297,7 +297,7 @@ int main() {
               if(lane!=target_lane){
                 // Introducing a counter to prevent max jerk and max accel. violations when doing double lane changes
                 wait_counter++;
-                if(wait_counter>10){           // wait for 10 samples (10*0.02s = 0.2s) to execute lane change 
+                if(wait_counter>25){           // wait for 25 samples (25*0.02s = 0.2s) to execute lane change 
                   if(lane>target_lane && !car_on_leftlane){
                     // std::cout<<"CHANGING LANES FROM "<<lane;
                     lane--;
