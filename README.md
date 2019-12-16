@@ -3,6 +3,8 @@ Self-Driving Car Engineer Nanodegree Program
 
 ## Description
 
+![](doc/track_completion.png)
+
 ### Goal
 In this project a path planner is implemented for a vehicle. The path planner should ensure that the vehicle can navigate safely around the track while being able to keep the lane, perform lane changes and avoid collisions with other vehicles. For this, localization, sensor fusion and map data are used. 
 
@@ -50,18 +52,25 @@ As an additional safety measure we can add a collision avoidance mechanism by me
 
 The part about speed control and collision avoidance can be found in the `main.cpp`s line 262-280.
 
+An example of the speed control in action:
+
+![](doc/speed_ctrl.gif)
+
+
 #### Lane switching
 Lane switching is implemented by using sensor fusion information to measure the distance of other cars to our ego vehicle. We distinguish between the two situations: a) driving behind a leading vehicle or b) free driving (no traffic ahead).
 
 In situation a), we measure the distance between our vehicle and other vehicles. 
 If a vehicle is on the same lane as us and the distance falls below a certain safety distance (let's say 30m), we check if a lane change is possible by measuring the distance of the vehicles on the adjacent lane(s). If, on the adjacent lane(s), no vehicle is within 30m in front or behind us, we perform the lane change (line 194 - 209 and line 254 - 260). If a lane change is not possible due to other vehicles being present within the safety distance, we tell the vehicle to keep the current lane and to eventually slow down if needed.
 
-For situation b) I have defined two lane choosing strategies which are as follows.
+For situation b) there are two lane changing strategies which are as follows.
 
 #### Behavior planning and lane choosing
 
-This is a more high-level strategic component for choosing a certain driving behavior. These driving strategies come into play only during free driving situations, i.e. when there is no traffic in front of our ego vehicle.
+This is a more high-level strategic component for choosing a certain driving behavior with regards to lane changing. These driving strategies come into play only during free driving situations, i.e. when there is no traffic in front of our ego vehicle.
 For demonstration purposes I am switching between these two strategies depending on which half of the track our car is on at a given moment. This is identified by comparing the Frenet s coordinates of our ego vehicle to half the length of the track.
+
+The code can be found on lines 211 - 244 and 284 - 314.
 
 **"Keep right" strategy**
 For the first half of the track the strategy is for the car to keep as much on the right lane as possible. This is done to reflect a sort of driving behavior where the driver adheres to the legal requirement of some countries (for example, in Germany, after overtaking a car on the middle lane the driver should return to the right lane as soon as possible).
@@ -89,25 +98,22 @@ speed_cost = abs(speed_lim - speed_lane)/speed_lim
 ```
 where `speed_lim` is the speed limit of 50mph and `speed_lane` is the speed on a certain lane, which is calculated as the average speed of all vehicles within 70m ahead of our ego vehicle on each lane (here we assume that we are capable of looking ahead 70m). Getting the average speed for each lane is done in the sensor fusion part. If a lane has no traffic and the car is able to drive at the speed limit no cost is incurred.
 
-Finally the overall cost for a lane is calculated by summing up the two costs while using a weight ratio between the `speed_cost` and the `lane_switch_cost` of 5:1.
+Finally the overall cost for a lane is calculated by summing up the two costs while assigning the `speed_cost` a weight of 5 and the `lane_switch_cost` a weight of 1.
 
 ``` sum_cost = lane_switch_cost + 5*speed_cost ```
 
-Basically this driving strategy mirrors a situation where e.g. the driver is in a hurry and is trying to maximize efficiency by choosing the most optimal lane. By using these two cost components we can make sure that the car only changes lanes if there is a significant benefit to changing lanes by achieving e.g. a higher speed on said lane. Furthermore we can prevent unnecessary double lane changes (if there are e.g. two empty lanes, the vehicles should choose the one closest to the current lane).
+Basically this driving strategy simulates a situation where e.g. the driver is in a hurry and is trying to maximize efficiency by choosing the most optimal lane. By using these two cost components we can make sure that the car only changes lanes if there is a significant benefit to changing lanes by achieving e.g. a higher speed on said lane. Furthermore we can prevent unnecessary double lane changes (if there are e.g. two empty lanes, the vehicles should choose the one closest to the current lane).
 
 This type of driving strategy can be seen in the following animation. We can observe that the car chooses to change to an empty lane quite early even if there is no immediate traffic in order to avoid traffic further along the road.
 
+![](doc/strategy2_short.gif)
 
-### Improvements
-After multiple rounds of testing the implemented path planner can definitely complete the required 4.32 miles for one lap. The furthest I have observed is about close to 9 miles. 
 
-However I have the suspicion that sometimes the connection between the C++ program and the simulator gets lost. For example I ran into the situation many times that the car has followed the leading vehicle perfectly for several minutes and then suddenly the vehicle accelerates for no reason at all, causing a collision violation. Also on other occasions I have included debug statements to be printed out when certain situations occur which are suddenly no longer printed out. I am not sure if this has something to do with my slow internet connection (I'm working on the Udacity workspace).
 
-I can see - among many other things - the following aspects which can be improved:
+### Observations
+After multiple rounds of testing it is confirmed the path planner can definitely complete the required 4.32 miles for one lap. The furthest I have observed is about close to 9 miles. 
 
-- Also include 
-- For more complex situations use a finite state machine.
-
+However I have still observed random moments where one of the conditions was violated which raises the suspicition that sometimes the connection between the path planner program and the simulator gets lost. For example I ran into the specific situation many times that the car has followed the leading vehicle perfectly for several minutes and then suddenly the vehicle accelerates for no reason at all, causing a collision violation. Also on other occasions there were debug statements which are usually printed to the command line which suddenly were not printed any more. I am not sure if this has something to do with my slow internet connection (I'm working on the Udacity workspace).
 
 ## Instructions
 
@@ -191,54 +197,4 @@ A really helpful resource for doing this project and creating smooth trajectorie
     git checkout e94b6e1
     ```
 
-## Editor Settings
-
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
 
