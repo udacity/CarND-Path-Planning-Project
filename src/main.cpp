@@ -114,8 +114,20 @@ int main() {
           // the size of the previous path
           int prev_size = previous_path_x.size();
 
-          // if we're at the first half of the track or the second
+          // if we're at the first or second half of the track
           int half_of_track = (int(car_s)/half_track_s) % 2;
+          
+          // DEBUG
+          if(prev_half_of_track!=half_of_track){
+            std::cout<<"WE'RE AT THE "<<half_of_track+1<<" PART OF THE TRACK"<<std::endl;
+            prev_half_of_track = half_of_track;
+            if(half_of_track+1==1){
+              std::cout<<"THE DRIVING STRATEGY IS: KEEP AS MUCH AS POSSIBLE ON THE RIGHT LANE"<<std::endl;
+            }
+            else if(half_of_track+1==2){
+              std::cout<<"THE DRIVING STRATEGY IS: DRIVE IN THE LANE WITH THE LOWEST COST MEASURED BY A LANE SWITCHING PENALTY AND A SPEED PENALTY"<<std::endl;
+            }
+          }
           
           // for collision avoidance
           if(prev_size > 0){
@@ -270,26 +282,18 @@ int main() {
           }
           // set actions for free driving (aka no car in front) -> Here I'm defining two strategies
           else{
-            // DEBUG
-            if(prev_half_of_track!=half_of_track){
-                std::cout<<"WE'RE AT THE "<<half_of_track+1<<" PART OF THE TRACK"<<std::endl;
-                prev_half_of_track = half_of_track;
-            }
             // for the first half of the track, the strategy is to keep as much as possible on the right lane
             if(half_of_track == 0){
-                std::cout<<"THE LANE STRATEGY IS: KEEP AS MUCH ON THE RIGHT LANE AS POSSIBLE"<<std::endl;
-            }
               if((lane == 0 && !car_on_rightlane)){
                 lane = 1; // Back to center.
               }
               else if((lane==1 && !car_on_rightlane)){
                 lane = 2;  // Back to right
               }
-            
+            }
             
             // for the second half of the track, switch strategy to choosing the lane with the lowest costs (cost calculation see above)
             else if(half_of_track == 1){
-              std::cout<<"THE LANE STRATEGY IS: CHOOSE THE LANE ACCORDING TO THE LOWEST LANE SWITCHING AND SPEED PENALTIES"<<std::endl;
               if(lane!=target_lane){
                 // Introducing a counter to prevent max jerk and max accel. violations when doing double lane changes
                 wait_counter++;
