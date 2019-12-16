@@ -18,7 +18,7 @@ using std::vector;
 int lane = 1;  //current lane number {0, 1, 2}
 int target_lane = -1; //future target lane (used for behavior planning)
 double target_speed = 0.0;  // vehicle velocity
-double safe_dist = 25.0;  // safety distance to leading vehicle; (used for flagging lane changes)
+double safe_dist = 30.0;  // safety distance to leading vehicle; (used for flagging lane changes)
 double target_spacing = 35.0;  // distance for which trajectory of future points are calculated (35m, 70m, 105m) (used for trajectory generation)
 int path_size = 50;  //size of the vector containing the points of the trajectory (such that each calculated path consists of 50 points) (used for trajectory generation)
 int prev_half_of_track = -1;  // variable indicating at which half of the track we're on (used for behavior planning)
@@ -297,7 +297,7 @@ int main() {
               if(lane!=target_lane){
                 // Introducing a counter to prevent max jerk and max accel. violations when doing double lane changes
                 wait_counter++;
-                if(wait_counter>25){           // wait for 25 samples (25*0.02s = 0.5s) to execute lane change 
+                if(wait_counter>10){           // wait for 10 samples (10*0.02s = 0.2s) to execute lane change 
                   if(lane>target_lane && !car_on_leftlane){
                     // std::cout<<"CHANGING LANES FROM "<<lane;
                     lane--;
