@@ -102,7 +102,7 @@ Finally the overall cost for a lane is calculated by summing up the two costs wh
 
 ``` sum_cost = lane_switch_cost + 5*speed_cost ```
 
-Basically this driving strategy simulates a situation where e.g. the driver is in a hurry and is trying to maximize efficiency by choosing the most optimal lane. By using these two cost components we can make sure that the car only changes lanes if there is a significant benefit to changing lanes by achieving e.g. a higher speed on said lane. Furthermore we can prevent unnecessary double lane changes (if there are e.g. two empty lanes, the vehicles should choose the one closest to the current lane).
+Basically this driving strategy simulates a situation where e.g. the driver is in a hurry and is trying to maximize efficiency by choosing the most optimal lane. This sometimes results in a rather "aggressive" driving behavior. By using these two cost components we can make sure that the car only changes lanes if there is a significant benefit to changing lanes by achieving e.g. a higher speed on said lane. Furthermore we can prevent unnecessary double lane changes (if there are e.g. two empty lanes, the vehicles should choose the one closest to the current lane).
 
 This type of driving strategy can be seen in the following animation. We can observe that the car chooses to change to an empty lane quite early even if there is no immediate traffic in order to avoid traffic further along the road.
 
