@@ -251,8 +251,8 @@ int main() {
               lane++;
             }
             else {
-              // if no lane change is possible we must slow down -> use a very simple speed controller instead of decelerating by a fixed 0.224 mph per 0.2seconds
               /***** SPEED CONTROL *****/ 
+              // if no lane change is possible we must slow down -> use a very simple speed controller instead of decelerating by a fixed 0.224 mph per 0.2seconds
               // calculate required deceleration in mph per second using the speed difference between our ego vehicle and the car directly in front of us
               double diff_speed_mps = ((target_speed/2.24) - speed_car_in_front);
               double decel_mphps = diff_speed_mps*2.24*0.02;
