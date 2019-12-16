@@ -24,15 +24,38 @@ the Eigen-3.3 library is not used.
 ### Components of the path planner
 The path planner consists of the following components
 1. **Trajectory generation**: generate a smooth path for the car to follow
-2. **Speed control and collision avoidance**: acceleration and deceleration 
-3. **Lane switching/keeping**: 
-4. **Behavior planning (especially lane choosing)**:
+2. **Sensor fusion**: use sensor fusion to gather information about the other vehicles such as their speed and the lane they are driving on
+3. **Speed control and collision avoidance**: acceleration and deceleration for speed adjustment
+4. **Lane switching/keeping**: under which circumstances to switch lanes or keep driving at the current lane
+5. **Behavior planning (especially lane choosing)**: strategies for setting a future lane to drive in
+
+#### Trajectory generation
+Trajectory generation is a rather low level action which is required to get the car to move according to the lane lines.
+The trajectories should be smooth and follow the form of the lanes (i.e. no driving outside of lanes or directly on the lane lines).
+The code for generating trajectories is based on the `spline` library and is mostly adopted from the Project Q&A video with only minor changes.
+The code corresponding to trajectory generation can be found from approx. line 324 - 442.
+
+#### Sensor fusion
+
+
+
+#### Speed control and collision avoidance
+Speed control is about setting the acceleration and deceleration behavior of the vehicle such that it moves according to the specified speed limit or adapts to the speed of the leading vehicles. 
+
+In my initial implementation (also in the project Q&A) the speed control strategy is very simple: if a leading vehicle is blocking the way (and a lane change is not possible), decelerate by 0.224mph per 20ms. If the lane is free, accelerate by 0.224mph per 20ms. This value corresponds to about +- 5m/s^2.
+
+The problem with this method is that when we're driving behind another car, our car constantly accelerates and decelerates (which does not correspond to fuel efficient driving behavior). 
+
+To remedy a simple speed controller was implemented which. When driving behind a leading vehicle, the When free driving is possible, the vehicle should accelerate by 0.224mph per 20ms.
+
+
 
 
 
 ### Improvements
 Use lookbehind
 Use speed of vehicles to check feasibility of lane change
+FSM
 
 ## Instructions
 
