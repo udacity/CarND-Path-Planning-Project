@@ -96,7 +96,7 @@ The speed cost is computed as:
 ```
 speed_cost = abs(speed_lim - speed_lane)/speed_lim
 ```
-where `speed_lim` is the speed limit of 50mph and `speed_lane` is the speed on a certain lane, which is calculated as the average speed of all vehicles within 100m ahead of our ego vehicle on each lane (here we assume that we are capable of looking ahead 100m). Getting the average speed for each lane is done in the sensor fusion part. If a lane has no traffic and the car is able to drive at the speed limit then no penalty is incurred.
+where `speed_lim` is the speed limit of 50mph and `speed_lane` is the speed on a certain lane, which is calculated as the average speed of all vehicles within 70m ahead of our ego vehicle on each lane (here we assume that we are capable of looking ahead 70m). Getting the average speed for each lane is done in the sensor fusion part. If a lane has no traffic and the car is able to drive at the speed limit then no penalty is incurred.
 
 Finally the overall cost for a lane is calculated by summing up the two costs while assigning the `speed_cost` a weight of 5 and the `lane_switch_cost` a weight of 1.
 
