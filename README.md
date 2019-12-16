@@ -6,7 +6,7 @@ Self-Driving Car Engineer Nanodegree Program
 ![](doc/track_completion.png)
 
 ### Goal
-In this project a path planner is implemented for a vehicle. The path planner should ensure that the vehicle can navigate safely around the track while being able to keep the lane, perform lane changes and avoid collisions with other vehicles. For this, localization, sensor fusion and map data are used. 
+In this project a path planner is implemented for a vehicle to drive around a highway track. The path planner should ensure that the vehicle can navigate safely around the track while being able to keep the lane, perform lane changes and avoid collisions with other vehicles. For this, localization, sensor fusion and map data are used. 
 
 ### Files
 The path planner is implemented in the following files
@@ -31,9 +31,9 @@ The path planner consists of the following components
 5. **Behavior planning (especially lane choosing)**: strategies for setting a future lane to drive in
 
 #### Trajectory generation
-Trajectory generation is a rather low level action which gets the car to move according to the lane lines.
+Trajectory generation is a low level action which gets the car to move according to the lane lines.
 The trajectories should be smooth and follow the form of the lanes (i.e. no driving outside of lanes or directly on the lane lines).
-The code for generating trajectories is based on the `spline` library and is mostly adopted from the Project Q&A video with only minor changes.
+The code for generating trajectories is based on the `spline` library and is mostly adopted from the Project Q&A video with some minor changes.
 The code corresponding to trajectory generation can be found from approx. line 324 - 442 in `main.cpp`.
 
 #### Sensor fusion
@@ -44,11 +44,11 @@ These type of information will be used in all the other components, such as spee
 #### Speed control and collision avoidance
 Speed control is about setting the acceleration and deceleration behavior of the vehicle such that it moves according to the specified speed limit or adapts to the speed of the leading vehicles. 
 
-The problem with the simple speed control strategy from the project Q&A is that when we're driving behind another car, our car constantly accelerates and decelerates by a constant 0.224mph per 0.2seconds. This leads to situations where we constantly overshoot the acceleration/deceleration, which does not correspond to fuel efficient driving behavior. 
+The problem with the simple speed control strategy from the project Q&A is that when we're driving behind another car, our car continuously accelerates and decelerates by a constant 0.224mph per 0.2seconds. This leads to situations where we constantly overshoot or undershoot the target velocity, which does not correspond to fuel efficient driving behavior. 
 
-To remedy this a simple speed controller was used instead.  When driving behind a leading vehicle (the one directly in front of our ego vehicle on the same lane) we use information from sensor fusion to get the speed and the position of the leading car in Frenet coordinates, especially the s coordinate. When the leading car is within a certain safety distance (and if lane changes are not possible) we tell our ego vehicle to decelerate by only what is necessary in order to keep the same velocity as the leading vehicle. When free driving becomes possible again, we tell our vehicle to accelerate until it reaches the target speed of 49.5mph. 
+To remedy this a simple speed controller was used.  When driving behind a leading vehicle we use information from sensor fusion to get the speed and the position of the leading car in Frenet coordinates (we are especially interested in the s coordinate.) When the leading car is within a certain safety distance (and if lane changes are not possible) we tell our ego vehicle to decelerate by only what is necessary in order to keep the same velocity as the leading vehicle. When free driving becomes possible again, we tell our vehicle to accelerate until it reaches the target speed of 49.5mph. 
 
-As an additional safety measure we can add a collision avoidance mechanism by measuring the distance to the leading vehicle. If that distance falls below, let's say, 15m, we tell the controller to engage in emergency braking by setting a higher (e.g. 0.336mph per 20ms which corresponds to 7.5 meters/sec^2).
+As an additional safety measure we can add a collision avoidance mechanism by measuring the distance to the leading vehicle. If that distance falls below, let's say, 15m, we tell the controller to engage in emergency braking by setting a higher deceleration (e.g. 0.336mph per 20ms which corresponds to 7.5 meters/sec^2).
 
 The part about speed control and collision avoidance can be found in the `main.cpp`s line 262-280.
 
@@ -75,10 +75,10 @@ The code can be found on lines 211 - 244 and 284 - 314.
 **"Keep right" strategy**
 For the first half of the track the strategy is for the car to keep as much on the right lane as possible. This is done to reflect a sort of driving behavior where the driver adheres to the legal requirement of some countries (for example, in Germany, after overtaking a car on the middle lane the driver should return to the right lane as soon as possible).
 
-This type of lane choosing strategy can be seen in the following animation: 
+This type of lane changing strategy can be seen in the following animation: 
 ![](doc/strategy1_short.gif)
 
-After overtaking the car on the left lane, the car switches back to the middle lane and shortly after, to the right lane.
+After overtaking on the left lane, the car switches back to the middle lane and shortly after, to the right lane.
 
 **"Choose lane with lowest cost" strategy**
 For the second half of the track the strategy is switched to choosing the "most efficient" lane. The optimality of a lane is determined by a certain cost function.
@@ -96,7 +96,7 @@ The speed cost is computed as:
 ```
 speed_cost = abs(speed_lim - speed_lane)/speed_lim
 ```
-where `speed_lim` is the speed limit of 50mph and `speed_lane` is the speed on a certain lane, which is calculated as the average speed of all vehicles within 70m ahead of our ego vehicle on each lane (here we assume that we are capable of looking ahead 70m). Getting the average speed for each lane is done in the sensor fusion part. If a lane has no traffic and the car is able to drive at the speed limit no cost is incurred.
+where `speed_lim` is the speed limit of 50mph and `speed_lane` is the speed on a certain lane, which is calculated as the average speed of all vehicles within 100m ahead of our ego vehicle on each lane (here we assume that we are capable of looking ahead 100m). Getting the average speed for each lane is done in the sensor fusion part. If a lane has no traffic and the car is able to drive at the speed limit then no penalty is incurred.
 
 Finally the overall cost for a lane is calculated by summing up the two costs while assigning the `speed_cost` a weight of 5 and the `lane_switch_cost` a weight of 1.
 
@@ -113,7 +113,7 @@ This type of driving strategy can be seen in the following animation. We can obs
 ### Observations
 After multiple rounds of testing it is confirmed the path planner can definitely complete the required 4.32 miles for one lap. The furthest I have observed is about close to 9 miles. 
 
-However I have still observed random moments where one of the conditions was violated which raises the suspicition that sometimes the connection between the path planner program and the simulator gets lost. For example I ran into the specific situation many times that the car has followed the leading vehicle perfectly for several minutes and then suddenly the vehicle accelerates for no reason at all, causing a collision violation. Also on other occasions there were debug statements which are usually printed to the command line which suddenly were not printed any more. I am not sure if this has something to do with my slow internet connection (I'm working on the Udacity workspace).
+However I have still seen random moments where one of the conditions was violated which raises the suspicion that sometimes the connection between the path planner program and the simulator gets lost. For example I ran into the specific situation multiple times that the car has followed the leading vehicle perfectly in a safe distance for several minutes and then suddenly the vehicle accelerates for no reason at all, causing a collision violation. Also on other occasions debug statements which are usually printed to the command line are suddenly not printed any more. I am not sure if this has something to do with my slow internet connection (I'm working on the Udacity workspace).
 
 ## Instructions
 
