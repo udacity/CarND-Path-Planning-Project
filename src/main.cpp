@@ -33,7 +33,7 @@ const double max_accel = 0.224;  // used for behavior planning
 const double speed_freedriving = 49.5; // max speed at which it is allowed to drive when there are no vehicles in front
 const double lane_center_offset = 2;  //distance from lane center to lane lines
 const double lane_width = 4;  // width of each lane
-const double look_ahead_distance = 70;  // how many meters we can look ahead for gathering information about other cars in front of us (used for behavior planning)
+const double look_ahead_distance = 100;  // how many meters we can look ahead for gathering information about other cars in front of us (used for behavior planning)
 
 int main() {
   uWS::Hub h;
