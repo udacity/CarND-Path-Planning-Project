@@ -14,13 +14,26 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
-int lane = 1;
-double ref_vel = 0.0;
-double safe_dist_front = 30.0;
-double safe_dist_back = -30.0;
-double target_spacing = 30.0;
-int path_size = 50;
-int decel_counter = 0;
+// Initialize/define some variables
+int lane = 1;  //current lane number {0, 1, 2}
+int target_lane = -1; //future target lane (used for behavior planning)
+double target_speed = 0.0;  // vehicle velocity
+double safe_dist = 25.0;  // safety distance to leading vehicle; (used for flagging lane changes)
+double target_spacing = 35.0;  // distance for which trajectory of future points are calculated (35m, 70m, 105m) (used for trajectory generation)
+int path_size = 50;  //size of the vector containing the points of the trajectory (such that each calculated path consists of 50 points) (used for trajectory generation)
+int prev_half_of_track = -1;  // variable indicating at which half of the track we're on (used for behavior planning)
+int wait_counter = 0;  // a wait counter which is used to avoid max jerk/acceleration violation during a double lane change (0 to 2 or vice versa) (used for lane changing)
+
+// Define some constants
+const double weight_speed_penalty = 5.0;  // used to weigh speed penalty against lane change penalties (used for behavior planning)
+const int half_track_s = 3473;  // = max_s/2; used for behavior planning
+const double speed_lim = 50.0;  // used for calculating average speed of each lane during behavior planning
+const double max_decel = 0.336; // used for collision avoidance
+const double max_accel = 0.224;  // used for behavior planning
+const double speed_freedriving = 49.5; // max speed at which it is allowed to drive when there are no vehicles in front
+const double lane_center_offset = 2;  //distance from lane center to lane lines
+const double lane_width = 4;  // width of each lane
+const double look_ahead_distance = 70;  // how many meters we can look ahead for gathering information about other cars in front of us (used for behavior planning)
 
 int main() {
   uWS::Hub h;
@@ -101,32 +114,44 @@ int main() {
           // the size of the previous path
           int prev_size = previous_path_x.size();
 
-          /* Collision avoidance */
+          //DEBUG
+          int half_of_track = (int(car_s)/half_track_s) % 2;
+            if(prev_half_of_track!=half_of_track){
+              std::cout<<"WE'RE AT THE "<<half_of_track+1<<" PART OF THE TRACK"<<std::endl;
+              prev_half_of_track = half_of_track;
+            }
+          
+          // for collision avoidance
           if(prev_size > 0){
             car_s = end_path_s;
           }
-          // todo: set to positive conditions
-          // these are evaluated at each time instance
-          bool too_close = false;
-          bool car_left = false;
-          bool car_right = false;
-          double dist_left = 0.0;
-          double dist_right = 0.0;
+
+          // Defining variables for trajectory planning
+          bool car_in_front = false;
+          bool car_on_leftlane = false;
+          bool car_on_rightlane = false;
+
+          // Defining variables for speed control
+          double dist_car_in_front = 10000;
+          double speed_car_in_front = 0;
           
-          
-          // Use sensor fusion to find reference velocity to move at by looping through all the cars on the road
+          // Defining variables for behavior planning (= lane switching strategy)
+          int lane_speed;
+          double lane_switch_penalty;
+          double speed_penalty;
+          double cost;
+          int delta_lane = -1;
+          int lane_lowest_cost = 1;
+          double min_cost = 10000.0;
+
+          vector<double> car_speeds_lane0;
+          vector<double> car_speeds_lane1;
+          vector<double> car_speeds_lane2;
+          vector<double> avg_speeds_lane;
+          vector<int> num_cars_lane;
+
+          /***** SENSOR FUSION ****/
           // sensor_fusion vector [ id, x, y, vx, vy, s, d]
-
-          // Dealing with speed keeping; first get average speed of all vehicles on the same lane as our ego vehicle
-          vector<double> car_speeds;
-          vector<int> car_ids;
-          vector<double> car_dists;
-
-          // Information of car directly in front;
-          int car_id_in_front;
-          double min_dist = 99999;
-          double car_speed_in_front;
-
           for(int i = 0; i < sensor_fusion.size(); i++){
             // find out if another car is in the same lane as our ego car
             int car_id = sensor_fusion[i][0];
@@ -134,96 +159,163 @@ int main() {
             double vx = sensor_fusion[i][3];
             double vy = sensor_fusion[i][4];
             double check_speed = sqrt(pow(vx,2)+pow(vy,2));  // speed magn.
-
             double check_car_s = sensor_fusion[i][5];
 
             check_car_s += (double)prev_size * 0.02 * check_speed; // prediction: projecting the cars position into the future by using previous points
             
-            double dist2othercar = check_car_s - car_s;
-            int lane_other_car;
-            // find lanes of other cars
-            if(d>0 && d<=4){
-              lane_other_car = 0;  // left lane
+            double dist2othercar = check_car_s - car_s;  // distance to car in frenet s coordiantes
+            int lane_other_car = d/4; 
+            if(lane_other_car < 0 || lane_other_car > 2){
+              continue;
             }
-            else if(d>4 && d<=8){
-              lane_other_car = 1;  // middle lane
+
+            // Getting information about average lane speed and number of cars on each lane
+            // only interested in cars ahead of us within a distance of 70 meters
+            if(check_car_s > car_s && dist2othercar > 0 && dist2othercar <= look_ahead_distance){
+              if(lane_other_car == 0){
+                car_speeds_lane0.push_back(check_speed);  // left lane
+              }
+              else if(lane_other_car == 1){
+                car_speeds_lane1.push_back(check_speed);  // middle lane
+              }
+              else if(lane_other_car == 2){
+                car_speeds_lane2.push_back(check_speed);  // right lane
+              }
             }
-            else if(d>8 && d<=12){
-              lane_other_car = 2;  // right lane
-            }
-            // todo: add check for lane_other_car < 0 if initialized to -1
-          
-            // setting flags
+
+            // setting flags for lane changes
             if(lane == lane_other_car){  // if car is in same lane
-              if(check_car_s > car_s && dist2othercar < min_dist && dist2othercar > 0){
-                car_id_in_front = car_id;
-                car_speed_in_front = check_speed;
-                min_dist = dist2othercar;
+              car_in_front |= check_car_s > car_s && check_car_s - car_s < safe_dist;
+              // Getting information about car in front of us
+              if(check_car_s > car_s && dist2othercar > 0){
+                speed_car_in_front = check_speed;
+                dist_car_in_front = dist2othercar;
               }
-              too_close = too_close | (check_car_s > car_s && dist2othercar < safe_dist_front);  // todo: check if removing too_close |  works too
-              // add info about cars in front on our lane ! speed from data from sensor_fusion is in m/s, speed of ego vehicle is in mph!
-              /*
-              if(check_car_s > car_s && dist2othercar < safe_dist_front){
-                //car_ids.push_back(car_id);
-                //car_dists.push_back(dist2othercar);
-                car_speeds.push_back(check_speed*2.24);
-              }
-              */
             }
             else if(lane-lane_other_car == 1){  // if car is on the left lane of us
-              car_left = car_left | (dist2othercar < safe_dist_front && dist2othercar > safe_dist_back);
+              car_on_leftlane |= car_s - safe_dist < check_car_s && car_s + safe_dist > check_car_s;
             }
             else if(lane-lane_other_car == -1){ // if car is on the right lane of us
-              car_right = car_right | (dist2othercar < safe_dist_front && dist2othercar < safe_dist_back);
+              car_on_rightlane |= car_s - safe_dist < check_car_s && car_s + safe_dist > check_car_s;
             }
           }
 
-          // Let's not use average speed but the speed of the car directly in front
-          std::cout<<"Speed of car with id = "<<car_id_in_front<<" in distance = "<<min_dist<<" with speed "<<car_speed_in_front*2.24<<std::endl;
-          // float avg_speed = accumulate( car_speeds.begin(), car_speeds.end(), 0.0)/car_speeds.size();
-          // std::cout<<"Their average speed = "<<avg_speed<<" mph while our ego vehicle moves at "<<car_speed<<" mph"<<std::endl;
+          /***** BEHAVIOR PLANNING *****/
+          // Defining a driving strategy based on cost minimization; the overall cost is made up
+          // of a cost for switching lanes and of a cost for driving below the possible speed limit...
+          // ... To define the cost we need to find the average speed of each lane
 
-          // take actions
-          double speed_diff = 0;
-          if(too_close){
-            if(!car_left && lane > 0){  //no car on left lane and we are on middle lane or right lane
-              --lane;
+
+          // Find number of cars on each lane 
+          num_cars_lane.push_back(car_speeds_lane0.size());
+          num_cars_lane.push_back(car_speeds_lane1.size());
+          num_cars_lane.push_back(car_speeds_lane2.size());
+
+          // Calculating average lane speeds (first push the actual average)
+          avg_speeds_lane.push_back(accumulate(car_speeds_lane0.begin(), car_speeds_lane0.end(), 0.0)/num_cars_lane[0]);
+          avg_speeds_lane.push_back(accumulate(car_speeds_lane1.begin(), car_speeds_lane1.end(), 0.0)/num_cars_lane[1]);
+          avg_speeds_lane.push_back(accumulate(car_speeds_lane2.begin(), car_speeds_lane2.end(), 0.0)/num_cars_lane[2]);
+
+          for(int i = 0; i<avg_speeds_lane.size(); i++){
+            if(num_cars_lane[i]==0){
+              avg_speeds_lane[i] = speed_lim;
             }
-            else if(!car_right && lane!=2){  //no car on right lane and we are on middle lane or left lane
-              ++lane;
+            delta_lane = abs(lane - i);
+            lane_speed = avg_speeds_lane[i];
+            // calculate penalty for switching lanes
+            lane_switch_penalty = (double)delta_lane*(1-exp(-delta_lane));
+            // calculate penalty for driving below speed limit
+            speed_penalty = (double)abs(speed_lim-lane_speed)/speed_lim;
+            // overall cost is weighted sum of both individual costs (ratio speed_cost:lane_change_cost = 5:1)
+            cost = lane_switch_penalty + weight_speed_penalty * speed_penalty;
+            // save the minimum cost and on which lane this minimum cost occurs
+            if(cost < min_cost){
+              lane_lowest_cost = i;
+              min_cost = cost;
+            }
+          }
+
+          // Some other strategies for setting the target lane (least number of cars, highest avg speed ...)  
+          // int lane_least_cars = std::distance(num_cars_lane.begin(), std::min_element(num_cars_lane.begin(), num_cars_lane.end()));
+          // int lane_highest_avgspeed = std::distance(avg_speeds_lane.begin(), std::max_element(avg_speeds_lane.begin(), avg_speeds_lane.end()));
+          target_lane = lane_lowest_cost;  // set target lane to lane with lowest cost
+          
+          // Define actions for the two situations: with leading vehicles and free driving
+          double speed_increment = 0; 
+          // leading vehicle in front of us
+          if(car_in_front){
+            if(!car_on_leftlane && lane > 0){  //no car on left lane and we are on middle lane or right lane -> perform lane change left
+              lane--;
+            }
+            else if(!car_on_rightlane && lane!=2){  //no car on right lane and we are on middle lane or left lane -> perform lane change right
+              lane++;
             }
             else {
-              //speed_diff -= 0.224;  // slow down
-              speed_diff -= 0.056;
-              decel_counter++;
-              std::cout<<"Decelerating due to car in front; decel_counter = "<<decel_counter<<std::endl; 
-              if(decel_counter>3){
-                std::cout<<"Slowed down more than 3 times; setting speed to "<<car_speed_in_front<<std::endl;
-                ref_vel = car_speed_in_front*2.24;
-                if(ref_vel > 49.5){
-                  ref_vel = 49.5;
-                }
-                decel_counter = 0;
+              // if no lane change is possible we must slow down -> use a very simple speed controller instead of decelerating by a fixed 0.224 mph per 0.2seconds
+              /***** SPEED CONTROL *****/ 
+              // calculate required deceleration in mph per second using the speed difference between our ego vehicle and the car directly in front of us
+              double diff_speed_mps = ((target_speed/2.24) - speed_car_in_front);
+              double decel_mphps = diff_speed_mps*2.24*0.02;
+              
+              // to prevent sudden acceleration if speed difference becomes negative
+              if(decel_mphps < 0){
+                decel_mphps = 0.056;
+              }
+
+              // to prevent collisions
+              if(dist_car_in_front < 15){
+                std::cout<<"COLLISION IMMINENT! Strong deceleration required"<<std::endl;
+                decel_mphps = max_decel;  // // 0.336mph per 0.2seconds corresponds to about 7.5m/s^2 which is below the violation limit
+              }
+              // decelerate only by what is needed
+              speed_increment = -decel_mphps;
+
+            }
+          }
+          // set actions for free driving (aka no car in front) -> Here I'm defining two strategies
+          else{
+            // for the first half of the track, the strategy is to keep as much as possible on the right lane
+            if(half_of_track == 0){
+              if((lane == 0 && !car_on_rightlane)){
+                lane = 1; // Back to center.
+              }
+              else if((lane==1 && !car_on_rightlane)){
+                lane = 2;  // Back to right
               }
             }
-          }
-          // set actions for free driving (aka no car in front) -> keep right as possible
-          else{
-            if(ref_vel < 49.5){
-              speed_diff += 0.224;
+            
+            // for the second half of the track, switch strategy to choosing the lane with the lowest costs (cost calculation see above)
+            else if(half_of_track == 1){
+              if(lane!=target_lane){
+                // Introducing a counter to prevent max jerk and max accel. violations when doing double lane changes
+                wait_counter++;
+                if(wait_counter>25){           // wait for 25 samples (25*0.02s = 0.5s) to execute lane change 
+                  if(lane>target_lane && !car_on_leftlane){
+                    // std::cout<<"CHANGING LANES FROM "<<lane;
+                    lane--;
+                    // std::cout<<" to "<<lane<<std::endl;
+                  }
+                  else if(lane<target_lane && !car_on_rightlane){
+                    // std::cout<<"CHANGING LANES FROM "<<lane;
+                    lane++;
+                    // std::cout<<" to "<<lane<<std::endl;
+                  }
+                  wait_counter = 0;
+                }
+              }
+            }
+            
+            // whenever possible speed up to slightly below speed limit
+            if(target_speed < speed_freedriving){
+              speed_increment = max_accel;
             }
           }
-      
           
           json msgJson;
 
           vector<double> next_x_vals;
           vector<double> next_y_vals;
 
-          /**
-           * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds
-           */
           // Generate a smooth trajectory by creating a couple of widely spaced waypoints which are e.g. 30m apart and then fit spline through those points
           vector <double> ptsx;
           vector <double> ptsy;
@@ -232,6 +324,7 @@ int main() {
           double ref_x = car_x;
           double ref_y = car_y;
           double ref_yaw = car_yaw;
+          // double ref_speed = -1.0;
 
           // if previous path almost empty, use state of car
           if(prev_size < 2){
@@ -265,9 +358,9 @@ int main() {
           }
 
           // create evenly spaced points e.g. 30m apart starting from the reference points (can be defined using variable int apart = 30)
-          vector<double> next_wp0 = getXY(car_s+target_spacing, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp1 = getXY(car_s+target_spacing*2, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp2 = getXY(car_s+target_spacing*3, 2+4*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp0 = getXY(car_s+target_spacing*1, lane_center_offset+lane_width*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp1 = getXY(car_s+target_spacing*2, lane_center_offset+lane_width*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp2 = getXY(car_s+target_spacing*3, lane_center_offset+lane_width*lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
           ptsx.push_back(next_wp0[0]);
           ptsx.push_back(next_wp1[0]);
@@ -309,14 +402,14 @@ int main() {
 
           // Add points of Spline to new path to fill up remaining points of the path (previous path + new path generated by spline)
           for(int i = 0; i < path_size-previous_path_x.size(); i++){  // assuming the path always consists of path_size points
-            ref_vel += speed_diff;
-            if(ref_vel > 49.5){
-              ref_vel = 49.5;
+            target_speed += speed_increment;
+            if(target_speed > speed_freedriving){
+              target_speed = speed_freedriving;
             }
-            else if(ref_vel < 0.224){
-              ref_vel = 0.224;
+            else if(target_speed < max_accel){
+              target_speed = max_accel;
             }
-            double N = target_dist/(0.02*ref_vel/2.24); // Number of points for splitting up the trajectory along the target distance; converting from mph to m/sec, evaluating new point every 20 ms
+            double N = target_dist/(0.02*target_speed/2.24); // Number of points for splitting up the trajectory along the target distance; converting from mph to m/sec, evaluating new point every 20 ms
             double x_point = x_add_on + target_x / N;  // next x point
             double y_point = s(x_point);  // evaluating y point along the spline
 
@@ -337,7 +430,6 @@ int main() {
 
           }
 
-
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
@@ -352,20 +444,6 @@ int main() {
       }
     }  // end websocket if
   }); // end h.onMessage
-
-  // We don't need this since we're not using HTTP but if it's removed the
-  // program
-  // doesn't compile :-(
-  h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data,
-                     size_t, size_t) {
-    const std::string s = "<h1>Hello world!</h1>";
-    if (req.getUrl().valueLength == 1) {
-      res->end(s.data(), s.length());
-    } else {
-      // i guess this should be done more gracefully?
-      res->end(nullptr, 0);
-    }
-  });
 
   h.onConnection([&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
     std::cout << "Connected!!!" << std::endl;
