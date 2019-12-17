@@ -18,7 +18,7 @@ using std::vector;
 int lane = 1;  //current lane number {0, 1, 2}
 int target_lane = -1; //future target lane (used for behavior planning)
 double target_speed = 0.0;  // vehicle velocity
-double safe_dist = 20.0;  // safety distance to leading vehicle; (used for flagging lane changes)
+double safe_dist = 30.0;  // safety distance to leading vehicle; (used for flagging lane changes)
 double target_spacing = 35.0;  // distance for which trajectory of future points are calculated (35m, 70m, 105m) (used for trajectory generation)
 int path_size = 50;  //size of the vector containing the points of the trajectory (such that each calculated path consists of 50 points) (used for trajectory generation)
 int prev_half_of_track = -1;  // variable indicating at which half of the track we're on (used for behavior planning)
