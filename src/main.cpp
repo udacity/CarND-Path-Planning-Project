@@ -28,7 +28,7 @@ int wait_counter = 0;  // a wait counter which is used to avoid max jerk/acceler
 const double weight_speed_penalty = 5.0;  // used to weigh speed penalty against lane change penalties (used for behavior planning)
 const int half_track_s = 3473;  // = max_s/2; used for behavior planning
 const double speed_lim = 50.0;  // used for calculating average speed of each lane during behavior planning
-const double max_decel = 0.336; // used for collision avoidance
+const double max_decel = 0.4; // used for collision avoidance
 const double max_accel = 0.224;  // used for behavior planning
 const double speed_freedriving = 49.5; // max speed at which it is allowed to drive when there are no vehicles in front
 const double lane_center_offset = 2;  //distance from lane center to lane lines
