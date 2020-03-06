@@ -17,6 +17,42 @@ Each waypoint in the list contains  [x,y,s,dx,dy] values. x and y are the waypoi
 
 The highway's waypoints loop around so the frenet s value, distance along the road, goes from 0 to 6945.554.
 
+## Implementation
+### step1: The Vehicle is able to run along the road and keep lane
+* function getXY() and getFrenet() help to switch the waypoint between cartesian coordinate system and Frenet coordinate system
+![coordinate_compare]()
+* Using spline to interpolate the waypoints
+![spline]()
+* Set the current position as the reference point
+* Set one waypoint ahead of the current position as a previous point
+* In Frenet add 30m spaced waypoints ahead of the reference
+d : 2+4*lane (lane number)
+s : reference+30; reference+60; reference+90
+
+### step2: The Vehicle is able to change the lane according to the traffic situation
+*define the lane change situation
+0. bool variable, too_close; car_left; car_right
+1. car runs on the middle lane (lane = 1)
+- too close to the front car && safe lane-changing space on the left lane 
+2. car runs on the left lane at the moment (lane = 0)
+- safe lane-changing space on the right side
+3. car runs on the right lane at the moment (lane = 2)
+- too close to the front car && safe lane-changing space on the left lane
+- no other car in the front && safe lane-changing space on the left lane
+* If too_close to the front car
+- slow down, acceleration and jerk below the limits
+- lane change
+
+Result:
+1. keep lane
+![keep_lane]()
+2. change lane to left
+![mid2left]()
+3. back to middle from left lane
+![left2mid]()
+4. no crush
+![nocrush]()
+
 ## Basic Build Instructions
 
 1. Clone this repo.
@@ -71,6 +107,11 @@ A really helpful resource for doing this project and creating smooth trajectorie
 
 ---
 
+## Implementation
+
+1. keep the vehicle on the same lane using spline function
+
+
 ## Dependencies
 
 * cmake >= 3.5
@@ -92,54 +133,6 @@ A really helpful resource for doing this project and creating smooth trajectorie
     git checkout e94b6e1
     ```
 
-## Editor Settings
-
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
 
 
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
 

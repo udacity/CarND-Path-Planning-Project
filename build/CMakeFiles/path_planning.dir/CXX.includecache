@@ -1270,16 +1270,6 @@ openssl/opensslconf.h
 openssl/evp.h
 -
 
-/usr/local/opt/openssl/include/openssl/kssl.h
-openssl/opensslconf.h
--
-stdio.h
--
-ctype.h
--
-krb5.h
--
-
 /usr/local/opt/openssl/include/openssl/lhash.h
 openssl/e_os2.h
 -
@@ -1334,14 +1324,6 @@ openssl/e_os2.h
 openssl/symhacks.h
 -
 openssl/ossl_typ.h
--
-
-/usr/local/opt/openssl/include/openssl/pqueue.h
-stdio.h
--
-stdlib.h
--
-string.h
 -
 
 /usr/local/opt/openssl/include/openssl/rsa.h
@@ -1409,8 +1391,6 @@ openssl/srtp.h
 -
 
 /usr/local/opt/openssl/include/openssl/ssl2.h
-
-/usr/local/opt/openssl/include/openssl/ssl23.h
 
 /usr/local/opt/openssl/include/openssl/ssl3.h
 openssl/comp.h
