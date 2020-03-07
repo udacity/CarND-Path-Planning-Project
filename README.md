@@ -50,7 +50,7 @@ s : reference+30; reference+60; reference+90
 - slow down, acceleration and jerk below the limits
 - lane change
 
-Result:
+## Result:
 1. keep lane
 ![keep_lane](https://github.com/chenxiao1995/CarND-Path-Planning-Project/blob/xiao/figure_path_planning/keep_lane.png)
 2. change lane to left
