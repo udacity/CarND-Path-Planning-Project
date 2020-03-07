@@ -20,9 +20,9 @@ The highway's waypoints loop around so the frenet s value, distance along the ro
 ## Implementation
 ### step1: The Vehicle is able to run along the road and keep lane
 * function getXY() and getFrenet() help to switch the waypoint between cartesian coordinate system and Frenet coordinate system
-![coordinate_compare]()
+![coordinate_compare](https://github.com/chenxiao1995/CarND-Path-Planning-Project/blob/xiao/figure_path_planning/coordinate_system.png)
 * Using spline to interpolate the waypoints
-![spline]()
+![spline](https://github.com/chenxiao1995/CarND-Path-Planning-Project/blob/xiao/figure_path_planning/Polynom_interpolation.png)
 * Set the current position as the reference point
 * Set one waypoint ahead of the current position as a previous point
 * In Frenet add 30m spaced waypoints ahead of the reference
@@ -52,13 +52,17 @@ s : reference+30; reference+60; reference+90
 
 Result:
 1. keep lane
-![keep_lane]()
+![keep_lane](https://github.com/chenxiao1995/CarND-Path-Planning-Project/blob/xiao/figure_path_planning/keep_lane.png)
 2. change lane to left
-![mid2left]()
+![mid2left](https://github.com/chenxiao1995/CarND-Path-Planning-Project/blob/xiao/figure_path_planning/mid2left.png)
 3. back to middle from left lane
-![left2mid]()
-4. no crush
-![nocrush]()
+![left2mid](https://github.com/chenxiao1995/CarND-Path-Planning-Project/blob/xiao/figure_path_planning/left2mid.png)
+4. no safe space, reject left lane change behavior
+![noleftchange](https://github.com/chenxiao1995/CarND-Path-Planning-Project/blob/xiao/figure_path_planning/noleftchange.png)
+5. right lane change from middle lane
+![right2mid](https://github.com/chenxiao1995/CarND-Path-Planning-Project/blob/xiao/figure_path_planning/right2mid.png)
+6. no crush
+![nocrush](https://github.com/chenxiao1995/CarND-Path-Planning-Project/blob/xiao/figure_path_planning/nocrush.png)
 
 ## Basic Build Instructions
 
