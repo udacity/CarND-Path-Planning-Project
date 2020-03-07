@@ -31,14 +31,21 @@ s : reference+30; reference+60; reference+90
 
 ### step2: The Vehicle is able to change the lane according to the traffic situation
 *define the lane change situation
-0. bool variable, too_close; car_left; car_right
+0. bool variable: 
+- too_close: If there is a car in front of the checked car and distance between 2 cars less than 30 m. Then too_close = True, otherwise, too_close = False
+- car_left: if any of the cars located on the left side of the checked car and lengthwise distance smaller than 30 m, then car_left = True, which means not safe for the left lane change
+- car_right: if any of the cars located on the left side of the checked car and lengthwise distance smaller than 30 m, then car_right = True, which means not safe for the left lane change
+
 1. car runs on the middle lane (lane = 1)
 - too close to the front car && safe lane-changing space on the left lane 
+
 2. car runs on the left lane at the moment (lane = 0)
 - safe lane-changing space on the right side
+
 3. car runs on the right lane at the moment (lane = 2)
 - too close to the front car && safe lane-changing space on the left lane
 - no other car in the front && safe lane-changing space on the left lane
+
 * If too_close to the front car
 - slow down, acceleration and jerk below the limits
 - lane change
