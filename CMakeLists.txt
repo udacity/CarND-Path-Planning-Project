@@ -21,6 +21,8 @@ link_directories(/usr/local/Cellar/libuv/1.11.0/lib)
 endif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 include_directories(
+                    src/
+                    src/Eigen-3.3/
                     include/
                     )
 
