@@ -5,6 +5,7 @@
 #include <vector>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
+#include "Eigen-3.3/Eigen/Dense"
 #include "helpers.h"
 #include "json.hpp"
 
@@ -39,15 +40,15 @@ vector<double> JMT(vector<double> &start, vector<double> &end, double T) {
         T_order.push_back( T_order[i-1] * T);
     }
 
-    MatrixXd A(3,3);
+    Eigen::MatrixXd A(3,3);
     A << T_order[3], T_order[4], T_order[5],
         3*T_order[2], 4*T_order[3], 5*T_order[4],
         6*T_order[1], 12*T_order[2], 20*T_order[3];
-    VectorXd b(3);
+    Eigen::VectorXd b(3);
     b << (end[0] - (start[0] + start[1]*T_order[1] + 0.5*start[2]*T_order[2])),
         (end[1] - (start[1] + start[2]*T_order[1])),
         (end[2] - start[2] );
-    VectorXd x = A.inverse() * b;
+    Eigen::VectorXd x = A.inverse() * b;
   return {start[0], start[1], 0.5*start[2], x[0], x[1], x[2]};
 }
 
