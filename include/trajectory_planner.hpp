@@ -27,20 +27,72 @@ std::vector<double> JMT(const std::vector<double> &start, const std::vector<doub
    *   > JMT([0, 10, 0], [10, 10, 0], 1)
    *     [0.0, 10.0, 0.0, 0.0, 0.0, 0.0]
    */
-    std::vector<double> T_order;
-    T_order.push_back(1.0);
-    for (size_t i=1; i <= 5; ++i){
-        T_order.push_back( T_order[i-1] * T);
-    }
+   static double T_old=0.0;
+   static std::vector<double> start_old;
+   static std::vector<double> T_order(6);
+   static Eigen::MatrixXd A(3,3);
+   static Eigen::VectorXd b_1(3);
 
-    Eigen::MatrixXd A(3,3);
-    A << T_order[3], T_order[4], T_order[5],
-        3*T_order[2], 4*T_order[3], 5*T_order[4],
-        6*T_order[1], 12*T_order[2], 20*T_order[3];
-    Eigen::VectorXd b(3);
-    b << (end[0] - (start[0] + start[1]*T_order[1] + 0.5*start[2]*T_order[2])),
-        (end[1] - (start[1] + start[2]*T_order[1])),
-        (end[2] - start[2] );
+   // Determin if somthing is_T_changed
+   //----------------------------------------//
+   bool is_T_changed = T_old != T;
+   bool is_start_changed = false;
+   is_start_changed |= (start_old.size() != start.size());
+   if ( start_old.size() == start.size()){
+       for (size_t i=0; i < start.size(); ++i){
+           is_start_changed |= (start[i] != start_old[i]);
+       }
+   }
+   //----------------------------------------//
+
+   // Update the stored values
+   //----------------------------------------//
+   if (is_T_changed)
+        T_old = T;
+   if (is_start_changed)
+       start_old = start;
+    //
+   if (is_T_changed){
+       T_order[0] = 1.0;
+       for (size_t i=1; i < T_order.size(); ++i){
+           T_order[i] = ( T_order[i-1] * T);
+       }
+       A = Eigen::MatrixXd(3,3);
+       A << T_order[3], T_order[4], T_order[5],
+           3*T_order[2], 4*T_order[3], 5*T_order[4],
+           6*T_order[1], 12*T_order[2], 20*T_order[3];
+   }
+   //
+   if (is_T_changed || is_start_changed){
+       b_1 = Eigen::VectorXd(3);
+       b_1 << (start[0] + start[1]*T_order[1] + 0.5*start[2]*T_order[2]),
+          (start[1] + start[2]*T_order[1]),
+          start[2];
+   }
+   //----------------------------------------//
+
+   // Must be updated everytime
+    //----------------------------//
+    Eigen::VectorXd b_2(3);
+    b_2 << end[0],
+        end[1],
+        end[2];
+    Eigen::VectorXd b = b_2 - b_1;
+
     Eigen::VectorXd x = A.inverse() * b;
   return {start[0], start[1], 0.5*start[2], x[0], x[1], x[2]};
+}
+
+double get_JMT_value(double T, const std::vector<double> params){
+    static std::vector<double> T_order(params.size());
+    T_order[0] = 1.0;
+    for (size_t i=1; i < T_order.size(); ++i){
+        T_order[i] = ( T_order[i-1] * T);
+    }
+
+    double result = 0.0;
+    for (size_t i=0; i < params.size(); ++i){
+        result += params[i] * T_order[i];
+    }
+    return result;
 }

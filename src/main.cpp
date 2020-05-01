@@ -101,18 +101,55 @@ int main() {
            *   sequentially every .02 seconds
            */
 
-           // Test
+           // test
            //----------------------------//
-           double dist_inc = 0.5;
-           for (int i = 0; i < 50; ++i) {
-              // double next_s = car_s + (i+1) * dist_inc;
-              double next_s = car_s + i * dist_inc;
-              double next_d = 6.0;
-              vector<double> xy = getXY(next_s,next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-              next_x_vals.push_back(xy[0]);
-              next_y_vals.push_back(xy[1]);
-          }
+          //  double dist_inc = 0.5;
+          //  for (int i = 0; i < 50; ++i) {
+          //     // double next_s = car_s + (i+1) * dist_inc;
+          //     double next_s = car_s + i * dist_inc;
+          //     double next_d = 6.0;
+          //     vector<double> xy = getXY(next_s,next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          //     next_x_vals.push_back(xy[0]);
+          //     next_y_vals.push_back(xy[1]);
+          // }
            //----------------------------//
+
+
+           // test, a single JMT
+           double speed_set = 22.0; // m/s
+           double T_end = 1.0; //
+           // Starts
+           std::vector<double> start_cond_s(3);
+           std::vector<double> start_cond_d(3);
+           start_cond_s[0] = car_s;
+           start_cond_s[1] = car_speed;
+           start_cond_s[2] = 0.0;
+           start_cond_d[0] = car_d;
+           start_cond_d[1] = 0.0;
+           start_cond_d[2] = 0.0;
+
+           // Ends
+           std::vector<double> end_cond_s(3);
+           std::vector<double> end_cond_d(3);
+           end_cond_s[0] = car_s + speed_set*T_end;
+           end_cond_s[1] = speed_set;
+           end_cond_s[2] = 0.0;
+           end_cond_d[0] = car_d;
+           end_cond_d[1] = 0.0;
+           end_cond_d[2] = 0.0;
+
+           // JMTs
+           std::vector<double> param_s = JMT(start_cond_s, end_cond_s, T_end);
+           std::vector<double> param_d = JMT(start_cond_d, end_cond_d, T_end);
+
+           for (size_t i=0; i < 50; ++i){
+               double t = i*0.02;
+               double next_s = get_JMT_value(t, param_s);
+               double next_d = get_JMT_value(t, param_d);
+               vector<double> xy = getXY(next_s,next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+               next_x_vals.push_back(xy[0]);
+               next_y_vals.push_back(xy[1]);
+           }
 
 
           msgJson["next_x"] = next_x_vals;
