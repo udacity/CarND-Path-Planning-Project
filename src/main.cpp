@@ -53,6 +53,15 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
+
+  // Variables
+  //---------------------//
+  int lane = 1;
+
+  // The reference speed
+  double ref_vel_mph = 49.5; // mph
+  //---------------------//
+
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -91,10 +100,13 @@ int main() {
           //   of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 
-          json msgJson;
+          // Get the size of previous_path (remained unexecuted way points)
+          size_t prev_size = previous_path_x.size();
 
           vector<double> next_x_vals;
           vector<double> next_y_vals;
+
+          //---------------------------------------------------//
 
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
@@ -152,6 +164,72 @@ int main() {
            }
 
 
+
+           // Generate spline
+           vector<double> ptsx;
+           vector<double> ptsy;
+
+           // Reference x, y, yaw states
+           double ref_x = car_x;
+           double ref_y = car_y;
+           double ref_yaw = deg2rad(car_yaw);
+
+           if (prev_size < 2){
+               double ref_x_pre = car_x - cos(car_yaw);
+               double ref_y_pre = car_y - sin(car_yaw);
+
+               ptsx.push_back(ref_x_pre);
+               ptsx.push_back(ref_x);
+               ptsy.push_back(ref_y_pre);
+               ptsy.push_back(ref_y);
+           }else{
+               // Redefine reference state as previous path end point
+               ref_x = previous_path_x[prev_size-1];
+               ref_y = previous_path_y[prev_size-1];
+
+               double ref_x_pre = previous_path_x[prev_size-2];
+               double ref_y_pre = previous_path_y[prev_size-2];
+               ref_yaw = atan2(ref_y - ref_y_pre, ref_x - ref_x_pre);
+
+               ptsx.push_back(ref_x_pre);
+               ptsx.push_back(ref_x);
+               ptsy.push_back(ref_y_pre);
+               ptsy.push_back(ref_y);
+           }
+
+           // Add three evenly spaced points (in Frenet) ahead of starting point
+           double cp_space = 30.0; // m, note: 25 m/s * 1.0 s = 25 m
+           vector<double> next_wp0 = getXY(car_s+cp_space, lane_to_d(lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+           vector<double> next_wp1 = getXY(car_s+2*cp_space, lane_to_d(lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+           vector<double> next_wp2 = getXY(car_s+3cp_space, lane_to_d(lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+           //
+           ptsx.push_back(next_wp0[0]);
+           ptsx.push_back(next_wp1[0]);
+           ptsx.push_back(next_wp2[0]);
+           //
+           ptsy.push_back(next_wp0[1]);
+           ptsy.push_back(next_wp1[1]);
+           ptsy.push_back(next_wp2[1]);
+
+           // Now we have totally 5 points in ptsx and ptsy
+
+           // Change reference coordinate frame
+           for (size_t i=0; i < ptsx.size(); ++i){
+               double shift_x = ptsx[i] - ref_x;
+               double shift_y = ptsy[i] - ref_y;
+
+               ptsx[i] = shift_x * cos(-ref_yaw) - shift_y * sin(-ref_yaw);
+               ptsx[i] = shift_x * sin(-ref_yaw) + shift_y * cos(-ref_yaw);
+           }
+
+           // Create a spline
+           tk::spline s;
+
+           s.set_points(ptsx, ptsy)
+
+          //---------------------------------------------------//
+          json msgJson;
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
