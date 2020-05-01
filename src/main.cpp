@@ -116,13 +116,13 @@ int main() {
 
 
            // test, a single JMT
-           double speed_set = 22.0; // m/s
+           double speed_set = 25.0; // m/s
            double T_end = 1.0; //
            // Starts
            std::vector<double> start_cond_s(3);
            std::vector<double> start_cond_d(3);
            start_cond_s[0] = car_s;
-           start_cond_s[1] = car_speed;
+           start_cond_s[1] = car_speed*0.44704;
            start_cond_s[2] = 0.0;
            start_cond_d[0] = car_d;
            start_cond_d[1] = 0.0;

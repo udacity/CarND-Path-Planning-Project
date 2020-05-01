@@ -83,7 +83,7 @@ std::vector<double> JMT(const std::vector<double> &start, const std::vector<doub
   return {start[0], start[1], 0.5*start[2], x[0], x[1], x[2]};
 }
 
-double get_JMT_value(double T, const std::vector<double> params){
+double get_JMT_value(double T, const std::vector<double> &params){
     static std::vector<double> T_order(params.size());
     T_order[0] = 1.0;
     for (size_t i=1; i < T_order.size(); ++i){
