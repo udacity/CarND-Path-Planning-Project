@@ -10,6 +10,7 @@
 #include "json.hpp"
 //
 #include "trajectory_planner.hpp"
+#include "spline.h"
 
 // for convenience
 using nlohmann::json;
@@ -62,6 +63,7 @@ int main() {
   // Parameters
   //---------------------//
   double T_sample = 0.02; // 20 ms, sampling period
+  double lane_width = 4.0; // m
   //---------------------//
 
   // Variables
@@ -72,7 +74,7 @@ int main() {
   //---------------------//
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy]
+               &map_waypoints_dx,&map_waypoints_dy,&T_sample,&lane_width,&lane,&ref_vel_mph]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -213,9 +215,9 @@ int main() {
            // Add three evenly spaced points (in Frenet) ahead of starting point
            // TODO: Why use car_s instead of end_path_s?
            double cp_space = 30.0; // m, note: 25 m/s * 1.0 s = 25 m < 30 m
-           vector<double> next_wp0 = getXY(car_s+cp_space, lane_to_d(lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-           vector<double> next_wp1 = getXY(car_s+2*cp_space, lane_to_d(lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-           vector<double> next_wp2 = getXY(car_s+3cp_space, lane_to_d(lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+           vector<double> next_wp0 = getXY(car_s+cp_space, lane_to_d(lane,lane_width), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+           vector<double> next_wp1 = getXY(car_s+2*cp_space, lane_to_d(lane,lane_width), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+           vector<double> next_wp2 = getXY(car_s+3*cp_space, lane_to_d(lane,lane_width), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
            //
            ptsx.push_back(next_wp0[0]);
@@ -239,11 +241,11 @@ int main() {
            // Create a spline
            tk::spline s;
            // Insert anchor points
-           s.set_points(ptsx, ptsy)
+           s.set_points(ptsx, ptsy);
 
 
            // Push the previous_path into next vals
-           for (size_t i=0; i < previous_path_x.siize(); ++i){
+           for (size_t i=0; i < previous_path_x.size(); ++i){
                next_x_vals.push_back(previous_path_x[i]);
                next_y_vals.push_back(previous_path_y[i]);
            }
