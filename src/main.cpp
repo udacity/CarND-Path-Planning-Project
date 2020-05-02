@@ -217,16 +217,16 @@ int main() {
            // Method 1: Use getXY() and some arbitrarilt given s-values
            //      --> Not so soomth path and might sometime run off lane
            // TODO: Why use car_s instead of end_path_s?
-           double cp_space = 30.0; // m, note: 25 m/s * 1.0 s = 25 m < 30 m
+           // double cp_space = 30.0; // m, note: 25 m/s * 1.0 s = 25 m < 30 m
            // vector<double> next_wp0 = getXY(car_s+cp_space, lane_to_d(lane,lane_width), map_waypoints_s, map_waypoints_x, map_waypoints_y);
            // vector<double> next_wp1 = getXY(car_s+2*cp_space, lane_to_d(lane,lane_width), map_waypoints_s, map_waypoints_x, map_waypoints_y);
            // vector<double> next_wp2 = getXY(car_s+3*cp_space, lane_to_d(lane,lane_width), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
            // Method 2: Directly use map points, which are exactly at the center of lane
            int next_map_wp_id = NextWaypoint(ref_x, ref_y, ref_yaw, map_waypoints_x, map_waypoints_y);
-           vector<double> next_frenet_0 = {map_waypoints_x[next_map_wp_id], map_waypoints_y[next_map_wp_id]};
-           vector<double> next_frenet_1 = {map_waypoints_x[next_map_wp_id+1], map_waypoints_y[next_map_wp_id+1]};
-           vector<double> next_frenet_2 = {map_waypoints_x[next_map_wp_id+2], map_waypoints_y[next_map_wp_id+2]};
+           vector<double> next_wp0 = {map_waypoints_x[next_map_wp_id], map_waypoints_y[next_map_wp_id]};
+           vector<double> next_wp1 = {map_waypoints_x[next_map_wp_id+1], map_waypoints_y[next_map_wp_id+1]};
+           vector<double> next_wp2 = {map_waypoints_x[next_map_wp_id+2], map_waypoints_y[next_map_wp_id+2]};
            //
            ptsx.push_back(next_wp0[0]);
            ptsx.push_back(next_wp1[0]);
