@@ -225,8 +225,8 @@ int main() {
            // Method 2: Directly use map points, which are exactly at the center of lane
            int next_map_wp_id = NextWaypoint(ref_x, ref_y, ref_yaw, map_waypoints_x, map_waypoints_y);
            vector<double> next_wp0 = {map_waypoints_x[next_map_wp_id], map_waypoints_y[next_map_wp_id]};
-           vector<double> next_wp1 = {map_waypoints_x[next_map_wp_id+1], map_waypoints_y[next_map_wp_id+1]};
-           vector<double> next_wp2 = {map_waypoints_x[next_map_wp_id+2], map_waypoints_y[next_map_wp_id+2]};
+           vector<double> next_wp1 = {map_waypoints_x[(next_map_wp_id+1)%map_waypoints_x.size()], map_waypoints_y[(next_map_wp_id+1)%map_waypoints_x.size()]};
+           vector<double> next_wp2 = {map_waypoints_x[(next_map_wp_id+2)%map_waypoints_x.size()], map_waypoints_y[(next_map_wp_id+2)%map_waypoints_x.size()]};
            //
            ptsx.push_back(next_wp0[0]);
            ptsx.push_back(next_wp1[0]);
