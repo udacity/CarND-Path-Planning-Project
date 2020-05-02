@@ -235,7 +235,7 @@ int main() {
                double shift_x = ptsx[i] - ref_x;
                double shift_y = ptsy[i] - ref_y;
                ptsx[i] = shift_x * cos(-ref_yaw) - shift_y * sin(-ref_yaw);
-               ptsx[i] = shift_x * sin(-ref_yaw) + shift_y * cos(-ref_yaw);
+               ptsy[i] = shift_x * sin(-ref_yaw) + shift_y * cos(-ref_yaw);
            }
 
            // Create a spline
