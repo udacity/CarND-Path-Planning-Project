@@ -16,6 +16,12 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
+// Parameters for units transformation
+//------------------------------------------//
+double mps2mph = 2.23694; // m/s --> mph
+double mph2mps = 0.44704; // mph --> m/s
+//------------------------------------------//
+
 int main() {
   uWS::Hub h;
 
@@ -53,11 +59,14 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
+  // Parameters
+  //---------------------//
+  double T_sample = 0.02; // 20 ms, sampling period
+  //---------------------//
 
   // Variables
   //---------------------//
   int lane = 1;
-
   // The reference speed
   double ref_vel_mph = 49.5; // mph
   //---------------------//
@@ -127,45 +136,49 @@ int main() {
            //----------------------------//
 
 
-           // test, a single JMT
-           double speed_set = 25.0; // m/s
-           double T_end = 1.0; //
-           // Starts
-           std::vector<double> start_cond_s(3);
-           std::vector<double> start_cond_d(3);
-           start_cond_s[0] = car_s;
-           start_cond_s[1] = car_speed*0.44704;
-           start_cond_s[2] = 0.0;
-           start_cond_d[0] = car_d;
-           start_cond_d[1] = 0.0;
-           start_cond_d[2] = 0.0;
-
-           // Ends
-           std::vector<double> end_cond_s(3);
-           std::vector<double> end_cond_d(3);
-           end_cond_s[0] = car_s + speed_set*T_end;
-           end_cond_s[1] = speed_set;
-           end_cond_s[2] = 0.0;
-           end_cond_d[0] = car_d;
-           end_cond_d[1] = 0.0;
-           end_cond_d[2] = 0.0;
-
-           // JMTs
-           std::vector<double> param_s = JMT(start_cond_s, end_cond_s, T_end);
-           std::vector<double> param_d = JMT(start_cond_d, end_cond_d, T_end);
-
-           for (size_t i=0; i < 50; ++i){
-               double t = i*0.02;
-               double next_s = get_JMT_value(t, param_s);
-               double next_d = get_JMT_value(t, param_d);
-               vector<double> xy = getXY(next_s,next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-               next_x_vals.push_back(xy[0]);
-               next_y_vals.push_back(xy[1]);
-           }
+           // // test, a single JMT
+           // //----------------------------------------//
+           // double speed_set = 25.0; // m/s
+           // double T_end = 1.0; //
+           // // Starts
+           // std::vector<double> start_cond_s(3);
+           // std::vector<double> start_cond_d(3);
+           // start_cond_s[0] = car_s;
+           // start_cond_s[1] = car_speed*0.44704;
+           // start_cond_s[2] = 0.0;
+           // start_cond_d[0] = car_d;
+           // start_cond_d[1] = 0.0;
+           // start_cond_d[2] = 0.0;
+           //
+           // // Ends
+           // std::vector<double> end_cond_s(3);
+           // std::vector<double> end_cond_d(3);
+           // end_cond_s[0] = car_s + speed_set*T_end;
+           // end_cond_s[1] = speed_set;
+           // end_cond_s[2] = 0.0;
+           // end_cond_d[0] = car_d;
+           // end_cond_d[1] = 0.0;
+           // end_cond_d[2] = 0.0;
+           //
+           // // JMTs
+           // std::vector<double> param_s = JMT(start_cond_s, end_cond_s, T_end);
+           // std::vector<double> param_d = JMT(start_cond_d, end_cond_d, T_end);
+           //
+           // for (size_t i=0; i < 50; ++i){
+           //     double t = i*0.02;
+           //     double next_s = get_JMT_value(t, param_s);
+           //     double next_d = get_JMT_value(t, param_d);
+           //     vector<double> xy = getXY(next_s,next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+           //     next_x_vals.push_back(xy[0]);
+           //     next_y_vals.push_back(xy[1]);
+           // }
+           // //----------------------------------------//
 
 
 
            // Generate spline
+           //----------------------------------------//
+           // ptsx and ptsy are anchore points for apline
            vector<double> ptsx;
            vector<double> ptsy;
 
@@ -198,7 +211,8 @@ int main() {
            }
 
            // Add three evenly spaced points (in Frenet) ahead of starting point
-           double cp_space = 30.0; // m, note: 25 m/s * 1.0 s = 25 m
+           // TODO: Why use car_s instead of end_path_s?
+           double cp_space = 30.0; // m, note: 25 m/s * 1.0 s = 25 m < 30 m
            vector<double> next_wp0 = getXY(car_s+cp_space, lane_to_d(lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
            vector<double> next_wp1 = getXY(car_s+2*cp_space, lane_to_d(lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
            vector<double> next_wp2 = getXY(car_s+3cp_space, lane_to_d(lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
@@ -218,15 +232,51 @@ int main() {
            for (size_t i=0; i < ptsx.size(); ++i){
                double shift_x = ptsx[i] - ref_x;
                double shift_y = ptsy[i] - ref_y;
-
                ptsx[i] = shift_x * cos(-ref_yaw) - shift_y * sin(-ref_yaw);
                ptsx[i] = shift_x * sin(-ref_yaw) + shift_y * cos(-ref_yaw);
            }
 
            // Create a spline
            tk::spline s;
-
+           // Insert anchor points
            s.set_points(ptsx, ptsy)
+
+
+           // Push the previous_path into next vals
+           for (size_t i=0; i < previous_path_x.siize(); ++i){
+               next_x_vals.push_back(previous_path_x[i]);
+               next_y_vals.push_back(previous_path_y[i]);
+           }
+
+           // Caluculate how to sample the spline point for required velocity
+           double target_x = 30.0;
+           double target_y = s(target_x);
+           double target_dist = sqrt( target_x*target_x + target_y*target_y);
+
+           double x_add_on = 0;
+
+
+           // Fill up the rest of the path after filling up with previous path points.
+           // Here we always output 50 points
+           for (size_t i=1; i <= (50-previous_path_x.size()); ++i){
+               double N = target_dist/(T_sample*ref_vel_mph*mph2mps);
+               double x_local = x_add_on + target_x/N;
+               double y_local = s(x_local);
+               x_add_on = x_local;
+
+               // Coordinate transformation, from local frame to global frame
+               double x_point = x_local * cos(ref_yaw) - y_local * sin(ref_yaw);
+               double y_point = x_local * sin(ref_yaw) + y_local * cos(ref_yaw);
+               // Translation
+               x_point += ref_x;
+               y_point += ref_y;
+
+               // Add point to path
+               next_x_vals.push_back( x_point );
+               next_y_vals.push_back( y_point );
+           }
+           //----------------------------------------//
+
 
           //---------------------------------------------------//
           json msgJson;
