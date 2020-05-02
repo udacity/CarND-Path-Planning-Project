@@ -246,11 +246,6 @@ int main() {
                double shift_y = ptsy[i] - ref_y;
                ptsx[i] = shift_x * cos(-ref_yaw) - shift_y * sin(-ref_yaw);
                ptsy[i] = shift_x * sin(-ref_yaw) + shift_y * cos(-ref_yaw);
-
-               // Shift the last three point to the correct d value
-               if (i >= 3){
-                   ptsy[i] -= lane_to_d(lane,lane_width);
-               }
            }
 
            // Create a spline
