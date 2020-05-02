@@ -71,6 +71,7 @@ int main() {
   int lane = 1;
   // The reference speed
   double ref_vel_mph = 49.5; // mph
+  // double ref_vel_mph = 200; // 49.5; // mph
   //---------------------//
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
@@ -224,6 +225,7 @@ int main() {
 
            // Method 2: Directly use map points, which are exactly at the center of lane
            int next_map_wp_id = NextWaypoint(ref_x, ref_y, ref_yaw, map_waypoints_x, map_waypoints_y);
+           std::cout << "next_map_wp_id = " << next_map_wp_id << std::endl;
            vector<double> next_wp0 = {map_waypoints_x[next_map_wp_id], map_waypoints_y[next_map_wp_id]};
            vector<double> next_wp1 = {map_waypoints_x[(next_map_wp_id+1)%map_waypoints_x.size()], map_waypoints_y[(next_map_wp_id+1)%map_waypoints_x.size()]};
            vector<double> next_wp2 = {map_waypoints_x[(next_map_wp_id+2)%map_waypoints_x.size()], map_waypoints_y[(next_map_wp_id+2)%map_waypoints_x.size()]};
