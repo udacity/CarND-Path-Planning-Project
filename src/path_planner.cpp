@@ -4,11 +4,9 @@
 
 #include "path_planner.h"
 
-PathPlanner::PathPlanner() {}
+using namespace path_planning;
+
+PathPlanner::PathPlanner(std::vector<MapWayPoint> &wayPoints) : m_wayPoints(wayPoints) {}
 
 PathPlanner::~PathPlanner() {}
 
-void PathPlanner::generate_next_paths(vector<double> &next_x_vals, vector<double> &next_y_vals)
-{
-
-}

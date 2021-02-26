@@ -7,46 +7,28 @@
 
 #include <vector>
 
-struct CarInfo
-{
-    double car_x;
-    double car_y;
-    double car_s;
-    double car_d;
-    double car_yaw;
-    double car_speed;
-};
+namespace path_planning
+    {
 
-struct MapWayPoint
-{
-    vector<double> map_waypoints_x;
-    vector<double> map_waypoints_y;
-    vector<double> map_waypoints_s;
-    vector<double> map_waypoints_dx;
-    vector<double> map_waypoints_dy;
-};
+            struct MapWayPoint
+            {
+                double x;
+                double y;
+                float s;
+                float normX;
+                float normY;
+            };
 
-struct PreviousPathInfo
-{
-    std::vector<double> previous_path_x;
-    std::vector<double> previous_path_y;
-    double end_path_s;
-    double end_path_d;
-};
+            class PathPlanner
+            {
+            public:
+                PathPlanner(std::vector<MapWayPoint> &map_wayPoints);
 
-class PathPlanner
-{
-public:
-    PathPlanner();
+                virtual ~PathPlanner();
 
-    virtual ~PathPlanner();
+            private:
+                const std::vector<MapWayPoint> m_wayPoints;
+            };
 
-    void generate_next_paths(vector<double> &next_x_vals, vector<double> &next_y_vals);
-
-    std::vector<double> sensor_fusion;
-    MapWayPoint mapWayPoint;
-    CarInfo carInfo;
-    PreviousPathInfo previousPathInfo;
-};
-
+    }
 #endif //PATH_PLANNER_H
