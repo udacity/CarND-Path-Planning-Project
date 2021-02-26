@@ -10,3 +10,13 @@ PathPlanner::PathPlanner(std::vector<MapWayPoint> &wayPoints) : m_wayPoints(wayP
 
 PathPlanner::~PathPlanner() {}
 
+std::pair<std::vector<double>, std::vector<double >> PathPlanner::planPath(
+        const path_planning::SimulatorRequest &simReqData)
+{
+
+    std::vector<double> next_x_vals;
+    std::vector<double> next_y_vals;
+
+    return std::make_pair(next_x_vals, next_y_vals);
+}
+

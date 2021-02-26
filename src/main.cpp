@@ -69,17 +69,19 @@ int main()
                             {
                                 // j[1] is the data JSON object
 
+                                MainCar mainCar{
+                                        .x =  j[1]["x"],
+                                        .y =  j[1]["y"],
+                                        .s = j[1]["s"],
+                                        .d = j[1]["d"],
+                                        .yaw = j[1]["yaw"],
+                                        .speed = j[1]["speed"]
+                                };
                                 // Main car's localization Data
-                                double car_x = j[1]["x"];
-                                double car_y = j[1]["y"];
-                                double car_s = j[1]["s"];
-                                double car_d = j[1]["d"];
-                                double car_yaw = j[1]["yaw"];
-                                double car_speed = j[1]["speed"];
 
                                 // Previous path data given to the Planner
-                                auto previous_path_x = j[1]["previous_path_x"];
-                                auto previous_path_y = j[1]["previous_path_y"];
+                                std::vector<double> previous_path_x = j[1]["previous_path_x"];
+                                std::vector<double> previous_path_y = j[1]["previous_path_y"];
                                 // Previous path's end s and d values
                                 double end_path_s = j[1]["end_path_s"];
                                 double end_path_d = j[1]["end_path_d"];
