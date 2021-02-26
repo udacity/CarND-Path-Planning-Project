@@ -6,6 +6,7 @@
 #define PATH_PLANNER_H
 
 #include <vector>
+#include <deque>
 
 namespace path_planning
     {
@@ -71,6 +72,16 @@ namespace path_planning
 
             private:
                 const std::vector<MapWayPoint> m_wayPoints;
+
+                void updateTrajectoryHistory(const SimulatorRequest &simReqData);
+
+                std::vector<double> m_lastX;
+                std::vector<double> m_lastY;
+
+                // History
+                std::deque<double> m_historyMainX;
+                std::deque<double> m_historyMainY;
+
             };
 
     }

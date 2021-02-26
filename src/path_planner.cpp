@@ -7,6 +7,8 @@
 
 using namespace path_planning;
 
+const int TRAJECTORY_HISTORY_LENGTH = 100;
+
 PathPlanner::PathPlanner(std::vector<MapWayPoint> &wayPoints) : m_wayPoints(wayPoints) {}
 
 PathPlanner::~PathPlanner() {}
@@ -14,6 +16,9 @@ PathPlanner::~PathPlanner() {}
 std::pair<std::vector<double>, std::vector<double >> PathPlanner::planPath(
         const path_planning::SimulatorRequest &simReqData)
 {
+
+    // Update trajectory history
+    updateTrajectoryHistory(simReqData);
 
     std::vector<double> next_x_vals;
     std::vector<double> next_y_vals;
@@ -26,5 +31,29 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::planPath(
     }
 
     return std::make_pair(next_x_vals, next_y_vals);
+}
+
+/**
+ * Update trajectory history
+ * @param simReqData : Simulator sending request's data
+ */
+void PathPlanner::updateTrajectoryHistory(const path_planning::SimulatorRequest &simReqData)
+{
+    auto executedCommands = m_lastX.size() - simReqData.previous_path_x.size();
+
+    for (auto itr = m_lastX.begin(); itr != m_lastX.begin() + executedCommands; ++itr)
+    {
+        m_historyMainX.push_front(*itr);
+    }
+    if (m_historyMainX.size() > TRAJECTORY_HISTORY_LENGTH)
+        m_historyMainX.resize(TRAJECTORY_HISTORY_LENGTH);
+
+    for (auto itr = m_lastY.begin(); itr != m_lastY.begin() + executedCommands; ++itr)
+    {
+        m_historyMainY.push_front(*itr);
+    }
+
+    if (m_historyMainY.size() > TRAJECTORY_HISTORY_LENGTH)
+        m_historyMainY.resize(TRAJECTORY_HISTORY_LENGTH);
 }
 
