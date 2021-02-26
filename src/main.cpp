@@ -14,30 +14,9 @@ using std::vector;
 
 static const std::string WAYPOINT_MAP_FILE = "../data/highway_map.csv";
 
-vector<MapWayPoint> readMapWayPoints(const std::string &mapFile)
-{
-    std::vector<MapWayPoint> waypoints;
+vector<MapWayPoint> readMapWayPoints(const std::string &mapFile);
 
-    std::ifstream inStreamMap(mapFile.c_str(), std::ifstream::in);
-
-    std::string line;
-    while (getline(inStreamMap, line))
-    {
-        std::istringstream iss(line);
-        double x;
-        double y;
-        float s;
-        float normX;
-        float normY;
-        iss >> x;
-        iss >> y;
-        iss >> s;
-        iss >> normX;
-        iss >> normY;
-        waypoints.push_back({x, y, s, normX, normY});
-    }
-    return waypoints;
-}
+SimulatorRequest extractSimulatorRequestData(const std::string &strData);
 
 int main()
 {
@@ -54,13 +33,12 @@ int main()
                     // "42" at the start of the message means there's a websocket message event.
                     // The 4 signifies a websocket message
                     // The 2 signifies a websocket event
-                    if (length && length > 2 && data[0] == '4' && data[1] == '2')
+                    if (length > 2 && data[0] == '4' && data[1] == '2')
                     {
                         auto s = hasData(data);
 
-                        if (s != "")
+                        if (!s.empty())
                         {
-                            std::cout << s << "\n\n";
                             auto j = json::parse(s);
 
                             string event = j[0].get<string>();
@@ -142,3 +120,30 @@ int main()
 
     h.run();
 }
+
+
+vector<MapWayPoint> readMapWayPoints(const std::string &mapFile)
+{
+    std::vector<MapWayPoint> waypoints;
+
+    std::ifstream inStreamMap(mapFile.c_str(), std::ifstream::in);
+
+    std::string line;
+    while (getline(inStreamMap, line))
+    {
+        std::istringstream iss(line);
+        double x;
+        double y;
+        float s;
+        float normX;
+        float normY;
+        iss >> x;
+        iss >> y;
+        iss >> s;
+        iss >> normX;
+        iss >> normY;
+        waypoints.push_back({x, y, s, normX, normY});
+    }
+    return waypoints;
+}
+
