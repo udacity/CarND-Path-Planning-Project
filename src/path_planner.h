@@ -6,6 +6,7 @@
 #define PATH_PLANNER_H
 
 #include <vector>
+#include <array>
 #include <deque>
 
 namespace path_planning
@@ -74,6 +75,10 @@ namespace path_planning
                 const std::vector<MapWayPoint> m_wayPoints;
 
                 void updateTrajectoryHistory(const SimulatorRequest &simReqData);
+
+                std::array<double, 3> getLaneSpeeds(MainCar mainCar, const std::vector<OtherCar> &sensorFusions) const;
+
+                int getCarAhead(const MainCar &mainCar, const std::vector<OtherCar> &sensorFusions) const;
 
                 std::vector<double> m_lastX;
                 std::vector<double> m_lastY;
