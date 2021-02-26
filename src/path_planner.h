@@ -41,10 +41,12 @@ public:
 
     virtual ~PathPlanner();
 
-    std::pair<std::vector<double>, std::vector<double >> generate_next_paths();
+    void generate_next_paths(vector<double> &next_x_vals, vector<double> &next_y_vals);
 
-private:
     std::vector<double> sensor_fusion;
+    MapWayPoint mapWayPoint;
+    CarInfo carInfo;
+    PreviousPathInfo previousPathInfo;
 };
 
 #endif //PATH_PLANNER_H

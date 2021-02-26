@@ -7,16 +7,15 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
 #include "json.hpp"
+#include "path_planner.h"
 
 // for convenience
 using nlohmann::json;
 using std::string;
 using std::vector;
 
-int main()
+MapWayPoint generateMapWayPoints()
 {
-    uWS::Hub h;
-
     // Load up map values for waypoint's x,y,s and d normalized normal vectors
     vector<double> map_waypoints_x;
     vector<double> map_waypoints_y;
@@ -26,8 +25,6 @@ int main()
 
     // Waypoint map to read from
     string map_file_ = "../data/highway_map.csv";
-    // The max s value before wrapping around the track back to 0
-    double max_s = 6945.554;
 
     std::ifstream in_map_(map_file_.c_str(), std::ifstream::in);
 
@@ -52,8 +49,27 @@ int main()
         map_waypoints_dy.push_back(d_y);
     }
 
-    h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-                        &map_waypoints_dx, &map_waypoints_dy]
+    MapWayPoint mapWayPoint;
+    mapWayPoint.map_waypoints_dx = map_waypoints_dx;
+    mapWayPoint.map_waypoints_dy = map_waypoints_dy;
+    mapWayPoint.map_waypoints_s = map_waypoints_s;
+    mapWayPoint.map_waypoints_x = map_waypoints_x;
+    mapWayPoint.map_waypoints_y = map_waypoints_y;
+
+    return mapWayPoint;
+}
+
+int main()
+{
+    uWS::Hub h;
+    // The max s value before wrapping around the track back to 0
+    double max_s = 6945.554;
+
+    MapWayPoint mapWayPoint = generateMapWayPoints();
+    PathPlanner pathPlanner;
+    pathPlanner.mapWayPoint = mapWayPoint;
+
+    h.onMessage([&mapWayPoint, &pathPlanner]
                         (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                          uWS::OpCode opCode)
                 {
@@ -62,7 +78,6 @@ int main()
                     // The 2 signifies a websocket event
                     if (length && length > 2 && data[0] == '4' && data[1] == '2')
                     {
-
                         auto s = hasData(data);
 
                         if (s != "")
@@ -76,6 +91,7 @@ int main()
                             {
                                 // j[1] is the data JSON object
 
+                                CarInfo carInfo;
                                 // Main car's localization Data
                                 double car_x = j[1]["x"];
                                 double car_y = j[1]["y"];
@@ -84,6 +100,17 @@ int main()
                                 double car_yaw = j[1]["yaw"];
                                 double car_speed = j[1]["speed"];
 
+
+                                carInfo.car_x = j[1]["x"];
+                                carInfo.car_y = j[1]["y"];
+                                carInfo.car_s = j[1]["s"];
+                                carInfo.car_d = j[1]["d"];
+                                carInfo.car_yaw = j[1]["yaw"];
+                                carInfo.car_speed = j[1]["speed"];
+
+                                pathPlanner.carInfo = carInfo;
+
+                                PreviousPathInfo previousPathInfo;
                                 // Previous path data given to the Planner
                                 auto previous_path_x = j[1]["previous_path_x"];
                                 auto previous_path_y = j[1]["previous_path_y"];
@@ -91,11 +118,22 @@ int main()
                                 double end_path_s = j[1]["end_path_s"];
                                 double end_path_d = j[1]["end_path_d"];
 
+                                // Previous path data given to the Planner
+                                previousPathInfo.previous_path_x = j[1]["previous_path_x"];
+                                previousPathInfo.previous_path_y = j[1]["previous_path_y"];
+                                // Previous path's end s and d values
+                                previousPathInfo.end_path_s = j[1]["end_path_s"];
+                                previousPathInfo.end_path_d = j[1]["end_path_d"];
+
+                                pathPlanner.previousPathInfo = previousPathInfo;
+
                                 // Sensor Fusion Data, a list of all other cars on the same side
                                 //   of the road.
                                 auto sensor_fusion = j[1]["sensor_fusion"];
+                                pathPlanner.sensor_fusion = j[1]["sensor_fusion"];
 
                                 json msgJson;
+
 
                                 vector<double> next_x_vals;
                                 vector<double> next_y_vals;
@@ -105,12 +143,7 @@ int main()
                                  *   sequentially every .02 seconds
                                  */
 
-//                                double dist_inc = 0.5;
-//                                for (int i = 0; i < 50; ++i)
-//                                {
-//                                    next_x_vals.push_back(car_x + (dist_inc * i) * cos(deg2rad(car_yaw)));
-//                                    next_y_vals.push_back(car_y + (dist_inc * i) * sin(deg2rad(car_yaw)));
-//                                }
+                                pathPlanner.generate_next_paths(next_x_vals, next_y_vals);
 
                                 msgJson["next_x"] = next_x_vals;
                                 msgJson["next_y"] = next_y_vals;

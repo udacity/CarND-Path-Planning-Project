@@ -4,7 +4,11 @@
 
 #include "path_planner.h"
 
-PathPlanner::PathPlanner()
+PathPlanner::PathPlanner() {}
+
+PathPlanner::~PathPlanner() {}
+
+void PathPlanner::generate_next_paths(vector<double> &next_x_vals, vector<double> &next_y_vals)
 {
 
 }
