@@ -32,9 +32,11 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::planPath(
     // Update trajectory history
     updateTrajectoryHistory(simReqData);
 
+    // Get the lane speeds
     std::array<double, 3> laneSpeeds = getLaneSpeeds(simReqData.mainCar, simReqData.otherCars);
-
+    // Scheduling the lane's changes
     scheduleLaneChange(simReqData.mainCar, laneSpeeds, simReqData.otherCars);
+
 
     std::vector<double> next_x_vals;
     std::vector<double> next_y_vals;
@@ -167,7 +169,7 @@ void PathPlanner::scheduleLaneChange(const path_planning::MainCar &mainCar, cons
 }
 
 
-bool PathPlanner::isLaneBlocked(const double targetLaneD, const path_planning::MainCar &mainCar,
+bool PathPlanner::isLaneBlocked(const double &targetLaneD, const path_planning::MainCar &mainCar,
                                 const std::vector<path_planning::OtherCar> &sensorFusions) const
 {
     for (const auto &otherCar: sensorFusions)
@@ -179,4 +181,12 @@ bool PathPlanner::isLaneBlocked(const double targetLaneD, const path_planning::M
     }
 
     return false;
+}
+
+std::pair<std::vector<double>, std::vector<double >> PathPlanner::generateTrajectorySplines(
+        const path_planning::MainCar &mainCar, const double &max_lane_speed, const std::vector<double> &previous_path_x,
+        const std::vector<double> &previous_path_y)
+{
+
+
 }

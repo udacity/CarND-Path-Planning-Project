@@ -87,8 +87,13 @@ namespace path_planning
                 void scheduleLaneChange(const MainCar &mainCar, const std::array<double, 3> &laneSpeeds,
                                         const std::vector<OtherCar> &sensorFusions);
 
-                bool isLaneBlocked(const double targetLaneD, const MainCar &mainCar,
+                bool isLaneBlocked(const double &targetLaneD, const MainCar &mainCar,
                                    const std::vector<OtherCar> &sensorFusions) const;
+
+                std::pair<std::vector<double>, std::vector<double >> generateTrajectorySplines(const MainCar &mainCar,
+                                                                                               const double &max_lane_speed,
+                                                                                               const std::vector<double> &previous_path_x,
+                                                                                               const std::vector<double> &previous_path_y);
 
                 std::vector<double> m_lastX;
                 std::vector<double> m_lastY;

@@ -47,7 +47,6 @@ int main()
                             {
                                 SimulatorRequest simulatorRequest = extractSimulatorRequestData(j);
                                 auto res = pathPlanner.planPath(simulatorRequest);
-
                                 json msgJson;
                                 msgJson["next_x"] = res.first;
                                 msgJson["next_y"] = res.second;
