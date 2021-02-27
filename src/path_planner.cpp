@@ -95,16 +95,16 @@ int PathPlanner::getCarAhead(const path_planning::MainCar &mainCar,
                              const std::vector<path_planning::OtherCar> &sensorFusions) const
 {
     int carAheadIndx = -1;
-    double minDist = std::numeric_limits<double>::max();
+    double minSDist = std::numeric_limits<double>::max();
     int i = 0;
     for (auto const &otherCar: sensorFusions)
     {
         if (std::abs(otherCar.d - mainCar.d) < 1.0 && otherCar.s >= mainCar.s)
         {
             double s_dist = otherCar.s - mainCar.s;
-            if (s_dist < minDist)
+            if (s_dist < minSDist)
             {
-                minDist = s_dist;
+                minSDist = s_dist;
                 carAheadIndx = i;
             }
         }
