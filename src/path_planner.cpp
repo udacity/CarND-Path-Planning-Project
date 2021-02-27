@@ -4,8 +4,10 @@
 
 #include <cmath>
 #include <limits>
+#include <tuple>
 #include "path_planner.h"
 #include "spline.h"
+#include "helpers.h"
 
 using namespace path_planning;
 
@@ -18,6 +20,7 @@ const double D_LIMIT_FOR_LANE_CHANGE_PENALTY = 0.5;
 const int LANE_CHANGE_PENALTY = 5;
 const double LANE_CHANGE_CLEAR = SPEED_LIMIT_METRES_PER_SECOND * 0.5;
 const double LANE_CHANGE_COST = 1.0;
+double PATH_DURATION_SECONDS = 2.5;
 
 const std::array<double, 3> lanes{D_LEFT_LANE, D_MIDDLE_LANE, D_RIGHT_LANE};
 
@@ -183,6 +186,13 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::generateTrajec
         const path_planning::MainCar &mainCar, const double &max_lane_speed, const std::vector<double> &previous_path_x,
         const std::vector<double> &previous_path_y)
 {
+    const double d_difference = m_targetLaneD - mainCar.d;
+    double beforeEndS = mainCar.s + max_lane_speed * PATH_DURATION_SECONDS * 0.5;
+    double beforeEndD = mainCar.d + d_difference * 0.5;
 
+    double endS = mainCar.s + max_lane_speed * PATH_DURATION_SECONDS;
+    double endD = m_targetLaneD;
 
+    double beforeEndX, beforeEndY, endX, endY;
+    std::tie(beforeEndX, beforeEndY) = getXY(beforeEndS, beforeEndD, m_wayPoints);
 }

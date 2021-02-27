@@ -1,7 +1,6 @@
 #include <uWS/uWS.h>
 #include <fstream>
 #include "Eigen-3.3/Eigen/Core"
-#include "helpers.h"
 #include "json.hpp"
 #include "path_planner.h"
 
@@ -17,6 +16,8 @@ static const std::string WAYPOINT_MAP_FILE = "../data/highway_map.csv";
 vector<MapWayPoint> readMapWayPoints(const std::string &mapFile);
 
 SimulatorRequest extractSimulatorRequestData(const nlohmann::json &);
+
+string hasData(const string &s);
 
 int main()
 {
@@ -164,4 +165,24 @@ SimulatorRequest extractSimulatorRequestData(const nlohmann::json &j)
     };
 
     return simulatorRequest;
+}
+
+
+// Checks if the SocketIO event has JSON data.
+// If there is data the JSON object in string format will be returned,
+//   else the empty string "" will be returned.
+string hasData(const string &s)
+{
+    auto found_null = s.find("null");
+    auto b1 = s.find_first_of("[");
+    auto b2 = s.find_first_of("}");
+    if (found_null != string::npos)
+    {
+        return "";
+    }
+    else if (b1 != string::npos && b2 != string::npos)
+    {
+        return s.substr(b1, b2 - b1 + 2);
+    }
+    return "";
 }
