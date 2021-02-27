@@ -9,8 +9,12 @@
 #include <array>
 #include <deque>
 
+
 namespace path_planning
     {
+            const double D_LEFT_LANE = 2.0;
+            const double D_MIDDLE_LANE = 6.0;
+            const double D_RIGHT_LANE = 6.0;
 
             struct MapWayPoint
             {
@@ -80,6 +84,12 @@ namespace path_planning
 
                 int getCarAhead(const MainCar &mainCar, const std::vector<OtherCar> &sensorFusions) const;
 
+                void scheduleLaneChange(const MainCar &mainCar, const std::array<double, 3> &laneSpeeds,
+                                        const std::vector<OtherCar> &sensorFusions);
+
+                bool isLaneBlocked(const double targetLaneD, const MainCar &mainCar,
+                                   const std::vector<OtherCar> &sensorFusions) const;
+
                 std::vector<double> m_lastX;
                 std::vector<double> m_lastY;
 
@@ -87,6 +97,9 @@ namespace path_planning
                 std::deque<double> m_historyMainX;
                 std::deque<double> m_historyMainY;
 
+                double m_targetLaneD{D_MIDDLE_LANE};
+                unsigned int m_laneChangeDelay = 5u;
+                int m_targetLaneIndex{1};
             };
 
     }

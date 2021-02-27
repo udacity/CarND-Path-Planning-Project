@@ -13,9 +13,10 @@ const int TRAJECTORY_HISTORY_LENGTH = 100;
 // Speed limit
 const double SPEED_LIMIT_METRES_PER_SECOND = 50.0 * 0.9;
 const double LANE_SPEED_FORWARD_SCAN_RANGE = SPEED_LIMIT_METRES_PER_SECOND * 3.0;
-const double D_LEFT_LANE = 2.0;
-const double D_MIDDLE_LANE = 6.0;
-const double D_RIGHT_LANE = 6.0;
+const double D_LIMIT_FOR_LANE_CHANGE_PENALTY = 0.5;
+const int LANE_CHANGE_PENALTY = 5;
+const double LANE_CHANGE_CLEAR = SPEED_LIMIT_METRES_PER_SECOND * 0.5;
+const double LANE_CHANGE_COST = 1.0;
 
 const std::array<double, 3> lanes{D_LEFT_LANE, D_MIDDLE_LANE, D_RIGHT_LANE};
 
@@ -32,6 +33,9 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::planPath(
     updateTrajectoryHistory(simReqData);
 
     std::array<double, 3> laneSpeeds = getLaneSpeeds(simReqData.mainCar, simReqData.otherCars);
+
+    scheduleLaneChange(simReqData.mainCar, laneSpeeds, simReqData.otherCars);
+
     std::vector<double> next_x_vals;
     std::vector<double> next_y_vals;
 
@@ -112,4 +116,67 @@ int PathPlanner::getCarAhead(const path_planning::MainCar &mainCar,
         ++i;
     }
     return carAheadIndx;
+}
+
+void PathPlanner::scheduleLaneChange(const path_planning::MainCar &mainCar, const std::array<double, 3> &laneSpeeds,
+                                     const std::vector<path_planning::OtherCar> &sensorFusions)
+{
+    if (std::abs(mainCar.d - m_targetLaneD) > D_LIMIT_FOR_LANE_CHANGE_PENALTY)
+    {
+        m_laneChangeDelay = LANE_CHANGE_PENALTY;
+    }
+    else if (m_laneChangeDelay != 0)
+    {
+        --m_laneChangeDelay;
+    }
+    else
+    {
+        if (m_targetLaneD == D_LEFT_LANE && laneSpeeds[1] - LANE_CHANGE_COST > laneSpeeds[0]
+            && !isLaneBlocked(D_MIDDLE_LANE, mainCar, sensorFusions))
+        {
+            m_targetLaneD = D_MIDDLE_LANE;
+            m_targetLaneIndex = 1;
+            m_laneChangeDelay = LANE_CHANGE_PENALTY;
+        }
+        else if (m_targetLaneD == D_RIGHT_LANE && laneSpeeds[1] - LANE_CHANGE_COST > laneSpeeds[2]
+                 && !isLaneBlocked(D_MIDDLE_LANE, mainCar, sensorFusions))
+        {
+            m_targetLaneD = D_MIDDLE_LANE;
+            m_targetLaneIndex = 1;
+            m_laneChangeDelay = LANE_CHANGE_PENALTY;
+        }
+        else if (m_targetLaneD == D_MIDDLE_LANE &&
+                 (laneSpeeds[0] - LANE_CHANGE_COST > laneSpeeds[1] || laneSpeeds[2] - LANE_CHANGE_COST > laneSpeeds[1]))
+        {
+            if (laneSpeeds[0] > laneSpeeds[2] && !isLaneBlocked(D_LEFT_LANE, mainCar, sensorFusions))
+            {
+                m_targetLaneD = D_LEFT_LANE;
+                m_targetLaneIndex = 0;
+                m_laneChangeDelay = LANE_CHANGE_PENALTY;
+            }
+            else if (!isLaneBlocked(D_RIGHT_LANE, mainCar, sensorFusions))
+            {
+                m_targetLaneD = D_RIGHT_LANE;
+                m_targetLaneIndex = 2;
+                m_laneChangeDelay = LANE_CHANGE_PENALTY;
+            }
+        }
+
+    }
+
+}
+
+
+bool PathPlanner::isLaneBlocked(const double targetLaneD, const path_planning::MainCar &mainCar,
+                                const std::vector<path_planning::OtherCar> &sensorFusions) const
+{
+    for (const auto &otherCar: sensorFusions)
+    {
+        if (std::abs(otherCar.d - targetLaneD) < 1.0 && std::abs(otherCar.s - mainCar.s) <= LANE_CHANGE_CLEAR)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
