@@ -5,6 +5,7 @@
 #include <cmath>
 #include <limits>
 #include "path_planner.h"
+#include "spline.h"
 
 using namespace path_planning;
 
@@ -23,7 +24,7 @@ const std::array<double, 3> lanes{D_LEFT_LANE, D_MIDDLE_LANE, D_RIGHT_LANE};
 
 PathPlanner::PathPlanner(std::vector<MapWayPoint> &wayPoints) : m_wayPoints(wayPoints) {}
 
-PathPlanner::~PathPlanner() {}
+PathPlanner::~PathPlanner() = default;
 
 std::pair<std::vector<double>, std::vector<double >> PathPlanner::planPath(
         const path_planning::SimulatorRequest &simReqData)
@@ -37,18 +38,13 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::planPath(
     // Scheduling the lane's changes
     scheduleLaneChange(simReqData.mainCar, laneSpeeds, simReqData.otherCars);
 
+    // generate Spiline x and y trajectories
+    auto xy_trajectories = generateTrajectorySplines(simReqData.mainCar, laneSpeeds[m_targetLaneIndex],
+                                                     simReqData.previous_path_x, simReqData.previous_path_y);
 
-    std::vector<double> next_x_vals;
-    std::vector<double> next_y_vals;
-
-    double dist_inc = 0.5;
-    for (int i = 0; i < 50; ++i)
-    {
-        next_x_vals.push_back(simReqData.mainCar.x + (dist_inc * i) * cos(simReqData.mainCar.yaw * 180 / M_PI));
-        next_y_vals.push_back(simReqData.mainCar.y + (dist_inc * i) * sin(simReqData.mainCar.yaw * 180 / M_PI));
-    }
-
-    return std::make_pair(next_x_vals, next_y_vals);
+    m_lastX = xy_trajectories.first;
+    m_lastY = xy_trajectories.second;
+    return xy_trajectories;
 }
 
 /**
