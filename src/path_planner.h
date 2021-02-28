@@ -46,6 +46,15 @@ namespace path_planning
                                                                                                const std::vector<double> &previous_path_x,
                                                                                                const std::vector<double> &previous_path_y);
 
+                std::pair<double, double> worldCoordinateToVehicleCoordinate(const MainCar &mainCar,
+                                                                             const double &worldX,
+                                                                             const double &worldY);
+
+                std::pair<std::vector<double>, std::vector<double>> worldCoordinatesToVehicleCoordinates(
+                        const MainCar &mainCar,
+                        const std::vector<double> &worldX,
+                        const std::vector<double> &worldY);
+
                 std::vector<double> m_lastX;
                 std::vector<double> m_lastY;
 

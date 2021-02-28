@@ -195,4 +195,88 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::generateTrajec
 
     double beforeEndX, beforeEndY, endX, endY;
     std::tie(beforeEndX, beforeEndY) = getXY(beforeEndS, beforeEndD, m_wayPoints);
+    std::tie(endX, endY) = getXY(endS, endD, m_wayPoints);
+
+    std::vector<double> x_points, y_points;
+
+    double x_reference = mainCar.x;
+    double y_reference = mainCar.y;
+
+    auto x_histItr = m_historyMainX.begin();
+    auto y_histItr = m_historyMainY.begin();
+
+    for (; x_histItr != m_historyMainX.end() && y_histItr != m_historyMainY.end(); ++x_histItr, ++y_histItr)
+    {
+        double histX = *x_histItr;
+        double histY = *y_histItr;
+        const double distToRef = distance(histX, histY, x_reference, y_reference);
+
+        if (distToRef > 1.5)
+        {
+            x_points.insert(x_points.begin(), histX);
+            y_points.insert(y_points.begin(), histY);
+
+            x_reference = histX;
+            y_reference = histY;
+        }
+    }
+
+    // Push starting position
+    x_points.emplace_back(mainCar.x);
+    y_points.emplace_back(mainCar.y);
+
+    if (previous_path_x.size() >= 5)
+    {
+        x_points.emplace_back(previous_path_x[4]);
+        y_points.emplace_back(previous_path_y[4]);
+    }
+
+    if (previous_path_x.size() >= 10)
+    {
+        x_points.emplace_back(previous_path_x[9]);
+        y_points.emplace_back(previous_path_y[9]);
+    }
+
+    //  Push endpoints
+    x_points.emplace_back(beforeEndX);
+    x_points.emplace_back(endX);
+
+    y_points.emplace_back(beforeEndY);
+    y_points.emplace_back(endY);
+
+    std::vector<double> x_carPoints, y_carPoints;
+
+//    std::tie(x_carPoints, y_carPoints) =
+}
+
+// https://www.mathworks.com/help/driving/ug/coordinate-systems.html
+
+std::pair<double, double> PathPlanner::worldCoordinateToVehicleCoordinate(
+        const path_planning::MainCar &mainCar, const double &worldX, const double &worldY)
+{
+    const double car_yawRadius = M_PI * mainCar.yaw / 180.0;
+
+    double shiftX = worldX - mainCar.x;
+    double shiftY = worldY - mainCar.y;
+
+    double carX = shiftX * cos(-car_yawRadius) - shiftY * sin(-car_yawRadius);
+    double carY = shiftX * sin(-car_yawRadius) + shiftY * cos(-car_yawRadius);
+
+    return std::make_pair(carX, carY);
+}
+
+std::pair<std::vector<double>, std::vector<double>> PathPlanner::worldCoordinatesToVehicleCoordinates(
+        const path_planning::MainCar &mainCar, const std::vector<double> &worldX, const std::vector<double> &worldY)
+{
+    std::vector<double> xCoords(worldX.size()), yCoords(worldY.size());
+
+    for (int i = 0; i < worldX.size(); ++i)
+    {
+        double x, y;
+        std::tie(x, y) = worldCoordinateToVehicleCoordinate(mainCar, worldX[i], worldY[i]);
+        xCoords[i] = x;
+        yCoords[i] = y;
+    }
+
+    return std::make_pair(xCoords, yCoords);
 }

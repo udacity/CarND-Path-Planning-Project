@@ -58,7 +58,7 @@ namespace path_planning
             int NextWaypoint(double x, double y, double theta, const vector<double> &maps_x,
                              const vector<double> &maps_y)
             {
-                int closestWaypoint = ClosestWaypoint(x, y, maps_x, maps_y);
+                    int closestWaypoint = ClosestWaypoint(x, y, maps_x, maps_y);
 
                 double map_x = maps_x[closestWaypoint];
                 double map_y = maps_y[closestWaypoint];
