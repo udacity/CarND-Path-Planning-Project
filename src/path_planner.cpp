@@ -43,11 +43,13 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::planPath(
     scheduleLaneChange(simReqData.mainCar, laneSpeeds, simReqData.otherCars);
 
     // generate Spiline x and y trajectories
-    auto xy_trajectories = generateTrajectorySplines(simReqData.mainCar, laneSpeeds[m_targetLaneIndex],
-                                                     simReqData.previous_path_x, simReqData.previous_path_y);
+    std::pair<std::vector<double>, std::vector<double>> xy_trajectories =
+            generateTrajectorySplines(simReqData.mainCar, laneSpeeds[m_targetLaneIndex], simReqData.previous_path_x,
+                                      simReqData.previous_path_y);
 
     m_lastX = xy_trajectories.first;
     m_lastY = xy_trajectories.second;
+
     return xy_trajectories;
 }
 
@@ -356,7 +358,7 @@ std::pair<double, double> PathPlanner::carCoordinateToWorldCoordinate(const path
 std::pair<std::vector<double>, std::vector<double>> PathPlanner::carCoordinatesToWorldCoordinates(
         const path_planning::MainCar &mainCar, const std::vector<double> &carX, const std::vector<double> &carY)
 {
-    vector<double> xWorld, yWorld;
+    vector<double> xWorld(carX.size()), yWorld(carY.size());
 
     for (int i = 0; i < carX.size(); ++i)
     {
