@@ -6,7 +6,6 @@
 #include <limits>
 #include <tuple>
 #include "path_planner.h"
-#include "spline.h"
 #include "helpers.h"
 
 using namespace path_planning;
@@ -20,7 +19,9 @@ const double D_LIMIT_FOR_LANE_CHANGE_PENALTY = 0.5;
 const int LANE_CHANGE_PENALTY = 5;
 const double LANE_CHANGE_CLEAR = SPEED_LIMIT_METRES_PER_SECOND * 0.5;
 const double LANE_CHANGE_COST = 1.0;
-double PATH_DURATION_SECONDS = 2.5;
+const double PATH_DURATION_SECONDS = 2.5;
+const double NODE_TRAVERSAL_RATE_SECONDS = 0.02;
+const double SPEED_CHANGE = 0.1;
 
 const std::array<double, 3> lanes{D_LEFT_LANE, D_MIDDLE_LANE, D_RIGHT_LANE};
 
@@ -245,8 +246,19 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::generateTrajec
     y_points.emplace_back(endY);
 
     std::vector<double> x_carPoints, y_carPoints;
+    std::tie(x_carPoints, y_carPoints) = worldCoordinatesToVehicleCoordinates(mainCar, x_points, y_points);
 
-//    std::tie(x_carPoints, y_carPoints) =
+    tk::spline spl;
+    spl.set_points(x_carPoints, y_carPoints);
+
+    auto numExecutedCommands = static_cast<int>(m_lastX.size() - previous_path_x.size());
+
+    std::pair<std::vector<double>, std::vector<double>> xyPath = splineToPath(spl,
+                                                                              mainCar,
+                                                                              max_lane_speed,
+                                                                              numExecutedCommands);
+
+    return xyPath;
 }
 
 // https://www.mathworks.com/help/driving/ug/coordinate-systems.html
@@ -280,3 +292,81 @@ std::pair<std::vector<double>, std::vector<double>> PathPlanner::worldCoordinate
 
     return std::make_pair(xCoords, yCoords);
 }
+
+
+std::pair<std::vector<double>, std::vector<double>> PathPlanner::splineToPath(const tk::spline &spl,
+                                                                              const path_planning::MainCar &mainCar,
+                                                                              const double &maxLaneSpeed,
+                                                                              const int numCommandsExecuted)
+{
+    const double previousEndSpeed = m_prevSegmentSpeeds[numCommandsExecuted];
+
+    std::vector<double> x_carPoints, y_carPoints;
+    m_prevSegmentSpeeds.clear();
+    double previousSpeed = previousEndSpeed;
+    double t = NODE_TRAVERSAL_RATE_SECONDS;
+    while (t < PATH_DURATION_SECONDS)
+    {
+        const double speedDiff = maxLaneSpeed - previousSpeed;
+        const double speedChangeSign = speedDiff >= 0 ? 1.0 : -1.0;
+
+        double newSpeed = previousSpeed + speedChangeSign * SPEED_CHANGE;
+
+        if (newSpeed > SPEED_LIMIT_METRES_PER_SECOND)
+        {
+            newSpeed = SPEED_LIMIT_METRES_PER_SECOND;
+        }
+        else if (newSpeed < 0.0)
+        {
+            newSpeed = 0.0;
+        }
+
+        previousSpeed = newSpeed;
+        m_prevSegmentSpeeds.emplace_back(previousSpeed);
+        const double x = newSpeed * t;
+
+        x_carPoints.emplace_back(x);
+        y_carPoints.emplace_back(spl(x));
+
+        t += NODE_TRAVERSAL_RATE_SECONDS;
+    }
+
+
+    std::pair<std::vector<double>, std::vector<double>> xyPoints = carCoordinatesToWorldCoordinates(mainCar,
+                                                                                                    x_carPoints,
+                                                                                                    y_carPoints);
+
+    return xyPoints;
+}
+
+std::pair<double, double> PathPlanner::carCoordinateToWorldCoordinate(const path_planning::MainCar &mainCar,
+                                                                      const double &carX, const double &carY)
+{
+    const double carYawRadius = M_PI * mainCar.yaw / 180.0;
+
+    double worldX = carX * cos(carYawRadius) - carY * sin(carYawRadius);
+    double worldY = carX * sin(carYawRadius) + carY * cos(carYawRadius);
+
+    worldX += mainCar.x;
+    worldY += mainCar.y;
+
+    return std::make_pair(worldX, worldY);
+}
+
+std::pair<std::vector<double>, std::vector<double>> PathPlanner::carCoordinatesToWorldCoordinates(
+        const path_planning::MainCar &mainCar, const std::vector<double> &carX, const std::vector<double> &carY)
+{
+    vector<double> xWorld, yWorld;
+
+    for (int i = 0; i < carX.size(); ++i)
+    {
+        double x, y;
+        std::tie(x, y) = carCoordinateToWorldCoordinate(mainCar, carX[i], carY[i]);
+        xWorld[i] = x;
+        yWorld[i] = y;
+    }
+
+    return std::make_pair(xWorld, yWorld);
+}
+
+

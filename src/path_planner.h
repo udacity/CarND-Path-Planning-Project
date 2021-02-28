@@ -8,6 +8,7 @@
 #include <vector>
 #include <array>
 #include <deque>
+#include "spline.h"
 #include "common_utils.h"
 
 
@@ -55,6 +56,21 @@ namespace path_planning
                         const std::vector<double> &worldX,
                         const std::vector<double> &worldY);
 
+                std::pair<std::vector<double>, std::vector<double>> splineToPath(const tk::spline &spl,
+                                                                                 const MainCar &mainCar,
+                                                                                 const double &maxLaneSpeed,
+                                                                                 const int numCommandsExecuted);
+
+                std::pair<double, double> carCoordinateToWorldCoordinate(const MainCar &mainCar,
+                                                                         const double &carX,
+                                                                         const double &carY);
+
+                std::pair<std::vector<double>, std::vector<double>> carCoordinatesToWorldCoordinates(
+                        const MainCar &mainCar,
+                        const std::vector<double> &carX,
+                        const std::vector<double> &carY);
+
+
                 std::vector<double> m_lastX;
                 std::vector<double> m_lastY;
 
@@ -65,6 +81,9 @@ namespace path_planning
                 double m_targetLaneD{D_MIDDLE_LANE};
                 unsigned int m_laneChangeDelay = 5u;
                 int m_targetLaneIndex{1};
+
+                // Holds previous speeds, including previous starting speed
+                std::vector<double> m_prevSegmentSpeeds{{0.0}};
             };
 
     }
