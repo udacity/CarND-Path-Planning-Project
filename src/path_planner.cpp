@@ -12,8 +12,14 @@ using namespace path_planning;
 
 // How many nodes from a trajectory to keep in history
 const int TRAJECTORY_HISTORY_LENGTH = 100;
+
 // Speed limit
-const double SPEED_LIMIT_METRES_PER_SECOND = 50.0 * 0.9;
+const constexpr double MPH_TO_METRES_PER_SECOND(const double mph)
+{
+    return mph / 3600.0 * 1609.344;
+}
+
+const double SPEED_LIMIT_METRES_PER_SECOND = MPH_TO_METRES_PER_SECOND(50.0 * 0.9);
 const double LANE_SPEED_FORWARD_SCAN_RANGE = SPEED_LIMIT_METRES_PER_SECOND * 3.0;
 const double D_LIMIT_FOR_LANE_CHANGE_PENALTY = 0.5;
 const int LANE_CHANGE_PENALTY = 5;
@@ -299,7 +305,7 @@ std::pair<std::vector<double>, std::vector<double>> PathPlanner::worldCoordinate
 std::pair<std::vector<double>, std::vector<double>> PathPlanner::splineToPath(const tk::spline &spl,
                                                                               const path_planning::MainCar &mainCar,
                                                                               const double &maxLaneSpeed,
-                                                                              const int numCommandsExecuted)
+                                                                              const int &numCommandsExecuted)
 {
     const double previousEndSpeed = m_prevSegmentSpeeds[numCommandsExecuted];
 

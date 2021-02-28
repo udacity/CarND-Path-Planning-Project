@@ -16,7 +16,7 @@ namespace path_planning
     {
             const double D_LEFT_LANE = 2.0;
             const double D_MIDDLE_LANE = 6.0;
-            const double D_RIGHT_LANE = 6.0;
+            const double D_RIGHT_LANE = 10.0;
 
             class PathPlanner
             {
@@ -59,7 +59,7 @@ namespace path_planning
                 std::pair<std::vector<double>, std::vector<double>> splineToPath(const tk::spline &spl,
                                                                                  const MainCar &mainCar,
                                                                                  const double &maxLaneSpeed,
-                                                                                 const int numCommandsExecuted);
+                                                                                 const int &numCommandsExecuted);
 
                 std::pair<double, double> carCoordinateToWorldCoordinate(const MainCar &mainCar,
                                                                          const double &carX,
