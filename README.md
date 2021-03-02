@@ -3,6 +3,10 @@ Project: Highway Driving(Path Planning)
 
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
+|<img src="data/images/final-output.gif" width="500" height="300" />|
+|----------------------------------|
+|[Running instructions](https://youtu.be/SLMwKynQ9MU) |
+
 ### Introduction
 
 
