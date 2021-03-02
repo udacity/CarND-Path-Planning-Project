@@ -14,12 +14,12 @@ using namespace path_planning;
 const int TRAJECTORY_HISTORY_LENGTH = 100;
 
 // Speed limit
-const constexpr double MPH_TO_METRES_PER_SECOND(const double mph)
+static constexpr double MPH_TO_METRES_PER_SECOND(const double mph)
 {
     return mph / 3600.0 * 1609.344;
 }
 
-const double SPEED_LIMIT_METRES_PER_SECOND = MPH_TO_METRES_PER_SECOND(50.0 * 0.85);
+static constexpr double SPEED_LIMIT_METRES_PER_SECOND = MPH_TO_METRES_PER_SECOND(50.0 * 0.85);
 const double LANE_SPEED_FORWARD_SCAN_RANGE = SPEED_LIMIT_METRES_PER_SECOND * 3.0;
 const double D_LIMIT_FOR_LANE_CHANGE_PENALTY = 0.5;
 const int LANE_CHANGE_PENALTY = 5;
@@ -72,7 +72,9 @@ void PathPlanner::updateTrajectoryHistory(const path_planning::SimulatorRequest 
         m_historyMainX.push_front(*itr);
     }
     if (m_historyMainX.size() > TRAJECTORY_HISTORY_LENGTH)
+    {
         m_historyMainX.resize(TRAJECTORY_HISTORY_LENGTH);
+    }
 
     for (auto itr = m_lastY.begin(); itr != m_lastY.begin() + executedCommands; ++itr)
     {
@@ -80,7 +82,9 @@ void PathPlanner::updateTrajectoryHistory(const path_planning::SimulatorRequest 
     }
 
     if (m_historyMainY.size() > TRAJECTORY_HISTORY_LENGTH)
+    {
         m_historyMainY.resize(TRAJECTORY_HISTORY_LENGTH);
+    }
 }
 
 
