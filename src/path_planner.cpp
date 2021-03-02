@@ -92,13 +92,14 @@ std::array<double, 3> PathPlanner::getLaneSpeeds(path_planning::MainCar mainCar,
                                                  const std::vector<OtherCar> &sensorFusions) const
 {
 
-    std::array<double, 3> speeds;
+    std::array<double, 3> speeds{};
 
     for (int i = 0; i < lanes.size(); ++i)
     {
         mainCar.d = lanes[i];
         int carAheadIndx = getCarAhead(mainCar, sensorFusions);
         speeds[i] = SPEED_LIMIT_METRES_PER_SECOND;
+
         if (carAheadIndx != -1 && sensorFusions[carAheadIndx].s - mainCar.s <= LANE_SPEED_FORWARD_SCAN_RANGE)
         {
             const auto &carAhead = sensorFusions[carAheadIndx];
@@ -115,9 +116,9 @@ int PathPlanner::getCarAhead(const path_planning::MainCar &mainCar,
 {
     int carAheadIndx = -1;
     double minSDist = std::numeric_limits<double>::max();
-    int i = 0;
-    for (auto const &otherCar: sensorFusions)
+    for (int i = 0; i < sensorFusions.size(); ++i)
     {
+        const OtherCar &otherCar = sensorFusions[i];
         if (std::abs(otherCar.d - mainCar.d) < 1.0 && otherCar.s >= mainCar.s)
         {
             double s_dist = otherCar.s - mainCar.s;
@@ -127,8 +128,6 @@ int PathPlanner::getCarAhead(const path_planning::MainCar &mainCar,
                 carAheadIndx = i;
             }
         }
-
-        ++i;
     }
     return carAheadIndx;
 }
