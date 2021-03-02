@@ -11,7 +11,7 @@
 using namespace path_planning;
 
 // How many nodes from a trajectory to keep in history
-const int TRAJECTORY_HISTORY_LENGTH = 100;
+static constexpr unsigned TRAJECTORY_HISTORY_LENGTH = 100u;
 
 // Speed limit
 static constexpr double MPH_TO_METRES_PER_SECOND(const double mph)
@@ -20,14 +20,14 @@ static constexpr double MPH_TO_METRES_PER_SECOND(const double mph)
 }
 
 static constexpr double SPEED_LIMIT_METRES_PER_SECOND = MPH_TO_METRES_PER_SECOND(50.0 * 0.85);
-const double LANE_SPEED_FORWARD_SCAN_RANGE = SPEED_LIMIT_METRES_PER_SECOND * 3.0;
-const double D_LIMIT_FOR_LANE_CHANGE_PENALTY = 0.5;
-const int LANE_CHANGE_PENALTY = 5;
-const double LANE_CHANGE_CLEAR = SPEED_LIMIT_METRES_PER_SECOND * 0.5;
-const double LANE_CHANGE_COST = 1.0;
-const double PATH_DURATION_SECONDS = 2.5;
-const double NODE_TRAVERSAL_RATE_SECONDS = 0.02;
-const double SPEED_CHANGE = 0.1;
+static constexpr double LANE_SPEED_FORWARD_SCAN_RANGE = SPEED_LIMIT_METRES_PER_SECOND * 3.0;
+static constexpr double D_LIMIT_FOR_LANE_CHANGE_PENALTY = 0.5;
+static constexpr int LANE_CHANGE_PENALTY = 5;
+static constexpr double LANE_CHANGE_CLEAR = SPEED_LIMIT_METRES_PER_SECOND * 0.5;
+static constexpr double LANE_CHANGE_COST = 1.0;
+static constexpr double PATH_DURATION_SECONDS = 2.5;
+static constexpr double NODE_TRAVERSAL_RATE_SECONDS = 0.02;
+static constexpr double SPEED_CHANGE = 0.1;
 
 const std::array<double, 3> lanes{D_LEFT_LANE, D_MIDDLE_LANE, D_RIGHT_LANE};
 
@@ -92,12 +92,13 @@ std::array<double, 3> PathPlanner::getLaneSpeeds(path_planning::MainCar mainCar,
                                                  const std::vector<OtherCar> &sensorFusions) const
 {
 
-    std::array<double, 3> speeds{SPEED_LIMIT_METRES_PER_SECOND, SPEED_LIMIT_METRES_PER_SECOND,
-                                 SPEED_LIMIT_METRES_PER_SECOND};
+    std::array<double, 3> speeds;
+
     for (int i = 0; i < lanes.size(); ++i)
     {
         mainCar.d = lanes[i];
         int carAheadIndx = getCarAhead(mainCar, sensorFusions);
+        speeds[i] = SPEED_LIMIT_METRES_PER_SECOND;
         if (carAheadIndx != -1 && sensorFusions[carAheadIndx].s - mainCar.s <= LANE_SPEED_FORWARD_SCAN_RANGE)
         {
             const auto &carAhead = sensorFusions[carAheadIndx];
