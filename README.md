@@ -13,6 +13,8 @@ Project: Highway Driving(Path Planning)
 *The car transmits its location, along with its sensor fusion data, which estimates the location of all the vehicles on the same side of the road.*
 
 ### The code model for generating paths
+Path planning implementation is coded in the `path_planner.cpp` with the method name `planPath`.  Following is the implementation of `planPath` method.
+
 
 ```cpp
 std::pair<std::vector<double>, std::vector<double >> PathPlanner::planPath(
@@ -34,3 +36,5 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::planPath(
 }
 
 ```
+
+Following steps were followed to implement a path planning solution.
