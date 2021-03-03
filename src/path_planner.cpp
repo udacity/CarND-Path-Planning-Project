@@ -91,22 +91,18 @@ void PathPlanner::updateTrajectoryHistory(const path_planning::SimulatorRequest 
 std::array<double, 3> PathPlanner::getLaneSpeeds(path_planning::MainCar mainCar,
                                                  const std::vector<OtherCar> &sensorFusions) const
 {
-
     std::array<double, 3> speeds{};
-
     for (int i = 0; i < lanes.size(); ++i)
     {
         mainCar.d = lanes[i];
         int carAheadIndx = getCarAhead(mainCar, sensorFusions);
         speeds[i] = SPEED_LIMIT_METRES_PER_SECOND;
-
         if (carAheadIndx != -1 && sensorFusions[carAheadIndx].s - mainCar.s <= LANE_SPEED_FORWARD_SCAN_RANGE)
         {
             const auto &carAhead = sensorFusions[carAheadIndx];
             speeds[i] = std::sqrt(pow(carAhead.dx, 2) + pow(carAhead.dy, 2));
         }
     }
-
     return speeds;
 }
 
@@ -175,9 +171,7 @@ void PathPlanner::scheduleLaneChange(const path_planning::MainCar &mainCar, cons
                 m_laneChangeDelay = LANE_CHANGE_PENALTY;
             }
         }
-
     }
-
 }
 
 
@@ -191,7 +185,6 @@ bool PathPlanner::isLaneBlocked(const double &targetLaneD, const path_planning::
             return true;
         }
     }
-
     return false;
 }
 
