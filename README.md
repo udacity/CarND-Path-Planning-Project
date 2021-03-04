@@ -202,3 +202,28 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::generateTrajec
 }
 ```
 
+To fit a spline for the path between previous endpoint and new enpoint following `x,y` coordinates were used.
+* All the points in our car history (up to 100!), that are far enough apart from each other.
+
+```cpp
+ for (; x_histItr != m_historyMainX.end() && y_histItr != m_historyMainY.end(); ++x_histItr, ++y_histItr)
+    {
+        double histX = *x_histItr;
+        double histY = *y_histItr;
+        const double distToRef = distance(histX, histY, x_reference, y_reference);
+
+        if (distToRef > 1.5)
+        {
+            x_points.insert(x_points.begin(), histX);
+            y_points.insert(y_points.begin(), histY);
+
+            x_reference = histX;
+            y_reference = histY;
+        }
+    }
+```
+
+
+
+
+
