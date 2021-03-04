@@ -223,7 +223,10 @@ To fit a spline for the path between previous endpoint and new enpoint following
     }
 ```
 
+* The starting `x` and `y` points
 
-
-
+```cpp
+x_points.emplace_back(mainCar.x);
+y_points.emplace_back(mainCar.y);
+```
 
