@@ -212,7 +212,7 @@ To fit a spline for the path between previous endpoint and new enpoint following
         double histY = *y_histItr;
         const double distToRef = distance(histX, histY, x_reference, y_reference);
 
-        if (distToRef > 1.5)
+        if (distToRef > 2.5)
         {
             x_points.insert(x_points.begin(), histX);
             y_points.insert(y_points.begin(), histY);
