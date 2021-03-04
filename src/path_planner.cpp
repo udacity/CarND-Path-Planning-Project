@@ -23,11 +23,11 @@ static constexpr double SPEED_LIMIT_METRES_PER_SECOND = MPH_TO_METRES_PER_SECOND
 static constexpr double LANE_SPEED_FORWARD_SCAN_RANGE = SPEED_LIMIT_METRES_PER_SECOND * 3.0;
 static constexpr double D_LIMIT_FOR_LANE_CHANGE_PENALTY = 0.5;
 static constexpr int LANE_CHANGE_PENALTY = 5;
-static constexpr double LANE_CHANGE_CLEAR = SPEED_LIMIT_METRES_PER_SECOND * 0.48;
-static constexpr double LANE_CHANGE_COST = 1.0;
-static constexpr double PATH_DURATION_SECONDS = 2.5;
+static constexpr double LANE_CHANGE_CLEAR = SPEED_LIMIT_METRES_PER_SECOND * 0.5;
+static constexpr double LANE_CHANGE_COST = 0.9;
+static constexpr double PATH_DURATION_SECONDS = 2.45;
 static constexpr double NODE_TRAVERSAL_RATE_SECONDS = 0.02;
-static constexpr double SPEED_CHANGE = 0.1;
+static constexpr double SPEED_CHANGE = 0.09;
 
 const std::array<double, 3> lanes{D_LEFT_LANE, D_MIDDLE_LANE, D_RIGHT_LANE};
 
