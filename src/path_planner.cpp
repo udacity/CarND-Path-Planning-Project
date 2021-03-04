@@ -19,11 +19,11 @@ static constexpr double MPH_TO_METRES_PER_SECOND(const double mph)
     return mph / 3600.0 * 1609.344;
 }
 
-static constexpr double SPEED_LIMIT_METRES_PER_SECOND = MPH_TO_METRES_PER_SECOND(50.0 * 0.85);
+static constexpr double SPEED_LIMIT_METRES_PER_SECOND = MPH_TO_METRES_PER_SECOND(50.0 * 0.9);
 static constexpr double LANE_SPEED_FORWARD_SCAN_RANGE = SPEED_LIMIT_METRES_PER_SECOND * 3.0;
 static constexpr double D_LIMIT_FOR_LANE_CHANGE_PENALTY = 0.5;
 static constexpr int LANE_CHANGE_PENALTY = 5;
-static constexpr double LANE_CHANGE_CLEAR = SPEED_LIMIT_METRES_PER_SECOND * 0.5;
+static constexpr double LANE_CHANGE_CLEAR = SPEED_LIMIT_METRES_PER_SECOND * 0.48;
 static constexpr double LANE_CHANGE_COST = 1.0;
 static constexpr double PATH_DURATION_SECONDS = 2.5;
 static constexpr double NODE_TRAVERSAL_RATE_SECONDS = 0.02;
@@ -180,7 +180,7 @@ bool PathPlanner::isLaneBlocked(const double &targetLaneD, const path_planning::
 {
     for (const auto &otherCar: sensorFusions)
     {
-        if (std::abs(otherCar.d - targetLaneD) < 1.0 && std::abs(otherCar.s - mainCar.s) <= LANE_CHANGE_CLEAR)
+        if (std::abs(otherCar.d - targetLaneD) < 1.4 && std::abs(otherCar.s - mainCar.s) <= LANE_CHANGE_CLEAR)
         {
             return true;
         }
@@ -217,7 +217,7 @@ std::pair<std::vector<double>, std::vector<double >> PathPlanner::generateTrajec
         double histY = *y_histItr;
         const double distToRef = distance(histX, histY, x_reference, y_reference);
 
-        if (distToRef > 1.5)
+        if (distToRef > 2.5)
         {
             x_points.insert(x_points.begin(), histX);
             y_points.insert(y_points.begin(), histY);
