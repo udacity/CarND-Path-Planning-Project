@@ -3,9 +3,9 @@ Project: Highway Driving(Path Planning)
 
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-|<img src="data/images/final-output.gif" width="500" height="300" />|
-|----------------------------------|
-|[Running instructions](https://youtu.be/SLMwKynQ9MU) |
+|<img src="data/images/final-output.gif" width="500" height="300" />|<img src="data/images/last-run-output.png" width="500" height="300" />|
+|----------------------------------|-------------------------------------------------------------------------------------------------------|
+|[Running instructions](https://youtu.be/SLMwKynQ9MU) | Final output|
 
 ### Introduction
 *The goal of this project is to build a path planner that creates smooth, safe trajectories for the car to follow. The highway track has other vehicles, all going different speeds, but approximately obeying the 50 MPH speed limit.*
@@ -254,7 +254,7 @@ y_points.emplace_back(beforeEndY);
 y_points.emplace_back(endY);
 ```
 
-Above function was used to generate the path of more or less the distance to the target point. The maximum speed of the car was configured as 45.00 mph. And also restricted to the speed of the car in front. Iterated over every time point on the path and referring to the previous speed and computed the next one by adding or subtracting the constant speedup value. Cached the speed generated after every timepoint, as that's where we get our current speed. After all this, the car points are converted to world coordinates and returned.
+Above function was used to generate the path of more or less the distance to the target point. The maximum speed of the car was configured as 45.00 MPH. And also restricted to the speed of the car in front. Iterated over every time point on the path and referring to the previous speed and computed the next one by adding or subtracting the constant speedup value. Cached the speed generated after every timepoint, as that's where we get our current speed. After all this, the car points are converted to world coordinates and returned.
 
 ### References
 * https://www.udacity.com/course/self-driving-car-engineer-nanodegree--nd013
