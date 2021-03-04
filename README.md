@@ -243,3 +243,13 @@ if (previous_path_x.size() >= 10)
     y_points.emplace_back(previous_path_y[9]);
 }
 ```
+
+* Two distant points at the end of the path.
+
+```cpp
+x_points.emplace_back(beforeEndX);
+x_points.emplace_back(endX);
+
+y_points.emplace_back(beforeEndY);
+y_points.emplace_back(endY);
+```
