@@ -67,3 +67,54 @@ void PathPlanner::updateTrajectoryHistory(const path_planning::SimulatorRequest 
     }
 }
 ```
+
+##### Step02
+Check if a lane change is needed and change the target lane accodingly.
+
+```cpp
+void PathPlanner::scheduleLaneChange(const path_planning::MainCar &mainCar, const std::array<double, 3> &laneSpeeds,
+                                     const std::vector<path_planning::OtherCar> &sensorFusions)
+{
+    if (std::abs(mainCar.d - m_targetLaneD) > D_LIMIT_FOR_LANE_CHANGE_PENALTY)
+    {
+        m_laneChangeDelay = LANE_CHANGE_PENALTY;
+    }
+    else if (m_laneChangeDelay != 0)
+    {
+        --m_laneChangeDelay;
+    }
+    else
+    {
+        if (m_targetLaneD == D_LEFT_LANE && laneSpeeds[1] - LANE_CHANGE_COST > laneSpeeds[0]
+            && !isLaneBlocked(D_MIDDLE_LANE, mainCar, sensorFusions))
+        {
+            m_targetLaneD = D_MIDDLE_LANE;
+            m_targetLaneIndex = 1;
+            m_laneChangeDelay = LANE_CHANGE_PENALTY;
+        }
+        else if (m_targetLaneD == D_RIGHT_LANE && laneSpeeds[1] - LANE_CHANGE_COST > laneSpeeds[2]
+                 && !isLaneBlocked(D_MIDDLE_LANE, mainCar, sensorFusions))
+        {
+            m_targetLaneD = D_MIDDLE_LANE;
+            m_targetLaneIndex = 1;
+            m_laneChangeDelay = LANE_CHANGE_PENALTY;
+        }
+        else if (m_targetLaneD == D_MIDDLE_LANE &&
+                 (laneSpeeds[0] - LANE_CHANGE_COST > laneSpeeds[1] || laneSpeeds[2] - LANE_CHANGE_COST > laneSpeeds[1]))
+        {
+            if (laneSpeeds[0] > laneSpeeds[2] && !isLaneBlocked(D_LEFT_LANE, mainCar, sensorFusions))
+            {
+                m_targetLaneD = D_LEFT_LANE;
+                m_targetLaneIndex = 0;
+                m_laneChangeDelay = LANE_CHANGE_PENALTY;
+            }
+            else if (!isLaneBlocked(D_RIGHT_LANE, mainCar, sensorFusions))
+            {
+                m_targetLaneD = D_RIGHT_LANE;
+                m_targetLaneIndex = 2;
+                m_laneChangeDelay = LANE_CHANGE_PENALTY;
+            }
+        }
+    }
+}
+```
