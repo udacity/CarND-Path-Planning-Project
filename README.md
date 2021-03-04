@@ -229,4 +229,17 @@ To fit a spline for the path between previous endpoint and new enpoint following
 x_points.emplace_back(mainCar.x);
 y_points.emplace_back(mainCar.y);
 ```
+* A few points from the previously planned path.
+```cpp
+if (previous_path_x.size() >= 5)
+{
+    x_points.emplace_back(previous_path_x[4]);
+    y_points.emplace_back(previous_path_y[4]);
+}
 
+if (previous_path_x.size() >= 10)
+{
+    x_points.emplace_back(previous_path_x[9]);
+    y_points.emplace_back(previous_path_y[9]);
+}
+```
