@@ -1,13 +1,13 @@
 project(Path_Planning)
 
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.10)
 
-add_definitions(-std=c++11)
+add_definitions(-std=c++14)
 
-set(CXX_FLAGS "-Wall")
+set(CXX_FLAGS "-Wall -O3")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
-set(sources src/main.cpp)
+set(sources src/main.cpp src/path_planner.cpp)
 
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
