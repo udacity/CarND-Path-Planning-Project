@@ -15,13 +15,37 @@ struct egoVehicle {
   double end_path_d;
 };
 
-void plan(vector<double> &next_x_vals, vector<double> &next_y_vals,
-          egoVehicle &ego) {
+struct mapWaypoints {
+  vector<double> x;
+  vector<double> y;
+  vector<double> s;
+  vector<double> dx;
+  vector<double> dy;
+};
+
+void straight(vector<double> &next_x_vals, vector<double> &next_y_vals,
+              const egoVehicle &ego, const mapWaypoints &map) {
   double dist_inc = 0.5;
   for (int i = 0; i < 50; i++) {
     next_x_vals.push_back(ego.car_x +
                           (dist_inc * i) * cos(deg2rad(ego.car_yaw)));
     next_y_vals.push_back(ego.car_y +
                           (dist_inc * i) * sin(deg2rad(ego.car_yaw)));
+  }
+}
+
+void stayInLane(vector<double> &next_x_vals, vector<double> &next_y_vals,
+                const egoVehicle &ego, const mapWaypoints &map) {
+  // car is to fast
+  double dist_inc = 0.03;
+  for (int i = 0; i < 50; i++) {
+    double next_s = ego.car_s * (i + 1) * dist_inc;
+    // middle of middle lane. (lane_width=4m)
+    double next_d = 6;
+
+    auto xy = getXY(next_s, next_d, map.s, map.x, map.y);
+
+    next_x_vals.push_back(xy[0]);
+    next_y_vals.push_back(xy[1]);
   }
 }

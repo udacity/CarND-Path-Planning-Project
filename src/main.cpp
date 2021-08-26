@@ -20,11 +20,7 @@ int main() {
   uWS::Hub h;
 
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
-  vector<double> map_waypoints_x;
-  vector<double> map_waypoints_y;
-  vector<double> map_waypoints_s;
-  vector<double> map_waypoints_dx;
-  vector<double> map_waypoints_dy;
+  mapWaypoints map;
 
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
@@ -46,17 +42,15 @@ int main() {
     iss >> s;
     iss >> d_x;
     iss >> d_y;
-    map_waypoints_x.push_back(x);
-    map_waypoints_y.push_back(y);
-    map_waypoints_s.push_back(s);
-    map_waypoints_dx.push_back(d_x);
-    map_waypoints_dy.push_back(d_y);
+    map.x.push_back(x);
+    map.y.push_back(y);
+    map.s.push_back(s);
+    map.dx.push_back(d_x);
+    map.dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-               &map_waypoints_dx,
-               &map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data,
-                                  size_t length, uWS::OpCode opCode) {
+  h.onMessage([&map](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+                     uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -99,7 +93,8 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-          plan(next_x_vals, next_y_vals, ego);
+          // straight(next_x_vals, next_y_vals, ego);
+          stayInLane(next_x_vals, next_y_vals, ego, map);
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
