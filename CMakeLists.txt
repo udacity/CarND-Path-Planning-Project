@@ -11,9 +11,7 @@ set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 set(CMAKE_BUILD_TYPE Debug)
 
 set(sources 
-  src/main.cpp 
-  src/pathPlanner.hpp 
-  src/pathPlanner.cpp)
+  src/main.cpp)
 
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 

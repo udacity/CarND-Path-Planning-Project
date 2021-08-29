@@ -19,17 +19,15 @@ using std::vector;
 int main() {
   uWS::Hub h;
 
-  // Load up map values for waypoint's x,y,s and d normalized normal vectors
-  mapWaypoints map;
-
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
   double max_s = 6945.554;
 
+  // Load up map values for waypoint's x,y,s and d normalized normal vectors
   std::ifstream in_map_(map_file_.c_str(), std::ifstream::in);
-
   string line;
+  mapWaypoints map;
   while (getline(in_map_, line)) {
     std::istringstream iss(line);
     double x;
@@ -72,32 +70,31 @@ int main() {
           ego.car_d = j[1]["d"];
           ego.car_yaw = j[1]["yaw"];
           ego.car_speed = j[1]["speed"];
-
-          // Previous path data given to the Planner
-          auto previous_path_x = j[1]["previous_path_x"];
-          auto previous_path_y = j[1]["previous_path_y"];
           // Previous path's end s and d values
           ego.end_path_s = j[1]["end_path_s"];
           ego.end_path_d = j[1]["end_path_d"];
+          // Previous path data given to the Planner
+          vector<double> previous_path_x = j[1]["previous_path_x"];
+          vector<double> previous_path_y = j[1]["previous_path_y"];
+          ego.previous_path_x = previous_path_x;
+          ego.previous_path_y = previous_path_y;
 
           // Sensor Fusion Data, a list of all other cars on the same side
           //   of the road.
-          auto sensor_fusion = j[1]["sensor_fusion"];
-
-          json msgJson;
-
-          vector<double> next_x_vals;
-          vector<double> next_y_vals;
+          vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
 
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-          // straight(next_x_vals, next_y_vals, ego);
-          stayInLane(next_x_vals, next_y_vals, ego, map);
+          points nextPoints;
+          // straight(nextPoints, ego);
+          // stayInLane(nextPoints, ego, map);
+          stayInLaneWithSpline(nextPoints, ego, map);
 
-          msgJson["next_x"] = next_x_vals;
-          msgJson["next_y"] = next_y_vals;
+          json msgJson;
+          msgJson["next_x"] = nextPoints.x;
+          msgJson["next_y"] = nextPoints.y;
 
           auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
