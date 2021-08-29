@@ -149,7 +149,7 @@ pointXY calcRotation(const pointXY pointA, const double yaw) {
   return result;
 }
 
-enum laneIndex { left = 0, ego = 1, right = 2 };
+enum laneIndex { left = 0, middle = 1, right = 2 };
 double laneWidth = 4.0;
 double getLaneDisplacement(const laneIndex laneIndex,
                            const double laneWidth = laneWidth) {

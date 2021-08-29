@@ -2,7 +2,7 @@
 #include "spline.h"
 
 // start in lane 1
-const auto startLaneIndex = ego;
+auto currentlaneIndex = middle;
 
 // reference velocity to target [miles per hour]
 double targetVelocity = 0;
@@ -50,7 +50,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   for (int i = 0; i < sensor_fusion.size(); i++) {
     // car is in my lane
     object obj(sensor_fusion[i]);
-    auto myLane = getLaneDisplacement(ego);
+    auto myLane = getLaneDisplacement(currentlaneIndex);
     if (obj.sd.d < (myLane + laneWidth / 2) &&
         obj.sd.d > (myLane - laneWidth / 2)) {
       obj.v = distance(0, 0, obj.vx, obj.vx);
@@ -71,6 +71,21 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
 
   // rudimentary controlling of velocity
   if (too_close) {
+    // TODO: safe lane change is not ensured
+    switch (currentlaneIndex) {
+      case left:
+        currentlaneIndex = middle;
+        break;
+      case right:
+        currentlaneIndex = middle;
+        break;
+      case middle:
+        currentlaneIndex = left;
+        break;
+      default:
+        break;
+    }
+
     targetVelocity -= velocityStep;
   } else if (targetVelocity < maxVelocity) {
     targetVelocity += velocityStep;
@@ -107,7 +122,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   anchorPoints.xy.push_back(reference);
 
   // In frenet add evenly 30m spaced  points ahead of the starting reference
-  auto offsetLat = getLaneDisplacement(startLaneIndex);
+  auto offsetLat = getLaneDisplacement(currentlaneIndex);
   double startS = 30;
   double stepS = 30;
   double endS = 90;
