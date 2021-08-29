@@ -24,7 +24,7 @@ struct mapWaypoints {
 };
 
 void straight(vector<double> &next_x_vals, vector<double> &next_y_vals,
-              const egoVehicle &ego, const mapWaypoints &map) {
+              const egoVehicle &ego) {
   double dist_inc = 0.5;
   for (int i = 0; i < 50; i++) {
     next_x_vals.push_back(ego.car_x +
@@ -37,9 +37,9 @@ void straight(vector<double> &next_x_vals, vector<double> &next_y_vals,
 void stayInLane(vector<double> &next_x_vals, vector<double> &next_y_vals,
                 const egoVehicle &ego, const mapWaypoints &map) {
   // car is to fast
-  double dist_inc = 0.03;
+  double dist_inc = 0.3;
   for (int i = 0; i < 50; i++) {
-    double next_s = ego.car_s * (i + 1) * dist_inc;
+    double next_s = ego.car_s + (i + 1) * dist_inc;
     // middle of middle lane. (lane_width=4m)
     double next_d = 6;
 
