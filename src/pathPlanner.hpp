@@ -5,7 +5,10 @@
 const auto startLaneIndex = ego;
 
 // reference velocity to target [miles per hour]
-double targetVelocity = 49.5;
+double targetVelocity = 0;
+const double maxVelocity = 49.5;
+// 5m/s
+double velocityStep = 0.224;
 
 void straight(points &nextPoints, const egoVehicle &car) {
   double dist_inc = 0.5;
@@ -34,8 +37,6 @@ void stayInLane(points &nextPoints, const egoVehicle &car,
 void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
                           const mapWaypoints &map,
                           vector<vector<double>> sensor_fusion) {
-  // anchor points
-  path anchorPoints;
   // assert(car.previous_path_x.size() != car.previous_path_y.size());
   int prev_size = car.previous_path_x.size();
 
@@ -44,9 +45,8 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     car.sd.s = car.end_path_sd.s;
   }
 
+  // find ref_v to use and check if it's within range
   bool too_close = false;
-
-  // find ref_v to use
   for (int i = 0; i < sensor_fusion.size(); i++) {
     // car is in my lane
     object obj(sensor_fusion[i]);
@@ -64,10 +64,16 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
       if ((obj.sd.s > car.sd.s) && ((obj.sd.s - car.sd.s) < criticalDistance)) {
         // Do some logic here, lower reference velocity so we dont crash into
         // the car infront of us, could also flag to try to change lanes,
-        targetVelocity = 29.5;
-        // too  close = true;
+        too_close = true;
       }
     }
+  }
+
+  // rudimentary controlling of velocity
+  if (too_close) {
+    targetVelocity -= velocityStep;
+  } else if (targetVelocity < maxVelocity) {
+    targetVelocity += velocityStep;
   }
 
   // reference x,y,yaw state
@@ -96,6 +102,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
 
   // Use two points that make the path tangent to the previous path's end
   // point
+  path anchorPoints;
   anchorPoints.xy.push_back(previousPoint);
   anchorPoints.xy.push_back(reference);
 
