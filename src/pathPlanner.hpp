@@ -5,7 +5,7 @@
 const auto startLaneIndex = ego;
 
 // reference velocity to target [miles per hour]
-const double targetVelocity = 49.5;
+double targetVelocity = 49.5;
 
 void straight(points &nextPoints, const egoVehicle &car) {
   double dist_inc = 0.5;
@@ -31,12 +31,44 @@ void stayInLane(points &nextPoints, const egoVehicle &car,
   }
 }
 
-void stayInLaneWithSpline(points &nextPoints, const egoVehicle &car,
-                          const mapWaypoints &map) {
+void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
+                          const mapWaypoints &map,
+                          vector<vector<double>> sensor_fusion) {
   // anchor points
   path anchorPoints;
   // assert(car.previous_path_x.size() != car.previous_path_y.size());
   int prev_size = car.previous_path_x.size();
+
+  // place the car at the end of the planned trajectory
+  if (prev_size > 0) {
+    car.sd.s = car.end_path_sd.s;
+  }
+
+  bool too_close = false;
+
+  // find ref_v to use
+  for (int i = 0; i < sensor_fusion.size(); i++) {
+    // car is in my lane
+    object obj(sensor_fusion[i]);
+    auto myLane = getLaneDisplacement(ego);
+    if (obj.sd.d < (myLane + laneWidth / 2) &&
+        obj.sd.d > (myLane - laneWidth / 2)) {
+      obj.v = distance(0, 0, obj.vx, obj.vx);
+
+      // if using previous points can project s value out
+      // check s values greter than mine and s gap
+      obj.sd.s += ((double)prev_size * cycleTime * obj.v);
+
+      // predicted target vehicle shall be within certain range
+      double criticalDistance = 30;
+      if ((obj.sd.s > car.sd.s) && ((obj.sd.s - car.sd.s) < criticalDistance)) {
+        // Do some logic here, lower reference velocity so we dont crash into
+        // the car infront of us, could also flag to try to change lanes,
+        targetVelocity = 29.5;
+        // too  close = true;
+      }
+    }
+  }
 
   // reference x,y,yaw state
   // either we will reference the starting point as where the car is or at the

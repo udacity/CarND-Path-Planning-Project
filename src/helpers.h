@@ -92,6 +92,31 @@ struct mapWaypoints {
   vector<double> dy;
 };
 
+struct object {
+  // unique ID
+  double id;
+  // x and  position in map coordinates
+  pointXY xy;
+  // s and d position in frenet coordinates
+  pointSD sd;
+  // x velocity in m/s
+  double vx;
+  // y velocity in m/s
+  double vy;
+  // velocity in m/s
+  double v;
+
+  object(vector<double> data) {
+    id = data[1];
+    xy.x = data[2];
+    xy.y = data[3];
+    vx = data[3];
+    vy = data[4];
+    sd.s = data[5];
+    sd.d = data[6];
+  }
+};
+
 pointXY calcPreviousPoint(const pointXY point, const double yaw) {
   pointXY newPoint;
   newPoint.x = point.x - cos(yaw);
@@ -125,8 +150,9 @@ pointXY calcRotation(const pointXY pointA, const double yaw) {
 }
 
 enum laneIndex { left = 0, ego = 1, right = 2 };
+double laneWidth = 4.0;
 double getLaneDisplacement(const laneIndex laneIndex,
-                           const double laneWidth = 4.0) {
+                           const double laneWidth = laneWidth) {
   double center = laneWidth / 2;
   return (center + laneWidth * static_cast<int>(laneIndex));
 }

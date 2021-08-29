@@ -90,7 +90,7 @@ int main() {
           points nextPoints;
           // straight(nextPoints, car);
           // stayInLane(nextPoints, car, map);
-          stayInLaneWithSpline(nextPoints, car, map);
+          stayInLaneWithSpline(nextPoints, car, map, sensor_fusion);
 
           json msgJson;
           msgJson["next_x"] = nextPoints.x;
