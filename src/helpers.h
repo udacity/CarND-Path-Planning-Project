@@ -49,6 +49,14 @@ double getTravelledDistance(const double velocity,
   return time * velocity / factorMilesPhToMperS;
 }
 
+enum laneIndex { left = 0, middle = 1, right = 2 };
+double laneWidth = 4.0;
+double getLaneDisplacement(const laneIndex myLaneIndex,
+                           const double laneWidth = laneWidth) {
+  double center = laneWidth / 2;
+  return (center + laneWidth * static_cast<int>(myLaneIndex));
+}
+
 struct points {
   vector<double> x;
   vector<double> y;
@@ -75,6 +83,7 @@ struct egoVehicle {
   pointSD sd;
   double yaw;
   double speed;
+  laneIndex currentlaneIndex;
 
   // Previous path's end s and d values
   pointSD end_path_sd;
@@ -147,14 +156,6 @@ pointXY calcRotation(const pointXY pointA, const double yaw) {
   result.x = (pointA.x * cos(yaw) - pointA.y * sin(yaw));
   result.y = (pointA.x * sin(yaw) + pointA.y * cos(yaw));
   return result;
-}
-
-enum laneIndex { left = 0, middle = 1, right = 2 };
-double laneWidth = 4.0;
-double getLaneDisplacement(const laneIndex laneIndex,
-                           const double laneWidth = laneWidth) {
-  double center = laneWidth / 2;
-  return (center + laneWidth * static_cast<int>(laneIndex));
 }
 
 // Calculate closest waypoint to current x, y position

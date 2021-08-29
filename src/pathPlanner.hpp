@@ -1,8 +1,11 @@
+#include <cstdio>
+#include <iostream>
+
 #include "helpers.h"
 #include "spline.h"
 
 // start in lane 1
-auto currentlaneIndex = middle;
+auto targetLaneIndex = middle;
 
 // reference velocity to target [miles per hour]
 double targetVelocity = 0;
@@ -45,12 +48,14 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     car.sd.s = car.end_path_sd.s;
   }
 
+  car.currentlaneIndex = static_cast<laneIndex>(car.sd.d / laneWidth);
+  auto myLane = getLaneDisplacement(car.currentlaneIndex);
+
   // find ref_v to use and check if it's within range
   bool too_close = false;
   for (int i = 0; i < sensor_fusion.size(); i++) {
     // car is in my lane
     object obj(sensor_fusion[i]);
-    auto myLane = getLaneDisplacement(currentlaneIndex);
     if (obj.sd.d < (myLane + laneWidth / 2) &&
         obj.sd.d > (myLane - laneWidth / 2)) {
       obj.v = distance(0, 0, obj.vx, obj.vx);
@@ -71,19 +76,22 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
 
   // rudimentary controlling of velocity
   if (too_close) {
-    // TODO: safe lane change is not ensured
-    switch (currentlaneIndex) {
-      case left:
-        currentlaneIndex = middle;
-        break;
-      case right:
-        currentlaneIndex = middle;
-        break;
-      case middle:
-        currentlaneIndex = left;
-        break;
-      default:
-        break;
+    // set lane change and wait.
+    if (car.currentlaneIndex == targetLaneIndex) {
+      // TODO: safe lane change is not ensured
+      switch (car.currentlaneIndex) {
+        case left:
+          targetLaneIndex = middle;
+          break;
+        case right:
+          targetLaneIndex = middle;
+          break;
+        case middle:
+          targetLaneIndex = left;
+          break;
+        default:
+          break;
+      }
     }
 
     targetVelocity -= velocityStep;
@@ -122,7 +130,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   anchorPoints.xy.push_back(reference);
 
   // In frenet add evenly 30m spaced  points ahead of the starting reference
-  auto offsetLat = getLaneDisplacement(currentlaneIndex);
+  auto offsetLat = getLaneDisplacement(targetLaneIndex);
   double startS = 30;
   double stepS = 30;
   double endS = 90;
@@ -142,9 +150,9 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   }
 
   // create a spline
-  tk::spline s;
+  tk::spline spline;
   // set (x,y) points to the spline
-  s.set_points(x, y);
+  spline.set_points(x, y);
 
   // define the actual (x,y) points we will use for the planer
   // start with all of the previous path points from last time
@@ -156,13 +164,17 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   // calculate how to break up spline points so that we travel at our desired
   // reference velocity
   const double target_x = 30.0;
-  double target_y = s(target_x);
+  double target_y = spline(target_x);
   double target_dist = distance(0, 0, target_x, target_y);
   double N = target_dist / getTravelledDistance(targetVelocity);
   double steps = target_x / N;
+  // TODO: in curves acceleration is happening
 
-  // Fill up the rest of our path planner after filling it with previous points,
-  // here we will always output 50 points
+  using namespace std;
+  std::cout << target_dist << "," << N << "," << targetVelocity << std::endl;
+
+  // Fill up the rest of our path planner after filling it with previous
+  // points, here we will always output 50 points
   const int numberOfOutputPoints = 50;
   double x_add_on = 0;
   for (int i = 1; i <= numberOfOutputPoints - prev_size; i++) {
@@ -170,7 +182,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
 
     pointXY newPoint;
     newPoint.x = x_add_on;
-    newPoint.y = s(newPoint.x);
+    newPoint.y = spline(newPoint.x);
 
     // rotate back to normal after rotating it earlier
     auto newPointTrans = calcRotation(newPoint, ref_yaw);
