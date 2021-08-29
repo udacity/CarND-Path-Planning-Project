@@ -32,12 +32,103 @@ string hasData(string s) {
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
-double deg2rad(double x) { return x * pi() / 180; }
-double rad2deg(double x) { return x * 180 / pi(); }
+double deg2rad(const double x) { return x * pi() / 180; }
+double rad2deg(const double x) { return x * 180 / pi(); }
 
 // Calculate distance between two points
-double distance(double x1, double y1, double x2, double y2) {
+double distance(const double x1, const double y1, const double x2,
+                const double y2) {
   return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+}
+
+const double cycleTime = 0.02;
+const double factorMilesPhToMperS = 2.24;
+
+double getTravelledDistance(const double velocity,
+                            const double time = cycleTime) {
+  return time * velocity / factorMilesPhToMperS;
+}
+
+struct points {
+  vector<double> x;
+  vector<double> y;
+};
+
+struct pointXY {
+  double x;
+  double y;
+};
+
+struct pointSD {
+  double s;
+  double d;
+};
+
+struct path {
+  vector<pointXY> xy;
+  vector<pointSD> sd;
+};
+
+struct egoVehicle {
+  // Main car's localization Data
+  pointXY xy;
+  pointSD sd;
+  double yaw;
+  double speed;
+
+  // Previous path's end s and d values
+  pointSD end_path_sd;
+
+  // Previous path data given to the Planner
+  vector<double> previous_path_x;
+  vector<double> previous_path_y;
+};
+
+struct mapWaypoints {
+  vector<double> x;
+  vector<double> y;
+  vector<double> s;
+  vector<double> dx;
+  vector<double> dy;
+};
+
+pointXY calcPreviousPoint(const pointXY point, const double yaw) {
+  pointXY newPoint;
+  newPoint.x = point.x - cos(yaw);
+  newPoint.y = point.y - sin(yaw);
+
+  return newPoint;
+}
+
+double calcYaw(const pointXY pointA, const pointXY pointB) {
+  return atan2(pointA.y - pointA.y, pointA.x - pointB.x);
+}
+
+pointXY calcTranslation(const pointXY pointA, const pointXY pointB,
+                        bool substract = false) {
+  pointXY result;
+  if (substract) {
+    result.x = pointA.x - pointB.x;
+    result.y = pointA.y - pointB.y;
+  } else {
+    result.x = pointA.x + pointB.x;
+    result.y = pointA.y + pointB.y;
+  }
+  return result;
+}
+
+pointXY calcRotation(const pointXY pointA, const double yaw) {
+  pointXY result;
+  result.x = (pointA.x * cos(yaw) - pointA.y * sin(yaw));
+  result.y = (pointA.x * sin(yaw) + pointA.y * cos(yaw));
+  return result;
+}
+
+enum laneIndex { left = 0, ego = 1, right = 2 };
+double getLaneDisplacement(const laneIndex laneIndex,
+                           const double laneWidth = 4.0) {
+  double center = laneWidth / 2;
+  return (center + laneWidth * static_cast<int>(laneIndex));
 }
 
 // Calculate closest waypoint to current x, y position
@@ -128,9 +219,8 @@ vector<double> getFrenet(double x, double y, double theta,
 }
 
 // Transform from Frenet s,d coordinates to Cartesian x,y
-vector<double> getXY(double s, double d, const vector<double> &maps_s,
-                     const vector<double> &maps_x,
-                     const vector<double> &maps_y) {
+pointXY getXY(double s, double d, const vector<double> &maps_s,
+              const vector<double> &maps_x, const vector<double> &maps_y) {
   int prev_wp = -1;
 
   while (s > maps_s[prev_wp + 1] && (prev_wp < (int)(maps_s.size() - 1))) {
@@ -149,10 +239,11 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
 
   double perp_heading = heading - pi() / 2;
 
-  double x = seg_x + d * cos(perp_heading);
-  double y = seg_y + d * sin(perp_heading);
+  pointXY point;
+  point.x = seg_x + d * cos(perp_heading);
+  point.y = seg_y + d * sin(perp_heading);
 
-  return {x, y};
+  return point;
 }
 
 #endif  // HELPERS_H

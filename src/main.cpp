@@ -62,22 +62,22 @@ int main() {
 
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          egoVehicle ego;
+          egoVehicle car;
           // Main car's localization Data
-          ego.car_x = j[1]["x"];
-          ego.car_y = j[1]["y"];
-          ego.car_s = j[1]["s"];
-          ego.car_d = j[1]["d"];
-          ego.car_yaw = j[1]["yaw"];
-          ego.car_speed = j[1]["speed"];
+          car.xy.x = j[1]["x"];
+          car.xy.y = j[1]["y"];
+          car.sd.s = j[1]["s"];
+          car.sd.d = j[1]["d"];
+          car.yaw = j[1]["yaw"];
+          car.speed = j[1]["speed"];
           // Previous path's end s and d values
-          ego.end_path_s = j[1]["end_path_s"];
-          ego.end_path_d = j[1]["end_path_d"];
+          car.end_path_sd.s = j[1]["end_path_s"];
+          car.end_path_sd.d = j[1]["end_path_d"];
           // Previous path data given to the Planner
           vector<double> previous_path_x = j[1]["previous_path_x"];
           vector<double> previous_path_y = j[1]["previous_path_y"];
-          ego.previous_path_x = previous_path_x;
-          ego.previous_path_y = previous_path_y;
+          car.previous_path_x = previous_path_x;
+          car.previous_path_y = previous_path_y;
 
           // Sensor Fusion Data, a list of all other cars on the same side
           //   of the road.
@@ -88,9 +88,9 @@ int main() {
            *   sequentially every .02 seconds
            */
           points nextPoints;
-          // straight(nextPoints, ego);
-          // stayInLane(nextPoints, ego, map);
-          stayInLaneWithSpline(nextPoints, ego, map);
+          // straight(nextPoints, car);
+          // stayInLane(nextPoints, car, map);
+          stayInLaneWithSpline(nextPoints, car, map);
 
           json msgJson;
           msgJson["next_x"] = nextPoints.x;
