@@ -8,8 +8,9 @@
 auto targetLaneIndex = middle;
 
 // reference velocity to target [miles per hour]
-double targetVelocity = 0;
-const double maxVelocity = 49.5;
+double controlSpeed = 0;
+const double maxVelocity = 47.5;
+double targetSpeed = maxVelocity;
 // 5m/s
 double velocityStep = 0.224;
 
@@ -44,8 +45,9 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   int prev_size = car.previous_path_x.size();
 
   // place the car at the end of the planned trajectory
+  double egoPosition = car.sd.s;
   if (prev_size > 0) {
-    car.sd.s = car.end_path_sd.s;
+    egoPosition = car.end_path_sd.s;
   }
 
   car.currentlaneIndex = static_cast<laneIndex>(car.sd.d / laneWidth);
@@ -53,6 +55,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
 
   // find ref_v to use and check if it's within range
   bool too_close = false;
+  targetSpeed = maxVelocity;
   for (int i = 0; i < sensor_fusion.size(); i++) {
     // car is in my lane
     object obj(sensor_fusion[i]);
@@ -62,19 +65,33 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
 
       // if using previous points can project s value out
       // check s values greter than mine and s gap
-      obj.sd.s += ((double)prev_size * cycleTime * obj.v);
+      double objPosition = obj.sd.s + ((double)prev_size * cycleTime * obj.v);
 
       // predicted target vehicle shall be within certain range
-      double criticalDistance = 30;
-      if ((obj.sd.s > car.sd.s) && ((obj.sd.s - car.sd.s) < criticalDistance)) {
+      // 50miles/h -> 22.352m/s
+      // using 1 second distance
+      double criticalDistance = 22.352;
+      if ((objPosition > egoPosition) &&
+          ((objPosition - egoPosition) < criticalDistance)) {
         // Do some logic here, lower reference velocity so we dont crash into
         // the car infront of us, could also flag to try to change lanes,
         too_close = true;
+        targetSpeed = obj.v;
       }
     }
   }
 
   // rudimentary controlling of velocity
+  if (controlSpeed < targetSpeed) {
+    controlSpeed += velocityStep;
+  } else {
+    controlSpeed -= velocityStep;
+  }
+  if (car.speed > targetSpeed) {
+    controlSpeed -= velocityStep;
+  }
+
+  // do lane change
   if (too_close) {
     // set lane change and wait.
     if (car.currentlaneIndex == targetLaneIndex) {
@@ -93,10 +110,6 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
           break;
       }
     }
-
-    targetVelocity -= velocityStep;
-  } else if (targetVelocity < maxVelocity) {
-    targetVelocity += velocityStep;
   }
 
   // reference x,y,yaw state
@@ -150,9 +163,8 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   }
 
   // create a spline
-  tk::spline spline;
-  // set (x,y) points to the spline
-  spline.set_points(x, y);
+  tk::spline spline(x, y);
+  spline.make_monotonic();
 
   // define the actual (x,y) points we will use for the planer
   // start with all of the previous path points from last time
@@ -164,9 +176,17 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   // calculate how to break up spline points so that we travel at our desired
   // reference velocity
   const double target_x = 30.0;
-  double target_y = spline(target_x);
-  double target_dist = distance(0, 0, target_x, target_y);
-  double N = target_dist / getTravelledDistance(targetVelocity);
+  double target_dist = 0.0;
+  double delta = 1.0;
+  for (double i = 0.0; i <= target_x; i += delta) {
+    double x1 = i;
+    double y1 = spline(x1);
+    double x2 = i + delta;
+    double y2 = spline(x2);
+    target_dist += distance(x1, y1, x2, y2);
+  }
+
+  double N = target_dist / getTravelledDistance(controlSpeed);
   double steps = target_x / N;
   // TODO: in curves acceleration is happening
 
