@@ -160,6 +160,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     anchorPoints.xy[i] = calcRotation(shift, 0 - ref_yaw);
     x.push_back(anchorPoints.xy[i].x);
     y.push_back(anchorPoints.xy[i].y);
+    std::cout << anchorPoints.xy[i].x << ";" << anchorPoints.xy[i].y << ";";
   }
 
   // create a spline
@@ -189,9 +190,9 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   double N = target_dist / getTravelledDistance(controlSpeed);
   double steps = target_x / N;
   // TODO: in curves acceleration is happening
-
-  using namespace std;
-  std::cout << target_dist << "," << N << "," << targetVelocity << std::endl;
+  std::cout << target_dist << ";" << N << ";" << controlSpeed << ";" << car.sd.s
+            << ";" << car.sd.d << ";" << car.xy.x << ";" << car.xy.y << ";"
+            << car.yaw << ";" << car.speed;
 
   // Fill up the rest of our path planner after filling it with previous
   // points, here we will always output 50 points
@@ -211,4 +212,11 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     nextPoints.x.push_back(newPointTrans.x);
     nextPoints.y.push_back(newPointTrans.y);
   }
+
+  for (int i = 0; i <= nextPoints.x.size(); i++) {
+    std::cout << ";" << nextPoints.x[i];
+    std::cout << ";" << nextPoints.y[i];
+  }
+
+  std::cout << std::endl;
 }
