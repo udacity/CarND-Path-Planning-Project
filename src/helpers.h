@@ -116,9 +116,9 @@ struct object {
   double v;
 
   object(vector<double> data) {
-    id = data[1];
-    xy.x = data[2];
-    xy.y = data[3];
+    id = data[0];
+    xy.x = data[1];
+    xy.y = data[2];
     vx = data[3];
     vy = data[4];
     sd.s = data[5];
