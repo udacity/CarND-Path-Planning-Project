@@ -8,7 +8,7 @@
 auto targetLaneIndex = middle;
 auto targetOffsetLat = getLaneDisplacement(targetLaneIndex);
 auto currentOffsetLat = targetOffsetLat;
-auto offsetLatStep = 0.5;
+auto offsetLatStep = 0.3;
 
 // reference velocity to target [miles per hour]
 double controlSpeed = 0;
