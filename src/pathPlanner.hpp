@@ -6,6 +6,9 @@
 
 // start in lane 1
 auto targetLaneIndex = middle;
+auto targetOffsetLat = getLaneDisplacement(targetLaneIndex);
+auto currentOffsetLat = targetOffsetLat;
+auto offsetLatStep = 0.5;
 
 // reference velocity to target [miles per hour]
 double controlSpeed = 0;
@@ -51,7 +54,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   }
 
   car.currentlaneIndex = static_cast<laneIndex>(car.sd.d / laneWidth);
-  auto myLane = getLaneDisplacement(car.currentlaneIndex);
+  auto myLane = getLaneDisplacement(targetLaneIndex);
 
   // find ref_v to use and check if it's within range
   bool too_close = false;
@@ -142,13 +145,21 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   anchorPoints.xy.push_back(previousPoint);
   anchorPoints.xy.push_back(reference);
 
+  // rudimentary control of target lateral offset
+  targetOffsetLat = getLaneDisplacement(targetLaneIndex);
+  if (currentOffsetLat < targetOffsetLat) {
+    currentOffsetLat += offsetLatStep;
+  } else {
+    currentOffsetLat -= offsetLatStep;
+  }
+
   // In frenet add evenly 30m spaced  points ahead of the starting reference
-  auto offsetLat = getLaneDisplacement(targetLaneIndex);
   double startS = 30;
   double stepS = 30;
   double endS = 90;
   for (int offsetLong = startS; offsetLong <= endS; offsetLong += stepS) {
-    auto next_wp = getXY(car.sd.s + offsetLong, offsetLat, map.s, map.x, map.y);
+    auto next_wp =
+        getXY(car.sd.s + offsetLong, currentOffsetLat, map.s, map.x, map.y);
     anchorPoints.xy.push_back(next_wp);
   }
 
@@ -163,8 +174,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   }
 
   // create a spline
-  tk::spline spline(x, y, tk::spline::cspline_hermite);
-  spline.make_monotonic();
+  tk::spline spline(x, y);
 
   // define the actual (x,y) points we will use for the planer
   // start with all of the previous path points from last time
