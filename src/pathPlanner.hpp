@@ -7,7 +7,7 @@
 // start in lane 1
 auto targetLaneIndex = middle;
 auto targetOffsetLat = getLaneDisplacement(targetLaneIndex);
-auto currentOffsetLat = targetOffsetLat;
+auto controlOffsetLat = targetOffsetLat;
 auto offsetLatStep = 0.3;
 
 // reference velocity to target [miles per hour]
@@ -93,7 +93,7 @@ tk::spline calcSpline(poseXY &reference, const egoVehicle &car,
   double endS = 90;
   for (int offsetLong = startS; offsetLong <= endS; offsetLong += stepS) {
     auto next_wp =
-        getXY(car.sd.s + offsetLong, currentOffsetLat, map.s, map.x, map.y);
+        getXY(car.sd.s + offsetLong, controlOffsetLat, map.s, map.x, map.y);
     anchorPoints.xy.push_back(next_wp);
   }
 
@@ -125,11 +125,10 @@ void control(const egoVehicle &car) {
   }
 
   // rudimentary control of target lateral offset
-  targetOffsetLat = getLaneDisplacement(targetLaneIndex);
-  if (currentOffsetLat < targetOffsetLat) {
-    currentOffsetLat += offsetLatStep;
+  if (controlOffsetLat < targetOffsetLat) {
+    controlOffsetLat += offsetLatStep;
   } else {
-    currentOffsetLat -= offsetLatStep;
+    controlOffsetLat -= offsetLatStep;
   }
 }
 
@@ -192,6 +191,8 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
       }
     }
   }
+
+  targetOffsetLat = getLaneDisplacement(targetLaneIndex);
 }
 
 void calc(points &nextPoints, egoVehicle &car, const mapWaypoints &map,
