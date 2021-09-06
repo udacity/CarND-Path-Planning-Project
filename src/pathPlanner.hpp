@@ -81,6 +81,63 @@ void calcNextPoints(points &nextPoints, const int &prev_size,
   }
 }
 
+tk::spline calcSpline(pointXY &reference, double &ref_yaw, const int &prev_size,
+                      const egoVehicle &car, const mapWaypoints &map) {
+  // reference x,y,yaw state
+  // either we will reference the starting point as where the car is or at the
+  // previous paths end point
+  reference = car.xy;
+  ref_yaw = deg2rad(car.yaw);
+
+  // if previous size is almost empty, use the car as starting reference
+  pointXY previousPoint;
+  if (prev_size < 2) {
+    // use two points that make the path tangent to the car
+    previousPoint = calcPreviousPoint(reference, car.yaw);
+  }
+  // use the previous path's end point end point as starting reference
+  else {
+    // Redefine reference state as previous path end point
+    reference.x = car.previous_path_x[prev_size - 1];
+    reference.y = car.previous_path_y[prev_size - 1];
+
+    previousPoint.x = car.previous_path_x[prev_size - 2];
+    previousPoint.y = car.previous_path_y[prev_size - 2];
+    ref_yaw = calcYaw(reference, previousPoint);
+  }
+
+  // Use two points that make the path tangent to the previous path's end
+  // point
+  path anchorPoints;
+  anchorPoints.xy.push_back(previousPoint);
+  anchorPoints.xy.push_back(reference);
+
+  // In frenet add evenly 30m spaced  points ahead of the starting reference
+  double startS = 30;
+  double stepS = 30;
+  double endS = 90;
+  for (int offsetLong = startS; offsetLong <= endS; offsetLong += stepS) {
+    auto next_wp =
+        getXY(car.sd.s + offsetLong, currentOffsetLat, map.s, map.x, map.y);
+    anchorPoints.xy.push_back(next_wp);
+  }
+
+  vector<double> x;
+  vector<double> y;
+  for (int i = 0; i < anchorPoints.xy.size(); i++) {
+    // shift car reference angle to 0 degrees
+    auto shift = calcTranslation(anchorPoints.xy[i], reference, true);
+    anchorPoints.xy[i] = calcRotation(shift, 0 - ref_yaw);
+    x.push_back(anchorPoints.xy[i].x);
+    y.push_back(anchorPoints.xy[i].y);
+  }
+
+  // create a spline
+  tk::spline spline(x, y);
+
+  return spline;
+}
+
 void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
                           const mapWaypoints &map,
                           vector<vector<double>> sensor_fusion) {
@@ -163,59 +220,12 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     currentOffsetLat -= offsetLatStep;
   }
 
-  // reference x,y,yaw state
-  // either we will reference the starting point as where the car is or at the
-  // previous paths end point
+  // calc trajectory
   pointXY reference;
-  reference = car.xy;
-  double ref_yaw = deg2rad(car.yaw);
+  double ref_yaw;
+  auto spline = calcSpline(reference, ref_yaw, prev_size, car, map);
 
-  // if previous size is almost empty, use the car as starting reference
-  pointXY previousPoint;
-  if (prev_size < 2) {
-    // use two points that make the path tangent to the car
-    previousPoint = calcPreviousPoint(reference, car.yaw);
-  }
-  // use the previous path's end point end point as starting reference
-  else {
-    // Redefine reference state as previous path end point
-    reference.x = car.previous_path_x[prev_size - 1];
-    reference.y = car.previous_path_y[prev_size - 1];
-
-    previousPoint.x = car.previous_path_x[prev_size - 2];
-    previousPoint.y = car.previous_path_y[prev_size - 2];
-    ref_yaw = calcYaw(reference, previousPoint);
-  }
-
-  // Use two points that make the path tangent to the previous path's end
-  // point
-  path anchorPoints;
-  anchorPoints.xy.push_back(previousPoint);
-  anchorPoints.xy.push_back(reference);
-
-  // In frenet add evenly 30m spaced  points ahead of the starting reference
-  double startS = 30;
-  double stepS = 30;
-  double endS = 90;
-  for (int offsetLong = startS; offsetLong <= endS; offsetLong += stepS) {
-    auto next_wp =
-        getXY(car.sd.s + offsetLong, currentOffsetLat, map.s, map.x, map.y);
-    anchorPoints.xy.push_back(next_wp);
-  }
-
-  vector<double> x;
-  vector<double> y;
-  for (int i = 0; i < anchorPoints.xy.size(); i++) {
-    // shift car reference angle to 0 degrees
-    auto shift = calcTranslation(anchorPoints.xy[i], reference, true);
-    anchorPoints.xy[i] = calcRotation(shift, 0 - ref_yaw);
-    x.push_back(anchorPoints.xy[i].x);
-    y.push_back(anchorPoints.xy[i].y);
-  }
-
-  // create a spline
-  tk::spline spline(x, y);
-
+  // apply trajectory
   calcNextPoints(nextPoints, prev_size, car, spline, reference, ref_yaw);
 
   // Output debug variables
