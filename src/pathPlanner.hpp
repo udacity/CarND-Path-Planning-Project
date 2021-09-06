@@ -164,7 +164,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   }
 
   // create a spline
-  tk::spline spline(x, y);
+  tk::spline spline(x, y, tk::spline::cspline_hermite);
   spline.make_monotonic();
 
   // define the actual (x,y) points we will use for the planer
@@ -178,18 +178,19 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   // reference velocity
   const double target_x = 30.0;
   double target_dist = 0.0;
-  double delta = 1.0;
-  for (double i = 0.0; i <= target_x; i += delta) {
-    double x1 = i;
+  double delta = 0.1;
+  double currentDist = 0;
+  while (currentDist < target_x) {
+    double x1 = currentDist;
     double y1 = spline(x1);
-    double x2 = i + delta;
+    double x2 = currentDist + delta;
     double y2 = spline(x2);
     target_dist += distance(x1, y1, x2, y2);
+    currentDist += delta;
   }
 
   double N = target_dist / getTravelledDistance(controlSpeed);
   double steps = target_x / N;
-  // TODO: in curves acceleration is happening
   std::cout << target_dist << ";" << N << ";" << controlSpeed << ";" << car.sd.s
             << ";" << car.sd.d << ";" << car.xy.x << ";" << car.xy.y << ";"
             << car.yaw << ";" << car.speed;

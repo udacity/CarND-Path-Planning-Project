@@ -135,7 +135,7 @@ pointXY calcPreviousPoint(const pointXY point, const double yaw) {
 }
 
 double calcYaw(const pointXY pointA, const pointXY pointB) {
-  return atan2(pointA.y - pointA.y, pointA.x - pointB.x);
+  return atan2(pointA.y - pointB.y, pointA.x - pointB.x);
 }
 
 pointXY calcTranslation(const pointXY pointA, const pointXY pointB,
