@@ -17,30 +17,6 @@ double targetSpeed = maxVelocity;
 // 5m/s
 double velocityStep = 0.224;
 
-void straight(points &nextPoints, const egoVehicle &car) {
-  double dist_inc = 0.5;
-  for (int i = 0; i < 50; i++) {
-    nextPoints.x.push_back(car.xy.x + (dist_inc * i) * cos(deg2rad(car.yaw)));
-    nextPoints.y.push_back(car.xy.y + (dist_inc * i) * sin(deg2rad(car.yaw)));
-  }
-}
-
-void stayInLane(points &nextPoints, const egoVehicle &car,
-                const mapWaypoints &map) {
-  // car is to fast
-  double dist_inc = 0.3;
-  for (int i = 0; i < 50; i++) {
-    double next_s = car.sd.s + (i + 1) * dist_inc;
-    // middle of middle lane. (lane_width=4m)
-    double next_d = 6;
-
-    auto xy = getXY(next_s, next_d, map.s, map.x, map.y);
-
-    nextPoints.x.push_back(xy.x);
-    nextPoints.y.push_back(xy.y);
-  }
-}
-
 void calcNextPoints(points &nextPoints, const egoVehicle &car,
                     const tk::spline &spline, const pointXY &reference,
                     const double &ref_yaw) {
