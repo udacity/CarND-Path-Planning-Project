@@ -160,7 +160,6 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     anchorPoints.xy[i] = calcRotation(shift, 0 - ref_yaw);
     x.push_back(anchorPoints.xy[i].x);
     y.push_back(anchorPoints.xy[i].y);
-    std::cout << anchorPoints.xy[i].x << ";" << anchorPoints.xy[i].y << ";";
   }
 
   // create a spline
@@ -191,9 +190,6 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
 
   double N = target_dist / getTravelledDistance(controlSpeed);
   double steps = target_x / N;
-  std::cout << target_dist << ";" << N << ";" << controlSpeed << ";" << car.sd.s
-            << ";" << car.sd.d << ";" << car.xy.x << ";" << car.xy.y << ";"
-            << car.yaw << ";" << car.speed;
 
   // Fill up the rest of our path planner after filling it with previous
   // points, here we will always output 50 points
@@ -214,10 +210,10 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     nextPoints.y.push_back(newPointTrans.y);
   }
 
-  for (int i = 0; i <= nextPoints.x.size(); i++) {
-    std::cout << ";" << nextPoints.x[i];
-    std::cout << ";" << nextPoints.y[i];
-  }
+  // Output debug variables
+  std::cout << controlSpeed << ";" << car.speed << ";" << targetSpeed << ";"
+            << car.sd.s << ";" << car.sd.d << ";" << car.xy.x << ";" << car.xy.y
+            << car.currentlaneIndex << ";" << targetLaneIndex << ";" << car.yaw;
 
   std::cout << std::endl;
 }
