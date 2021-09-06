@@ -41,12 +41,12 @@ void stayInLane(points &nextPoints, const egoVehicle &car,
   }
 }
 
-void calcNextPoints(points &nextPoints, const int &prev_size,
-                    const egoVehicle &car, const tk::spline &spline,
-                    const pointXY &reference, const double &ref_yaw) {
+void calcNextPoints(points &nextPoints, const egoVehicle &car,
+                    const tk::spline &spline, const pointXY &reference,
+                    const double &ref_yaw) {
   // define the actual (x,y) points we will use for the planer
   // start with all of the previous path points from last time
-  for (int i = 0; i < prev_size; i++) {
+  for (int i = 0; i < car.previous_path_x.size(); i++) {
     nextPoints.x.push_back(car.previous_path_x[i]);
     nextPoints.y.push_back(car.previous_path_y[i]);
   }
@@ -57,7 +57,7 @@ void calcNextPoints(points &nextPoints, const int &prev_size,
   double x_add_on = 0;
   double distancePerCycle = getTravelledDistance(controlSpeed);
   double delta = distancePerCycle / 1000;
-  for (int i = 1; i <= numberOfOutputPoints - prev_size; i++) {
+  for (int i = 1; i <= numberOfOutputPoints - car.previous_path_x.size(); i++) {
     double target_dist = 0.0;
     while (target_dist < distancePerCycle) {
       double x1 = x_add_on;
@@ -81,7 +81,7 @@ void calcNextPoints(points &nextPoints, const int &prev_size,
   }
 }
 
-tk::spline calcSpline(pointXY &reference, double &ref_yaw, const int &prev_size,
+tk::spline calcSpline(pointXY &reference, double &ref_yaw,
                       const egoVehicle &car, const mapWaypoints &map) {
   // reference x,y,yaw state
   // either we will reference the starting point as where the car is or at the
@@ -91,18 +91,18 @@ tk::spline calcSpline(pointXY &reference, double &ref_yaw, const int &prev_size,
 
   // if previous size is almost empty, use the car as starting reference
   pointXY previousPoint;
-  if (prev_size < 2) {
+  if (car.previous_path_x.size() < 2) {
     // use two points that make the path tangent to the car
     previousPoint = calcPreviousPoint(reference, car.yaw);
   }
   // use the previous path's end point end point as starting reference
   else {
     // Redefine reference state as previous path end point
-    reference.x = car.previous_path_x[prev_size - 1];
-    reference.y = car.previous_path_y[prev_size - 1];
+    reference.x = car.previous_path_x[car.previous_path_x.size() - 1];
+    reference.y = car.previous_path_y[car.previous_path_x.size() - 1];
 
-    previousPoint.x = car.previous_path_x[prev_size - 2];
-    previousPoint.y = car.previous_path_y[prev_size - 2];
+    previousPoint.x = car.previous_path_x[car.previous_path_x.size() - 2];
+    previousPoint.y = car.previous_path_y[car.previous_path_x.size() - 2];
     ref_yaw = calcYaw(reference, previousPoint);
   }
 
@@ -158,15 +158,10 @@ void control(const egoVehicle &car) {
   }
 }
 
-void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
-                          const mapWaypoints &map,
-                          vector<vector<double>> sensor_fusion) {
-  // assert(car.previous_path_x.size() != car.previous_path_y.size());
-  int prev_size = car.previous_path_x.size();
-
+void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   // place the car at the end of the planned trajectory
   double egoPosition = car.sd.s;
-  if (prev_size > 0) {
+  if (car.previous_path_x.size() > 0) {
     egoPosition = car.end_path_sd.s;
   }
 
@@ -184,7 +179,8 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
 
       // if using previous points can project s value out
       // check s values greter than mine and s gap
-      double objPosition = obj.sd.s + ((double)prev_size * cycleTime * obj.v);
+      double objPosition =
+          obj.sd.s + ((double)car.previous_path_x.size() * cycleTime * obj.v);
 
       // predicted target vehicle shall be within certain range
       // 50miles/h -> 22.352m/s
@@ -221,6 +217,13 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
       }
     }
   }
+}
+
+void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
+                          const mapWaypoints &map,
+                          vector<vector<double>> sensor_fusion) {
+  // calc best lane
+  calcLane(car, sensor_fusion);
 
   // rudimentary controlling
   control(car);
@@ -228,10 +231,10 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   // calc trajectory
   pointXY reference;
   double ref_yaw;
-  auto spline = calcSpline(reference, ref_yaw, prev_size, car, map);
+  auto spline = calcSpline(reference, ref_yaw, car, map);
 
   // apply trajectory
-  calcNextPoints(nextPoints, prev_size, car, spline, reference, ref_yaw);
+  calcNextPoints(nextPoints, car, spline, reference, ref_yaw);
 
   // Output debug variables
   std::cout << controlSpeed << ";" << car.speed << ";" << targetSpeed << ";"
