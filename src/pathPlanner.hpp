@@ -183,30 +183,22 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     nextPoints.y.push_back(car.previous_path_y[i]);
   }
 
-  // calculate how to break up spline points so that we travel at our desired
-  // reference velocity
-  const double target_x = 30.0;
-  double target_dist = 0.0;
-  double delta = 0.1;
-  double currentDist = 0;
-  while (currentDist < target_x) {
-    double x1 = currentDist;
-    double y1 = spline(x1);
-    double x2 = currentDist + delta;
-    double y2 = spline(x2);
-    target_dist += distance(x1, y1, x2, y2);
-    currentDist += delta;
-  }
-
-  double N = target_dist / getTravelledDistance(controlSpeed);
-  double steps = target_x / N;
-
   // Fill up the rest of our path planner after filling it with previous
   // points, here we will always output 50 points
   const int numberOfOutputPoints = 50;
   double x_add_on = 0;
+  double distancePerCycle = getTravelledDistance(controlSpeed);
+  double delta = distancePerCycle / 1000;
   for (int i = 1; i <= numberOfOutputPoints - prev_size; i++) {
-    x_add_on += steps;
+    double target_dist = 0.0;
+    while (target_dist < distancePerCycle) {
+      double x1 = x_add_on;
+      double y1 = spline(x1);
+      x_add_on += delta;
+      double y2 = spline(x_add_on);
+      target_dist += distance(x1, y1, x_add_on, y2);
+    }
+    x_add_on -= delta;
 
     pointXY newPoint;
     newPoint.x = x_add_on;
