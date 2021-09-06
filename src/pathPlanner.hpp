@@ -53,7 +53,6 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     egoPosition = car.end_path_sd.s;
   }
 
-  car.currentlaneIndex = static_cast<laneIndex>(car.sd.d / laneWidth);
   auto myLane = getLaneDisplacement(targetLaneIndex);
 
   // find ref_v to use and check if it's within range
@@ -84,17 +83,8 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     }
   }
 
-  // rudimentary controlling of velocity
-  if (controlSpeed < targetSpeed) {
-    controlSpeed += velocityStep;
-  } else {
-    controlSpeed -= velocityStep;
-  }
-  if (car.speed > targetSpeed) {
-    controlSpeed -= velocityStep;
-  }
-
   // do lane change
+  car.currentlaneIndex = static_cast<laneIndex>(car.sd.d / laneWidth);
   if (too_close) {
     // set lane change and wait.
     if (car.currentlaneIndex == targetLaneIndex) {
@@ -113,6 +103,24 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
           break;
       }
     }
+  }
+
+  // rudimentary controlling of velocity
+  if (controlSpeed < targetSpeed) {
+    controlSpeed += velocityStep;
+  } else {
+    controlSpeed -= velocityStep;
+  }
+  if (car.speed > targetSpeed) {
+    controlSpeed -= velocityStep;
+  }
+
+  // rudimentary control of target lateral offset
+  targetOffsetLat = getLaneDisplacement(targetLaneIndex);
+  if (currentOffsetLat < targetOffsetLat) {
+    currentOffsetLat += offsetLatStep;
+  } else {
+    currentOffsetLat -= offsetLatStep;
   }
 
   // reference x,y,yaw state
@@ -144,14 +152,6 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   path anchorPoints;
   anchorPoints.xy.push_back(previousPoint);
   anchorPoints.xy.push_back(reference);
-
-  // rudimentary control of target lateral offset
-  targetOffsetLat = getLaneDisplacement(targetLaneIndex);
-  if (currentOffsetLat < targetOffsetLat) {
-    currentOffsetLat += offsetLatStep;
-  } else {
-    currentOffsetLat -= offsetLatStep;
-  }
 
   // In frenet add evenly 30m spaced  points ahead of the starting reference
   double startS = 30;
