@@ -18,8 +18,7 @@ double targetSpeed = maxVelocity;
 double velocityStep = 0.224;
 
 void calcNextPoints(points &nextPoints, const egoVehicle &car,
-                    const tk::spline &spline, const pointXY &reference,
-                    const double &ref_yaw) {
+                    const tk::spline &spline, const poseXY &reference) {
   // define the actual (x,y) points we will use for the planer
   // start with all of the previous path points from last time
   for (int i = 0; i < car.previous_path_x.size(); i++) {
@@ -49,44 +48,44 @@ void calcNextPoints(points &nextPoints, const egoVehicle &car,
     newPoint.y = spline(newPoint.x);
 
     // rotate back to normal after rotating it earlier
-    auto newPointTrans = calcRotation(newPoint, ref_yaw);
-    newPointTrans = calcTranslation(newPointTrans, reference);
+    auto newPointTrans = calcRotation(newPoint, reference.yaw);
+    newPointTrans = calcTranslation(newPointTrans, reference.xy);
 
     nextPoints.x.push_back(newPointTrans.x);
     nextPoints.y.push_back(newPointTrans.y);
   }
 }
 
-tk::spline calcSpline(pointXY &reference, double &ref_yaw,
-                      const egoVehicle &car, const mapWaypoints &map) {
+tk::spline calcSpline(poseXY &reference, const egoVehicle &car,
+                      const mapWaypoints &map) {
   // reference x,y,yaw state
   // either we will reference the starting point as where the car is or at the
   // previous paths end point
-  reference = car.xy;
-  ref_yaw = deg2rad(car.yaw);
+  reference.xy = car.xy;
+  reference.yaw = deg2rad(car.yaw);
 
   // if previous size is almost empty, use the car as starting reference
   pointXY previousPoint;
   if (car.previous_path_x.size() < 2) {
     // use two points that make the path tangent to the car
-    previousPoint = calcPreviousPoint(reference, car.yaw);
+    previousPoint = calcPreviousPoint(reference.xy, car.yaw);
   }
   // use the previous path's end point end point as starting reference
   else {
     // Redefine reference state as previous path end point
-    reference.x = car.previous_path_x[car.previous_path_x.size() - 1];
-    reference.y = car.previous_path_y[car.previous_path_x.size() - 1];
+    reference.xy.x = car.previous_path_x[car.previous_path_x.size() - 1];
+    reference.xy.y = car.previous_path_y[car.previous_path_x.size() - 1];
 
     previousPoint.x = car.previous_path_x[car.previous_path_x.size() - 2];
     previousPoint.y = car.previous_path_y[car.previous_path_x.size() - 2];
-    ref_yaw = calcYaw(reference, previousPoint);
+    reference.yaw = calcYaw(reference.xy, previousPoint);
   }
 
   // Use two points that make the path tangent to the previous path's end
   // point
   path anchorPoints;
   anchorPoints.xy.push_back(previousPoint);
-  anchorPoints.xy.push_back(reference);
+  anchorPoints.xy.push_back(reference.xy);
 
   // In frenet add evenly 30m spaced  points ahead of the starting reference
   double startS = 30;
@@ -102,8 +101,8 @@ tk::spline calcSpline(pointXY &reference, double &ref_yaw,
   vector<double> y;
   for (int i = 0; i < anchorPoints.xy.size(); i++) {
     // shift car reference angle to 0 degrees
-    auto shift = calcTranslation(anchorPoints.xy[i], reference, true);
-    anchorPoints.xy[i] = calcRotation(shift, 0 - ref_yaw);
+    auto shift = calcTranslation(anchorPoints.xy[i], reference.xy, true);
+    anchorPoints.xy[i] = calcRotation(shift, 0 - reference.yaw);
     x.push_back(anchorPoints.xy[i].x);
     y.push_back(anchorPoints.xy[i].y);
   }
@@ -204,12 +203,11 @@ void calc(points &nextPoints, egoVehicle &car, const mapWaypoints &map,
   control(car);
 
   // calc trajectory
-  pointXY reference;
-  double ref_yaw;
-  auto spline = calcSpline(reference, ref_yaw, car, map);
+  poseXY reference;
+  auto spline = calcSpline(reference, car, map);
 
   // apply trajectory
-  calcNextPoints(nextPoints, car, spline, reference, ref_yaw);
+  calcNextPoints(nextPoints, car, spline, reference);
 
   // Output debug variables
   std::cout << controlSpeed << ";" << car.speed << ";" << targetSpeed << ";"

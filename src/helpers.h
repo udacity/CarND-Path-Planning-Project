@@ -67,6 +67,11 @@ struct pointXY {
   double y;
 };
 
+struct poseXY {
+  pointXY xy;
+  double yaw;
+};
+
 struct pointSD {
   double s;
   double d;
