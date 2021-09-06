@@ -138,6 +138,26 @@ tk::spline calcSpline(pointXY &reference, double &ref_yaw, const int &prev_size,
   return spline;
 }
 
+void control(const egoVehicle &car) {
+  // rudimentary controlling of velocity
+  if (controlSpeed < targetSpeed) {
+    controlSpeed += velocityStep;
+  } else {
+    controlSpeed -= velocityStep;
+  }
+  if (car.speed > targetSpeed) {
+    controlSpeed -= velocityStep;
+  }
+
+  // rudimentary control of target lateral offset
+  targetOffsetLat = getLaneDisplacement(targetLaneIndex);
+  if (currentOffsetLat < targetOffsetLat) {
+    currentOffsetLat += offsetLatStep;
+  } else {
+    currentOffsetLat -= offsetLatStep;
+  }
+}
+
 void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
                           const mapWaypoints &map,
                           vector<vector<double>> sensor_fusion) {
@@ -202,23 +222,8 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
     }
   }
 
-  // rudimentary controlling of velocity
-  if (controlSpeed < targetSpeed) {
-    controlSpeed += velocityStep;
-  } else {
-    controlSpeed -= velocityStep;
-  }
-  if (car.speed > targetSpeed) {
-    controlSpeed -= velocityStep;
-  }
-
-  // rudimentary control of target lateral offset
-  targetOffsetLat = getLaneDisplacement(targetLaneIndex);
-  if (currentOffsetLat < targetOffsetLat) {
-    currentOffsetLat += offsetLatStep;
-  } else {
-    currentOffsetLat -= offsetLatStep;
-  }
+  // rudimentary controlling
+  control(car);
 
   // calc trajectory
   pointXY reference;
