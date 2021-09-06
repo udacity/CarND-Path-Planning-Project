@@ -195,9 +195,8 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   }
 }
 
-void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
-                          const mapWaypoints &map,
-                          vector<vector<double>> sensor_fusion) {
+void calc(points &nextPoints, egoVehicle &car, const mapWaypoints &map,
+          vector<vector<double>> sensor_fusion) {
   // calc best lane
   calcLane(car, sensor_fusion);
 

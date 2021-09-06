@@ -88,9 +88,7 @@ int main() {
            *   sequentially every .02 seconds
            */
           points nextPoints;
-          // straight(nextPoints, car);
-          // stayInLane(nextPoints, car, map);
-          stayInLaneWithSpline(nextPoints, car, map, sensor_fusion);
+          calc(nextPoints, car, map, sensor_fusion);
 
           json msgJson;
           msgJson["next_x"] = nextPoints.x;
