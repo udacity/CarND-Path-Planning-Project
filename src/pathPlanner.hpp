@@ -41,6 +41,46 @@ void stayInLane(points &nextPoints, const egoVehicle &car,
   }
 }
 
+void calcNextPoints(points &nextPoints, const int &prev_size,
+                    const egoVehicle &car, const tk::spline &spline,
+                    const pointXY &reference, const double &ref_yaw) {
+  // define the actual (x,y) points we will use for the planer
+  // start with all of the previous path points from last time
+  for (int i = 0; i < prev_size; i++) {
+    nextPoints.x.push_back(car.previous_path_x[i]);
+    nextPoints.y.push_back(car.previous_path_y[i]);
+  }
+
+  // Fill up the rest of our path planner after filling it with previous
+  // points, here we will always output 50 points
+  const int numberOfOutputPoints = 50;
+  double x_add_on = 0;
+  double distancePerCycle = getTravelledDistance(controlSpeed);
+  double delta = distancePerCycle / 1000;
+  for (int i = 1; i <= numberOfOutputPoints - prev_size; i++) {
+    double target_dist = 0.0;
+    while (target_dist < distancePerCycle) {
+      double x1 = x_add_on;
+      double y1 = spline(x1);
+      x_add_on += delta;
+      double y2 = spline(x_add_on);
+      target_dist += distance(x1, y1, x_add_on, y2);
+    }
+    x_add_on -= delta;
+
+    pointXY newPoint;
+    newPoint.x = x_add_on;
+    newPoint.y = spline(newPoint.x);
+
+    // rotate back to normal after rotating it earlier
+    auto newPointTrans = calcRotation(newPoint, ref_yaw);
+    newPointTrans = calcTranslation(newPointTrans, reference);
+
+    nextPoints.x.push_back(newPointTrans.x);
+    nextPoints.y.push_back(newPointTrans.y);
+  }
+}
+
 void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
                           const mapWaypoints &map,
                           vector<vector<double>> sensor_fusion) {
@@ -176,41 +216,7 @@ void stayInLaneWithSpline(points &nextPoints, egoVehicle &car,
   // create a spline
   tk::spline spline(x, y);
 
-  // define the actual (x,y) points we will use for the planer
-  // start with all of the previous path points from last time
-  for (int i = 0; i < prev_size; i++) {
-    nextPoints.x.push_back(car.previous_path_x[i]);
-    nextPoints.y.push_back(car.previous_path_y[i]);
-  }
-
-  // Fill up the rest of our path planner after filling it with previous
-  // points, here we will always output 50 points
-  const int numberOfOutputPoints = 50;
-  double x_add_on = 0;
-  double distancePerCycle = getTravelledDistance(controlSpeed);
-  double delta = distancePerCycle / 1000;
-  for (int i = 1; i <= numberOfOutputPoints - prev_size; i++) {
-    double target_dist = 0.0;
-    while (target_dist < distancePerCycle) {
-      double x1 = x_add_on;
-      double y1 = spline(x1);
-      x_add_on += delta;
-      double y2 = spline(x_add_on);
-      target_dist += distance(x1, y1, x_add_on, y2);
-    }
-    x_add_on -= delta;
-
-    pointXY newPoint;
-    newPoint.x = x_add_on;
-    newPoint.y = spline(newPoint.x);
-
-    // rotate back to normal after rotating it earlier
-    auto newPointTrans = calcRotation(newPoint, ref_yaw);
-    newPointTrans = calcTranslation(newPointTrans, reference);
-
-    nextPoints.x.push_back(newPointTrans.x);
-    nextPoints.y.push_back(newPointTrans.y);
-  }
+  calcNextPoints(nextPoints, prev_size, car, spline, reference, ref_yaw);
 
   // Output debug variables
   std::cout << controlSpeed << ";" << car.speed << ";" << targetSpeed << ";"
