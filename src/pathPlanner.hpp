@@ -12,7 +12,7 @@ auto offsetLatStep = 0.5;
 
 // reference velocity to target [miles per hour]
 double controlSpeed = 0;
-const double maxVelocity = 47.5;
+const double maxVelocity = 49.5;
 double targetSpeed = maxVelocity;
 // 5m/s
 double velocityStep = 0.224;
