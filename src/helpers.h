@@ -49,13 +49,25 @@ double getTravelledDistance(const double velocity,
   return time * velocity / factorMilesPhToMperS;
 }
 
-enum laneIndex { left = 0, middle = 1, right = 2 };
+enum laneIndex { left = 0, middle = 1, right = 2, unkown = 3 };
 double laneWidth = 4.0;
+// start in lane 1
+auto targetLaneIndex = middle;
 double getLaneDisplacement(const laneIndex myLaneIndex,
                            const double laneWidth = laneWidth) {
   double center = laneWidth / 2;
   return (center + laneWidth * static_cast<int>(myLaneIndex));
 }
+auto targetOffsetLat = getLaneDisplacement(targetLaneIndex);
+auto controlOffsetLat = targetOffsetLat;
+auto offsetLatStep = 0.3;
+
+// reference velocity to target [miles per hour]
+double controlSpeed = 0;
+const double maxVelocity = 49.5;
+double targetSpeed = maxVelocity;
+// 5m/s
+double velocityStep = 0.224;
 
 struct points {
   vector<double> x;
@@ -119,6 +131,10 @@ struct object {
   double vy;
   // velocity in m/s
   double v;
+  // laneIndex
+  laneIndex currentlaneIndex;
+  // predicted s
+  double predS;
 
   object(vector<double> data) {
     id = data[0];
@@ -128,7 +144,16 @@ struct object {
     vy = data[4];
     sd.s = data[5];
     sd.d = data[6];
+    currentlaneIndex = unkown;
+    predS = 0.0;
   }
+};
+
+struct lane {
+  // object within critical distance
+  double isObjectBlocking;
+  // max velocity in m/s
+  double maxV = maxVelocity;
 };
 
 pointXY calcPreviousPoint(const pointXY point, const double yaw) {

@@ -70,6 +70,8 @@ int main() {
           car.sd.d = j[1]["d"];
           car.yaw = j[1]["yaw"];
           car.speed = j[1]["speed"];
+          car.currentlaneIndex =
+              static_cast<laneIndex>(floor(car.sd.d / laneWidth));
           // Previous path's end s and d values
           car.end_path_sd.s = j[1]["end_path_s"];
           car.end_path_sd.d = j[1]["end_path_d"];
@@ -108,7 +110,7 @@ int main() {
 
   h.onConnection([&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
     std::cout << "Connected!!!" << std::endl;
-    freopen("output.txt", "w", stdout);
+    // freopen("output.txt", "w", stdout);
   });
 
   h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,

@@ -4,19 +4,6 @@
 #include "helpers.h"
 #include "spline.h"
 
-// start in lane 1
-auto targetLaneIndex = middle;
-auto targetOffsetLat = getLaneDisplacement(targetLaneIndex);
-auto controlOffsetLat = targetOffsetLat;
-auto offsetLatStep = 0.3;
-
-// reference velocity to target [miles per hour]
-double controlSpeed = 0;
-const double maxVelocity = 49.5;
-double targetSpeed = maxVelocity;
-// 5m/s
-double velocityStep = 0.224;
-
 void calcNextPoints(points &nextPoints, const egoVehicle &car,
                     const tk::spline &spline, const poseXY &reference) {
   // define the actual (x,y) points we will use for the planer
@@ -139,59 +126,79 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
     egoPosition = car.end_path_sd.s;
   }
 
-  auto myLane = getLaneDisplacement(targetLaneIndex);
+  // predicted target vehicle shall be within certain range
+  // 50miles/h -> 22.352m/s
+  // using 1 second distance
+  double criticalDistance = 22.352;
+  double maxDistanceForRelevance = egoPosition + criticalDistance;
+  double minDistanceForRelevance = car.sd.s - criticalDistance;
 
-  // find ref_v to use and check if it's within range
-  bool too_close = false;
-  targetSpeed = maxVelocity;
+  // prepare objects
+  vector<object> objList;
   for (int i = 0; i < sensor_fusion.size(); i++) {
-    // car is in my lane
     object obj(sensor_fusion[i]);
-    if (obj.sd.d < (myLane + laneWidth / 2) &&
-        obj.sd.d > (myLane - laneWidth / 2)) {
-      obj.v = distance(0, 0, obj.vx, obj.vx);
 
-      // if using previous points can project s value out
-      // check s values greter than mine and s gap
-      double objPosition =
-          obj.sd.s + ((double)car.previous_path_x.size() * cycleTime * obj.v);
+    obj.v = distance(0, 0, obj.vx, obj.vx);
+    obj.currentlaneIndex = static_cast<laneIndex>(floor(obj.sd.d / laneWidth));
+    // predict obj to future
+    obj.predS =
+        obj.sd.s + ((double)car.previous_path_x.size() * cycleTime * obj.v);
 
-      // predicted target vehicle shall be within certain range
-      // 50miles/h -> 22.352m/s
-      // using 1 second distance
-      double criticalDistance = 22.352;
-      if ((objPosition > egoPosition) &&
-          ((objPosition - egoPosition) < criticalDistance)) {
-        // Do some logic here, lower reference velocity so we dont crash into
-        // the car infront of us, could also flag to try to change lanes,
-        too_close = true;
-        targetSpeed = obj.v;
-      }
+    // check if obj is within relevant distance
+    if ((obj.sd.s > minDistanceForRelevance) &&
+        (obj.predS < maxDistanceForRelevance)) {
+      objList.push_back(obj);
+    }
+
+    // std::cout << obj.id << ";" << obj.sd.s << ";" << obj.sd.d << ";" << obj.v
+    //           << ";";
+  }
+
+  // calc max speed per lane
+  lane lanes[3];
+  for (auto &obj : objList) {
+    if (lanes[obj.currentlaneIndex].maxV > obj.v) {
+      lanes[obj.currentlaneIndex].maxV = obj.v;
     }
   }
 
-  // do lane change
-  car.currentlaneIndex = static_cast<laneIndex>(car.sd.d / laneWidth);
-  if (too_close) {
-    // set lane change and wait.
-    if (car.currentlaneIndex == targetLaneIndex) {
-      // TODO: safe lane change is not ensured
-      switch (car.currentlaneIndex) {
-        case left:
-          targetLaneIndex = middle;
-          break;
-        case right:
-          targetLaneIndex = middle;
-          break;
-        case middle:
-          targetLaneIndex = left;
-          break;
-        default:
-          break;
-      }
+  std::cout << std::fixed << std::setprecision(1);
+  for (auto &lane : lanes) {
+    std::cout << lane.maxV << ";";
+  }
+  std::cout << std::endl;
+
+  // lane change done and still not maxVelocity possible
+  vector<laneIndex> possibleLanes;
+  bool isLaneChangeDone = car.currentlaneIndex == targetLaneIndex;
+  bool isLaneBlocked = lanes[car.currentlaneIndex].maxV < maxVelocity;
+  if ((isLaneChangeDone) && (isLaneBlocked)) {
+    switch (car.currentlaneIndex) {
+      case left:
+        possibleLanes.push_back(middle);
+        break;
+      case right:
+        possibleLanes.push_back(middle);
+        break;
+      case middle:
+        possibleLanes.push_back(left);
+        possibleLanes.push_back(right);
+        break;
+      default:
+        break;
     }
   }
 
+  for (auto &possibilities : possibleLanes) {
+    bool isNewLaneFree = lanes[possibilities].maxV == maxVelocity;
+    bool isNewLaneFaster =
+        lanes[targetLaneIndex].maxV < lanes[possibilities].maxV;
+    if (isNewLaneFree && isNewLaneFaster) {
+      targetLaneIndex = possibilities;
+    }
+  }
+
+  targetSpeed = lanes[targetLaneIndex].maxV;
   targetOffsetLat = getLaneDisplacement(targetLaneIndex);
 }
 
@@ -211,9 +218,11 @@ void calc(points &nextPoints, egoVehicle &car, const mapWaypoints &map,
   calcNextPoints(nextPoints, car, spline, reference);
 
   // Output debug variables
-  std::cout << controlSpeed << ";" << car.speed << ";" << targetSpeed << ";"
-            << car.sd.s << ";" << car.sd.d << ";" << car.xy.x << ";" << car.xy.y
-            << car.currentlaneIndex << ";" << targetLaneIndex << ";" << car.yaw;
+  // std::cout << controlSpeed << ";" << car.speed << ";" << targetSpeed << ";"
+  //           << car.sd.s << ";" << car.sd.d << ";" << car.xy.x << ";" <<
+  //           car.xy.y
+  //           << car.currentlaneIndex << ";" << targetLaneIndex << ";" <<
+  //           car.yaw;
 
-  std::cout << std::endl;
+  // std::cout << std::endl;
 }
