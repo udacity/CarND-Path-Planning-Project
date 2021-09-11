@@ -25,56 +25,26 @@ string hasData(string s) {
   return "";
 }
 
-//
-// Helper functions related to waypoints and converting from XY to Frenet
-//   or vice versa
-//
-
-// For converting back and forth between radians and degrees.
-constexpr double pi() { return M_PI; }
-double deg2rad(const double x) { return x * pi() / 180; }
-double rad2deg(const double x) { return x * 180 / pi(); }
-
-// Calculate distance between two points
-double distance(const double x1, const double y1, const double x2,
-                const double y2) {
-  return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
-}
+//////////////////////////////////////////////////////////////////////////
+// static parameter
+//////////////////////////////////////////////////////////////////////////
 
 const double cycleTime = 0.02;
 const double factorMilesPhToMperS = 2.24;
-
-double getTravelledDistance(const double velocity,
-                            const double time = cycleTime) {
-  return time * velocity / factorMilesPhToMperS;
-}
-
-enum laneIndex { left = 0, middle = 1, right = 2, unkown = 3 };
-double laneWidth = 4.0;
-// start in lane 1
-auto targetLaneIndex = middle;
-double getLaneDisplacement(const laneIndex myLaneIndex,
-                           const double laneWidth = laneWidth) {
-  double center = laneWidth / 2;
-  return (center + laneWidth * static_cast<int>(myLaneIndex));
-}
-auto targetOffsetLat = getLaneDisplacement(targetLaneIndex);
-auto controlOffsetLat = targetOffsetLat;
-auto offsetLatStep = 0.25;
-
-// 50miles/h -> 22.352m/s
-// using 1 second distance
-double criticalDistance = 22.352;
-
-double bufferDistanceBehindEgo = 10.0;
-double laneChangeDuration = 3.0;
-
-// reference velocity to target [miles per hour]
-double controlSpeed = 0;
+const double laneWidth = 4.0;
 const double maxVelocity = 49.5;
-double targetSpeed = maxVelocity;
-// 5m/s
-double velocityStep = 0.224;
+
+// tune controller
+const double velocityStep = 0.224;
+const auto offsetLatStep = 0.25;
+
+// tune the safety distance
+const double bufferDistanceBehindEgo = 10.0;
+const double laneChangeDuration = 3.0;
+
+//////////////////////////////////////////////////////////////////////////
+// geometric structures
+//////////////////////////////////////////////////////////////////////////
 
 struct points {
   vector<double> x;
@@ -100,6 +70,12 @@ struct path {
   vector<pointXY> xy;
   vector<pointSD> sd;
 };
+
+//////////////////////////////////////////////////////////////////////////
+// object structures
+//////////////////////////////////////////////////////////////////////////
+
+enum laneIndex { left = 0, middle = 1, right = 2, unkown = 3 };
 
 struct egoVehicle {
   // Main car's localization Data
@@ -160,11 +136,49 @@ struct object {
 };
 
 struct lane {
-  // object within critical distance
-  double isObjectBlocking;
   // max velocity in m/s
   double maxV = maxVelocity;
 };
+
+//////////////////////////////////////////////////////////////////////////
+// helpers
+//////////////////////////////////////////////////////////////////////////
+
+// For converting back and forth between radians and degrees.
+constexpr double pi() { return M_PI; }
+double deg2rad(const double x) { return x * pi() / 180; }
+double rad2deg(const double x) { return x * 180 / pi(); }
+
+// Calculate distance between two points
+double distance(const double x1, const double y1, const double x2,
+                const double y2) {
+  return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+}
+// Calculate driven distance
+double getTravelledDistance(const double velocity,
+                            const double time = cycleTime) {
+  return time * velocity / factorMilesPhToMperS;
+}
+// Calculate lane offset
+double getLaneDisplacement(const laneIndex myLaneIndex,
+                           const double laneWidth = laneWidth) {
+  double center = laneWidth / 2;
+  return (center + laneWidth * static_cast<int>(myLaneIndex));
+}
+
+//////////////////////////////////////////////////////////////////////////
+// dynamic parameter
+//////////////////////////////////////////////////////////////////////////
+// start in lane 1 with max speed
+auto targetLaneIndex = middle;
+auto targetOffsetLat = getLaneDisplacement(targetLaneIndex);
+auto controlOffsetLat = targetOffsetLat;
+double targetSpeed = maxVelocity;
+double controlSpeed = 0;
+
+//////////////////////////////////////////////////////////////////////////
+// mathematical operations with points
+//////////////////////////////////////////////////////////////////////////
 
 pointXY calcPreviousPoint(const pointXY point, const double yaw) {
   pointXY newPoint;
@@ -197,6 +211,11 @@ pointXY calcRotation(const pointXY pointA, const double yaw) {
   result.y = (pointA.x * sin(yaw) + pointA.y * cos(yaw));
   return result;
 }
+
+//////////////////////////////////////////////////////////////////////////
+// Helper functions related to waypoints and converting from XY to Frenet
+//   or vice versa
+//////////////////////////////////////////////////////////////////////////
 
 // Calculate closest waypoint to current x, y position
 int ClosestWaypoint(double x, double y, const vector<double> &maps_x,
