@@ -119,8 +119,6 @@ void control(const egoVehicle &car) {
   } else {
     controlSpeed -= velocityStep * factor;
   }
-  std::cout << factor << ";" << controlSpeed << ";";
-  std::cout << std::endl;
 
   // rudimentary control of target lateral offset
   if (controlOffsetLat < targetOffsetLat) {
@@ -172,10 +170,10 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
     }
   }
 
-  // std::cout << std::fixed << std::setprecision(1);
-  // for (auto &lane : lanes) {
-  //   std::cout << lane.maxV << ";";
-  // }
+  std::cout << std::fixed << std::setprecision(1);
+  for (auto &lane : lanes) {
+    std::cout << lane.maxV << ";";
+  }
 
   // determine which other lanes are available
   vector<laneIndex> possibleLanes;
@@ -211,9 +209,6 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   // calc control values
   targetSpeed = lanes[targetLaneIndex].maxV;
   targetOffsetLat = getLaneDisplacement(targetLaneIndex);
-
-  // std::cout << targetLaneIndex << ";" << targetSpeed << ";";
-  // std::cout << std::endl;
 }
 
 void calc(points &nextPoints, egoVehicle &car, const mapWaypoints &map,
@@ -232,10 +227,8 @@ void calc(points &nextPoints, egoVehicle &car, const mapWaypoints &map,
   calcNextPoints(nextPoints, car, spline, reference);
 
   // Output debug variables
-  // std::cout << controlSpeed << ";" << car.speed << ";" << targetSpeed << ";"
-  //           << car.sd.s << ";" << car.sd.d << ";" << car.xy.x << ";" <<
-  //           car.xy.y
-  //           << car.currentlaneIndex << ";" << targetLaneIndex << ";" <<
-  //           car.yaw;
-  // std::cout << std::endl;
+  std::cout << controlSpeed << ";" << car.speed << ";" << targetSpeed << ";"
+            << car.sd.s << ";" << car.sd.d << ";" << car.xy.x << ";" << car.xy.y
+            << car.currentlaneIndex << ";" << targetLaneIndex << ";" << car.yaw;
+  std::cout << std::endl;
 }

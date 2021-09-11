@@ -115,7 +115,7 @@ int main() {
     std::cout << "Connected!!!" << std::endl;
 
     // uncomment to log out into file
-    // freopen("output.txt", "w", stdout);
+    freopen("output.txt", "w", stdout);
   });
 
   h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,
