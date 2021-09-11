@@ -101,7 +101,7 @@ tk::spline calcSpline(poseXY &reference, const egoVehicle &car,
 }
 
 void control(const egoVehicle &car) {
-  // rudimentary controlling of velocity
+  // make the control dynamic
   double factor = 1;
   if (targetSpeed > car.speed) {
     if (car.speed != 0) {
@@ -110,13 +110,17 @@ void control(const egoVehicle &car) {
   } else {
     factor = car.speed / targetSpeed;
   }
-  factor = std::max(factor, 0.1);
+  factor = std::max(factor, 1.0);
   factor = std::min(factor, 5.0);
+
+  // rudimentary controlling of velocity
   if (controlSpeed < targetSpeed) {
     controlSpeed += velocityStep * factor;
   } else {
     controlSpeed -= velocityStep * factor;
   }
+  std::cout << factor << ";" << controlSpeed << ";";
+  std::cout << std::endl;
 
   // rudimentary control of target lateral offset
   if (controlOffsetLat < targetOffsetLat) {
@@ -127,38 +131,36 @@ void control(const egoVehicle &car) {
 }
 
 void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
-  // place the car at the end of the planned trajectory
-  double egoPosition = car.sd.s;
-  if (car.previous_path_x.size() > 0) {
-    egoPosition = car.end_path_sd.s;
-  }
-
   // predicted target vehicle shall be within certain range
-  // 50miles/h -> 22.352m/s
-  // using 1 second distance
-  double criticalDistance = 22.352;
-  double minDistanceForRelevance = car.sd.s - 5;
-  double maxDistanceForRelevance =
-      car.sd.s + getTravelledDistance(car.speed, 1.25);
+  car.predS = car.sd.s + getTravelledDistance(car.speed, laneChangeDuration);
 
   // prepare objects
   vector<object> objList;
   for (int i = 0; i < sensor_fusion.size(); i++) {
     object obj(sensor_fusion[i]);
 
-    obj.v = distance(0, 0, obj.vx, obj.vy);
+    obj.v = distance(0, 0, obj.vx, obj.vy) * factorMilesPhToMperS;
     obj.currentlaneIndex = static_cast<laneIndex>(floor(obj.sd.d / laneWidth));
     // predict obj to future
-    obj.predS =
-        obj.sd.s + ((double)car.previous_path_x.size() * cycleTime * obj.v);
+    obj.predS = obj.sd.s + getTravelledDistance(obj.v, laneChangeDuration);
 
     // check if obj is within relevant distance
-    bool isCurrentPosCritical = ((obj.sd.s > minDistanceForRelevance) &&
-                                 (obj.sd.s < maxDistanceForRelevance));
-    bool isPredPosCritical = ((obj.predS > minDistanceForRelevance) &&
-                              (obj.predS < maxDistanceForRelevance));
-    if (isCurrentPosCritical || isPredPosCritical) {
-      objList.push_back(obj);
+    bool isCurrentPosCritical =
+        ((obj.sd.s > (car.sd.s - bufferDistanceBehindEgo)) &&
+         (obj.sd.s < (car.sd.s + bufferDistanceBehindEgo)));
+    bool isPredPosCritical =
+        ((obj.predS > car.predS - bufferDistanceBehindEgo) &&
+         (obj.predS < car.predS + bufferDistanceBehindEgo));
+    bool isPathCritical = ((obj.sd.s > car.sd.s - bufferDistanceBehindEgo) &&
+                           (obj.predS < car.predS + bufferDistanceBehindEgo));
+    if (car.currentlaneIndex == obj.currentlaneIndex) {
+      if (isPathCritical) {
+        objList.push_back(obj);
+      }
+    } else {
+      if (isCurrentPosCritical || isPredPosCritical) {
+        objList.push_back(obj);
+      }
     }
 
     // std::cout << obj.id << ";" << obj.sd.s << ";" << obj.sd.d << ";" << obj.v
@@ -169,14 +171,14 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   lane lanes[3];
   for (auto &obj : objList) {
     if (lanes[obj.currentlaneIndex].maxV > obj.v) {
-      lanes[obj.currentlaneIndex].maxV = obj.v;
+      lanes[obj.currentlaneIndex].maxV = obj.v - 1.0;
     }
   }
 
-  std::cout << std::fixed << std::setprecision(1);
-  for (auto &lane : lanes) {
-    std::cout << lane.maxV << ";";
-  }
+  // std::cout << std::fixed << std::setprecision(1);
+  // for (auto &lane : lanes) {
+  //   std::cout << lane.maxV << ";";
+  // }
 
   // lane change done and still not maxVelocity possible
   vector<laneIndex> possibleLanes;
@@ -211,23 +213,23 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   targetSpeed = lanes[targetLaneIndex].maxV;
   targetOffsetLat = getLaneDisplacement(targetLaneIndex);
 
-  std::cout << targetLaneIndex << ";" << targetSpeed << ";";
-  std::cout << std::endl;
+  // std::cout << targetLaneIndex << ";" << targetSpeed << ";";
+  // std::cout << std::endl;
 }
 
 void calc(points &nextPoints, egoVehicle &car, const mapWaypoints &map,
           vector<vector<double>> sensor_fusion) {
-  // calc best lane
+  // choose best lane
   calcLane(car, sensor_fusion);
 
-  // rudimentary controlling
+  // rudimentary controlling long and lat
   control(car);
 
-  // calc trajectory
+  // calc trajectory for best lane
   poseXY reference;
   auto spline = calcSpline(reference, car, map);
 
-  // apply trajectory
+  // generate points out of trajectory
   calcNextPoints(nextPoints, car, spline, reference);
 
   // Output debug variables
@@ -236,6 +238,5 @@ void calc(points &nextPoints, egoVehicle &car, const mapWaypoints &map,
   //           car.xy.y
   //           << car.currentlaneIndex << ";" << targetLaneIndex << ";" <<
   //           car.yaw;
-
   // std::cout << std::endl;
 }

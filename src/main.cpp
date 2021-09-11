@@ -86,7 +86,7 @@ int main() {
           vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
 
           /**
-           * TODO: define a path made up of (x,y) points that the car will visit
+           * define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
           points nextPoints;

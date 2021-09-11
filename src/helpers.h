@@ -62,6 +62,13 @@ auto targetOffsetLat = getLaneDisplacement(targetLaneIndex);
 auto controlOffsetLat = targetOffsetLat;
 auto offsetLatStep = 0.25;
 
+// 50miles/h -> 22.352m/s
+// using 1 second distance
+double criticalDistance = 22.352;
+
+double bufferDistanceBehindEgo = 10.0;
+double laneChangeDuration = 3.0;
+
 // reference velocity to target [miles per hour]
 double controlSpeed = 0;
 const double maxVelocity = 49.5;
@@ -104,6 +111,9 @@ struct egoVehicle {
 
   // Previous path's end s and d values
   pointSD end_path_sd;
+
+  // predicted s
+  double predS;
 
   // Previous path data given to the Planner
   vector<double> previous_path_x;
