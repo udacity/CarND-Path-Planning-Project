@@ -137,8 +137,9 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   // 50miles/h -> 22.352m/s
   // using 1 second distance
   double criticalDistance = 22.352;
-  double maxDistanceForRelevance = egoPosition + criticalDistance;
-  double minDistanceForRelevance = car.sd.s - criticalDistance;
+  double minDistanceForRelevance = car.sd.s - 5;
+  double maxDistanceForRelevance =
+      car.sd.s + getTravelledDistance(car.speed, 1.25);
 
   // prepare objects
   vector<object> objList;
@@ -152,8 +153,11 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
         obj.sd.s + ((double)car.previous_path_x.size() * cycleTime * obj.v);
 
     // check if obj is within relevant distance
-    if ((obj.sd.s > minDistanceForRelevance) &&
-        (obj.predS < maxDistanceForRelevance)) {
+    bool isCurrentPosCritical = ((obj.sd.s > minDistanceForRelevance) &&
+                                 (obj.sd.s < maxDistanceForRelevance));
+    bool isPredPosCritical = ((obj.predS > minDistanceForRelevance) &&
+                              (obj.predS < maxDistanceForRelevance));
+    if (isCurrentPosCritical || isPredPosCritical) {
       objList.push_back(obj);
     }
 

@@ -60,7 +60,7 @@ double getLaneDisplacement(const laneIndex myLaneIndex,
 }
 auto targetOffsetLat = getLaneDisplacement(targetLaneIndex);
 auto controlOffsetLat = targetOffsetLat;
-auto offsetLatStep = 0.3;
+auto offsetLatStep = 0.25;
 
 // reference velocity to target [miles per hour]
 double controlSpeed = 0;
