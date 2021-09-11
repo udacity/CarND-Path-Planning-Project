@@ -75,6 +75,14 @@ struct path {
 // object structures
 //////////////////////////////////////////////////////////////////////////
 
+struct mapWaypoints {
+  vector<double> x;
+  vector<double> y;
+  vector<double> s;
+  vector<double> dx;
+  vector<double> dy;
+};
+
 enum laneIndex { left = 0, middle = 1, right = 2, unkown = 3 };
 
 struct egoVehicle {
@@ -94,14 +102,6 @@ struct egoVehicle {
   // Previous path data given to the Planner
   vector<double> previous_path_x;
   vector<double> previous_path_y;
-};
-
-struct mapWaypoints {
-  vector<double> x;
-  vector<double> y;
-  vector<double> s;
-  vector<double> dx;
-  vector<double> dy;
 };
 
 struct object {

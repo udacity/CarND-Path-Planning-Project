@@ -143,3 +143,38 @@ still be compilable with cmake and make./
 ## How to write a README
 A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
 
+## My Documentation
+
+I have started firstly to replicate the code which was shown and described in the Q&A video. By that I was able to have a first draft of algorithm where the ego vehicle was able to stay within a lane, adapt the velocity and change the lane to the left. From there on my own implementation started.
+
+First of all I refactored the code in such a way that that I have introduced structures for the ego vehicle, the other objects/vehicles and the map data and the road with three lanes (see helpers.hpp lines: 75-141).
+
+By that the main code could be structured in 4 steps (see pathPlanner.cpp lines: 214-233):
+1. choose best lane to travel with max possible speed
+2. with given longitudinal target speed and lateral target offset calculate smooth transitions values.
+3. generate a spline to travel to the chosen best lane
+4. evenly distribute points along the trajectory
+ 
+### 1. calcLane()
+First relevant vehicles are filtered out of the list of the sensor data. An object is relevant if it is in front of the ego vehicle or in a neighboring lane within a certain distance. In other words if the ego vehicle would hit the other vehicle it get's relevant.
+
+Then an association of those filtered objects to the three lanes are done. By that we can figure out the maximum speed per lane. e.g. if there is a vehicle on the right lane only with 30Miles/h then the lanes vector will have these values:
+{49.5,49.5,30.0}.
+
+After we know what the current situation on the road is, I am checking if the current ego lane itself cannot be driven with max speed. In that case I am collecting new lane possibilities (see: pathPlanner.cpp lines 179-197).
+
+Now the possibilities are filtered out if they are blocked by another vehicle and if the speed of the new lane would be faster than the own one. Remaining possibility would be the target lane and it's speed the target velocity.
+
+### 2. control()
+During the implementation i figured out that adapting the target velocity or the target lateral offset immediately would cause acceleration peaks. Therefore I have implemented a rudimentary controller. I tries to increase and decrease the current control value stepwise to achieve the target values. By that I am able to not exceed the acceleration/jerk/speed limits.
+
+### 3. calcSpline()
+The content of this function is same as from the Q&A video. First the last two points from the preceding path are taken. Then few points which are evenly distributed are added to the anchor point list. Those points are shifted to the cars orientation and location. From those shifted points the spline is finally generated.
+
+### 4.calcNextPoints()
+In the last step path-points for the simulator needs to be generated. As shown in the video the not-yet-executed points from the preceding path are added. The remaining once are calculated out of the spline. As the distance of two consecutive points determine the speed afterwards i have modified this part compared to solution in the video. In curves the approximation to use the distance on the axis itself get's very unreliable. It's actually required to determine the length of the path on the spline itself. That's why i have used a while loop to integrate the path length until the wished distance is reached. (see pathPlanner.cpp lines: 24-31). Those new points are transformed back to the worlds coordinate system and added to the nextPoints list.
+
+### Result
+With this solution the ego vehicle is able to travel at least 4.32 miles without incident.
+
+![My result](doc/Result.png "Result")
