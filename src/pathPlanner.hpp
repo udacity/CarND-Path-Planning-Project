@@ -131,14 +131,11 @@ void control(const egoVehicle &car) {
 }
 
 void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
-  // predicted target vehicle shall be within certain range
-  car.predS = car.sd.s + getTravelledDistance(car.speed, laneChangeDuration);
-
   // prepare objects
   vector<object> objList;
   for (int i = 0; i < sensor_fusion.size(); i++) {
     object obj(sensor_fusion[i]);
-
+    // calc velocity in miles per hour
     obj.v = distance(0, 0, obj.vx, obj.vy) * factorMilesPhToMperS;
     obj.currentlaneIndex = static_cast<laneIndex>(floor(obj.sd.d / laneWidth));
     // predict obj to future
@@ -180,7 +177,7 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   //   std::cout << lane.maxV << ";";
   // }
 
-  // lane change done and still not maxVelocity possible
+  // determine which other lanes are available
   vector<laneIndex> possibleLanes;
   bool isLaneChangeDone = car.currentlaneIndex == targetLaneIndex;
   bool isLaneBlocked = lanes[car.currentlaneIndex].maxV < maxVelocity;
@@ -201,6 +198,7 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
     }
   }
 
+  // check if new lane is better
   for (auto &possibilities : possibleLanes) {
     bool isNewLaneFree = lanes[possibilities].maxV == maxVelocity;
     bool isNewLaneFaster =
@@ -210,6 +208,7 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
     }
   }
 
+  // calc control values
   targetSpeed = lanes[targetLaneIndex].maxV;
   targetOffsetLat = getLaneDisplacement(targetLaneIndex);
 

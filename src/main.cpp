@@ -70,6 +70,9 @@ int main() {
           car.sd.d = j[1]["d"];
           car.yaw = j[1]["yaw"];
           car.speed = j[1]["speed"];
+          // predicted target vehicle shall be within certain range
+          car.predS =
+              car.sd.s + getTravelledDistance(car.speed, laneChangeDuration);
           car.currentlaneIndex =
               static_cast<laneIndex>(floor(car.sd.d / laneWidth));
           // Previous path's end s and d values
