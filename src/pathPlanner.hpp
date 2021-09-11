@@ -166,7 +166,6 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   for (auto &lane : lanes) {
     std::cout << lane.maxV << ";";
   }
-  std::cout << std::endl;
 
   // lane change done and still not maxVelocity possible
   vector<laneIndex> possibleLanes;
@@ -200,6 +199,9 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
 
   targetSpeed = lanes[targetLaneIndex].maxV;
   targetOffsetLat = getLaneDisplacement(targetLaneIndex);
+
+  std::cout << targetLaneIndex << ";" << targetSpeed << ";";
+  std::cout << std::endl;
 }
 
 void calc(points &nextPoints, egoVehicle &car, const mapWaypoints &map,

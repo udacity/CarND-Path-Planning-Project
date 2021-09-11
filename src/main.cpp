@@ -110,6 +110,8 @@ int main() {
 
   h.onConnection([&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
     std::cout << "Connected!!!" << std::endl;
+
+    // uncomment to log out into file
     // freopen("output.txt", "w", stdout);
   });
 
