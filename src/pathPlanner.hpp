@@ -102,13 +102,20 @@ tk::spline calcSpline(poseXY &reference, const egoVehicle &car,
 
 void control(const egoVehicle &car) {
   // rudimentary controlling of velocity
-  if (controlSpeed < targetSpeed) {
-    controlSpeed += velocityStep;
+  double factor = 1;
+  if (targetSpeed > car.speed) {
+    if (car.speed != 0) {
+      factor = targetSpeed / car.speed;
+    }
   } else {
-    controlSpeed -= velocityStep;
+    factor = car.speed / targetSpeed;
   }
-  if (car.speed > targetSpeed) {
-    controlSpeed -= velocityStep;
+  factor = std::max(factor, 0.1);
+  factor = std::min(factor, 5.0);
+  if (controlSpeed < targetSpeed) {
+    controlSpeed += velocityStep * factor;
+  } else {
+    controlSpeed -= velocityStep * factor;
   }
 
   // rudimentary control of target lateral offset
