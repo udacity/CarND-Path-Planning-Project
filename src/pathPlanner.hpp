@@ -138,7 +138,7 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   for (int i = 0; i < sensor_fusion.size(); i++) {
     object obj(sensor_fusion[i]);
 
-    obj.v = distance(0, 0, obj.vx, obj.vx);
+    obj.v = distance(0, 0, obj.vx, obj.vy);
     obj.currentlaneIndex = static_cast<laneIndex>(floor(obj.sd.d / laneWidth));
     // predict obj to future
     obj.predS =
