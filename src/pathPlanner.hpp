@@ -95,7 +95,7 @@ tk::spline calcSpline(poseXY &reference, const egoVehicle &car,
   }
 
   // create a spline
-  tk::spline spline(x, y);
+  tk::spline spline(x, y, tk::spline::cspline);
 
   return spline;
 }

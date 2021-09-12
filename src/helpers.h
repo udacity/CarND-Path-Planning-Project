@@ -36,7 +36,7 @@ const double maxVelocity = 49.5;
 
 // tune controller
 const double velocityStep = 0.224;
-const auto offsetLatStep = 0.25;
+const auto offsetLatStep = 0.2;
 
 // tune the safety distance
 const double bufferDistanceBehindEgo = 10.0;

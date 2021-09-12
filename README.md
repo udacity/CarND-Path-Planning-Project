@@ -181,3 +181,6 @@ With this solution the ego vehicle is able to travel at least 4.32 miles without
 
 2. Submission:
 The feedback in the first submission was that the ego vehicle is to close to the preceding vehicle. In the test rounds which I did in the simulation collision was not happening. But anyways i tuned two parameters in my code to allow more safety distance. This time I did record a video (see doc/Result_Video.mkv).
+
+3. Submission:
+The feedback in the second submission was that the max acceleration was exceeded. Again due to the randomness of the simulator, i was neither able to reproduce such a problem on my local PC nor within the workspace. Anyway I decreased the lateral offset within my code achieve in general lesser lateral acceleration.
