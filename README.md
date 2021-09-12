@@ -175,6 +175,9 @@ The content of this function is same as from the Q&A video. First the last two p
 In the last step path-points for the simulator needs to be generated. As shown in the video the not-yet-executed points from the preceding path are added. The remaining once are calculated out of the spline. As the distance of two consecutive points determine the speed afterwards i have modified this part compared to solution in the video. In curves the approximation to use the distance on the axis itself get's very unreliable. It's actually required to determine the length of the path on the spline itself. That's why i have used a while loop to integrate the path length until the wished distance is reached. (see pathPlanner.cpp lines: 24-31). Those new points are transformed back to the worlds coordinate system and added to the nextPoints list.
 
 ### Result
+1. Submission:
 With this solution the ego vehicle is able to travel at least 4.32 miles without incident.
-
 ![My result](doc/Result.png "Result")
+
+2. Submission:
+The feedback in the first submission was that the ego vehicle is to close to the preceding vehicle. In the test rounds which I did in the simulation collision was not happening. But anyways i tuned two parameters in my code to allow more safety distance. This time I did record a video (see doc/Result_Video.mkv).
