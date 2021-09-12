@@ -166,7 +166,7 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   lane lanes[3];
   for (auto &obj : objList) {
     if (lanes[obj.currentlaneIndex].maxV > obj.v) {
-      lanes[obj.currentlaneIndex].maxV = obj.v - 1.0;
+      lanes[obj.currentlaneIndex].maxV = obj.v - decreaseObjectVelocity;
     }
   }
 
@@ -207,7 +207,7 @@ void calcLane(egoVehicle &car, vector<vector<double>> sensor_fusion) {
   }
 
   // calc control values
-  targetSpeed = lanes[targetLaneIndex].maxV;
+  targetSpeed = lanes[car.currentlaneIndex].maxV;
   targetOffsetLat = getLaneDisplacement(targetLaneIndex);
 }
 

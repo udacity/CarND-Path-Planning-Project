@@ -41,6 +41,7 @@ const auto offsetLatStep = 0.25;
 // tune the safety distance
 const double bufferDistanceBehindEgo = 10.0;
 const double laneChangeDuration = 3.0;
+const double decreaseObjectVelocity = 5.0;
 
 //////////////////////////////////////////////////////////////////////////
 // geometric structures
